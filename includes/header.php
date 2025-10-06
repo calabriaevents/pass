@@ -5,6 +5,8 @@ require_once __DIR__ . '/config.php';
 // Controllo modalità manutenzione (solo per pagine pubbliche)
 require_once __DIR__ . '/maintenance_check.php';
 ?>
+<!-- Upload Progress CSS -->
+<link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/upload-progress.css">
 <!-- Header -->
 <header class="bg-gradient-to-r from-blue-600 via-teal-500 to-yellow-500 text-white">
     <!-- Top Bar -->
