@@ -27,7 +27,7 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
     <div class="relative bg-gray-800 text-white">
         <div class="h-96 md:h-[500px] w-full">
             <?php if ($hero_image): ?>
-                <img src="/<?php echo htmlspecialchars($hero_image); ?>" alt="Hero image for <?php echo $activity_name; ?>" class="absolute inset-0 w-full h-full object-cover">
+                <img src="image-proxy.php?file=<?php echo htmlspecialchars($hero_image); ?>" alt="Hero image for <?php echo $activity_name; ?>" class="absolute inset-0 w-full h-full object-cover">
             <?php endif; ?>
         </div>
 
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <?php foreach($gallery_images as $image): ?>
                         <a href="/<?php echo htmlspecialchars($image); ?>" target="_blank" class="block group">
-                            <img src="/<?php echo htmlspecialchars($image); ?>" alt="Galleria immagine" class="w-full h-40 object-cover rounded-lg group-hover:opacity-80 transition-opacity shadow-md">
+                            <img src="image-proxy.php?file=<?php echo htmlspecialchars($image); ?>" alt="Galleria immagine" class="w-full h-40 object-cover rounded-lg group-hover:opacity-80 transition-opacity shadow-md">
                         </a>
                         <?php endforeach; ?>
                     </div>

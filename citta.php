@@ -184,9 +184,15 @@ $cityCount = count($cities);
                     $articleCount = $db->getArticleCountByCity($city['id']);
                 ?>
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 group">
-                    <div class="aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-blue-500 to-teal-600">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-gray-200">
+                        <?php if (!empty($city['hero_image'])): ?>
+                        <img src="image-proxy.php?file=<?php echo htmlspecialchars($city['hero_image']); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                        <?php else: ?>
                         <!-- City Image Placeholder -->
-                        <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-teal-600"></div>
+                        <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-teal-600 flex items-center justify-center">
+                            <i data-lucide="image" class="w-16 h-16 text-white/50"></i>
+                        </div>
+                        <?php endif; ?>
                         
                         <!-- Province Badge -->
                         <div class="absolute top-4 left-4">

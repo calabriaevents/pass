@@ -24,55 +24,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $author = $_POST['author'] ?? 'Admin';
     $posted_json_data = $_POST['json_data'] ?? [];
 
-    // --- File Upload Handling ---
-    $uploadDirArticles = '../uploads/articles/';
-    $uploadDirMenus = '../uploads/menus/';
-    if (!is_dir($uploadDirArticles)) mkdir($uploadDirArticles, 0755, true);
-    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+    // --- Secure File Upload Handling ---
 
-    // Helper function for single file upload
-    function uploadSingleFile($file, $prefix, $uploadDir, $allowedExtensions) {
-        if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = $prefix . uniqid() . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    return str_replace('../', '', $uploadDir) . $fileName;
-                }
-            }
+    // Helper function to process and save an uploaded image securely as WebP
+    function processAndSaveImage($file) {
+        if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
+            return null; // No file uploaded or upload error
         }
+
+        // Ensure GD library is available
+        if (!extension_loaded('gd') || !function_exists('imagecreatefromstring')) {
+            error_log("Image Processing Error: GD Library is not available.");
+            return null;
+        }
+
+        $tmpPath = $file['tmp_name'];
+        $sourceImage = @imagecreatefromstring(file_get_contents($tmpPath));
+
+        if ($sourceImage === false) {
+            error_log("Image Processing Error: Could not create image from file: " . $file['name']);
+            return null;
+        }
+
+        // Generate a unique filename with .webp extension
+        $newFileName = 'article_' . uniqid() . bin2hex(random_bytes(4)) . '.webp';
+        $destinationPath = SECURE_UPLOAD_PATH . $newFileName;
+
+        // Convert to WebP, save with compression (quality 80/100), and strip metadata
+        if (imagewebp($sourceImage, $destinationPath, 80)) {
+            imagedestroy($sourceImage);
+            return $newFileName; // Success: return just the new filename
+        }
+
+        imagedestroy($sourceImage);
+        error_log("Image Processing Error: Failed to save image as WebP to " . $destinationPath);
         return null;
     }
 
-    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    $featured_image = uploadSingleFile($_FILES['featured_image'] ?? null, 'featured_', $uploadDirArticles, $imageExtensions);
-    $hero_image = uploadSingleFile($_FILES['hero_image'] ?? null, 'hero_', $uploadDirArticles, $imageExtensions);
-    $logo = uploadSingleFile($_FILES['logo'] ?? null, 'logo_', $uploadDirArticles, $imageExtensions);
+    // Process uploaded images
+    $featured_image = processAndSaveImage($_FILES['featured_image'] ?? null);
+    $hero_image = processAndSaveImage($_FILES['hero_image'] ?? null);
+    $logo = processAndSaveImage($_FILES['logo'] ?? null);
 
-    // Handle Menu PDF upload and add it to JSON data
-    $menu_pdf = uploadSingleFile($_FILES['menu_pdf'] ?? null, 'menu_', $uploadDirMenus, ['pdf']);
-    if ($menu_pdf) {
-        $posted_json_data['menu_pdf_path'] = $menu_pdf;
+    // Handle Menu PDF upload (remains unchanged as it's not an image for processing)
+    $uploadDirMenus = '../uploads/menus/';
+    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+
+    $menu_pdf = null;
+    if (isset($_FILES['menu_pdf']) && $_FILES['menu_pdf']['error'] === UPLOAD_ERR_OK) {
+        $pdf_ext = strtolower(pathinfo($_FILES['menu_pdf']['name'], PATHINFO_EXTENSION));
+        if ($pdf_ext === 'pdf') {
+            $pdf_filename = 'menu_' . uniqid() . '.pdf';
+            $pdf_target_path = $uploadDirMenus . $pdf_filename;
+            if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $pdf_target_path)) {
+                $menu_pdf = str_replace('../', '', $uploadDirMenus) . $pdf_filename;
+                $posted_json_data['menu_pdf_path'] = $menu_pdf;
+            }
+        }
     }
 
-    // Handle gallery images upload
+    // Handle gallery images upload with new processing function
     $gallery_images = null;
     if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
         $galleryPaths = [];
         foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
-            if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
-                $fileExtension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                if (in_array($fileExtension, $imageExtensions)) {
-                    $fileName = 'gallery_' . uniqid() . '.' . $fileExtension;
-                    $targetPath = $uploadDirArticles . $fileName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $galleryPaths[] = 'uploads/articles/' . $fileName;
-                    }
-                }
+            // Reconstruct the file array for the processing function
+            $gallery_file = [
+                'name' => $_FILES['gallery_images']['name'][$key],
+                'type' => $_FILES['gallery_images']['type'][$key],
+                'tmp_name' => $tmpName,
+                'error' => $_FILES['gallery_images']['error'][$key],
+                'size' => $_FILES['gallery_images']['size'][$key]
+            ];
+
+            if ($new_gallery_filename = processAndSaveImage($gallery_file)) {
+                $galleryPaths[] = $new_gallery_filename;
             }
         }
         if (!empty($galleryPaths)) {
+            // Store the gallery filenames as a JSON array in the database
             $gallery_images = json_encode($galleryPaths);
         }
     }
@@ -176,7 +206,7 @@ if ($action === 'delete' && $id) {
                             <td class="py-3 px-2">
                                 <div class="flex items-center space-x-3">
                                     <?php if (!empty($article['featured_image'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-cover rounded-lg border">
+                                    <img src="../image-proxy.php?file=<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-cover rounded-lg border">
                                     <?php else: ?>
                                     <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
                                         <i data-lucide="image" class="w-5 h-5 text-gray-400"></i>

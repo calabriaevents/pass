@@ -26,7 +26,7 @@ $articles = $db->getArticles();
                 <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                     <?php if ($article['featured_image']): ?>
                         <a href="articolo.php?slug=<?php echo $article['slug']; ?>">
-                            <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-full h-48 object-cover">
+                            <img src="image-proxy.php?file=<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-full h-48 object-cover">
                         </a>
                     <?php endif; ?>
                     <div class="p-6">

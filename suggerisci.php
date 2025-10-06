@@ -7,65 +7,66 @@ $form_error = false;
 $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $place_name = trim($_POST['place_name'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $user_name = trim($_POST['user_name'] ?? '');
-    $user_email = trim($_POST['user_email'] ?? '');
+    // 1. Verifica del token CSRF
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        die('Errore di validazione CSRF.');
+    }
+
+    // Funzione per il processamento sicuro delle immagini
+    function processAndSaveImage($file) {
+        if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) return null;
+        if (!extension_loaded('gd') || !function_exists('imagecreatefromstring')) return null;
+        $sourceImage = @imagecreatefromstring(file_get_contents($file['tmp_name']));
+        if ($sourceImage === false) return null;
+
+        $newFileName = 'suggestion_' . uniqid() . bin2hex(random_bytes(4)) . '.webp';
+        $destinationPath = SECURE_UPLOAD_PATH . $newFileName;
+
+        if (imagewebp($sourceImage, $destinationPath, 80)) {
+            imagedestroy($sourceImage);
+            return $newFileName;
+        }
+        imagedestroy($sourceImage);
+        return null;
+    }
+
+    // 2. Sanitizzazione e validazione degli input
+    $place_name = sanitize($_POST['place_name'] ?? '');
+    $location = sanitize($_POST['location'] ?? '');
+    $description = sanitize($_POST['description'] ?? '');
+    $user_name = sanitize($_POST['user_name'] ?? '');
+    $user_email = sanitize($_POST['user_email'] ?? '');
     $image_paths = [];
 
-    // Gestione dell'upload delle immagini
+    // Gestione dell'upload sicuro delle immagini
     if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
-        $upload_dir = 'uploads/suggestions/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-        $max_file_size = 5 * 1024 * 1024; // 5 MB
-
         foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
-            $file_name = $_FILES['place_images']['name'][$key];
-            $file_size = $_FILES['place_images']['size'][$key];
-            $file_type = $_FILES['place_images']['type'][$key];
-            $file_error = $_FILES['place_images']['error'][$key];
-
-            if ($file_error === UPLOAD_ERR_OK) {
-                if (in_array($file_type, $allowed_types) && $file_size <= $max_file_size) {
-                    $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                    $new_file_name = uniqid('suggestion_', true) . '.' . $file_extension;
-                    $destination = $upload_dir . $new_file_name;
-
-                    if (move_uploaded_file($tmp_name, $destination)) {
-                        $image_paths[] = $destination;
-                    } else {
-                        $form_error = true;
-                        $error_message = 'Errore durante lo spostamento del file.';
-                    }
-                } else {
-                    $form_error = true;
-                    $error_message = 'Tipo di file non consentito o dimensione eccessiva.';
-                }
-            } elseif ($file_error !== UPLOAD_ERR_NO_FILE) {
-                $form_error = true;
-                $error_message = 'Errore durante il caricamento del file.';
+            $file = [
+                'name' => $_FILES['place_images']['name'][$key],
+                'type' => $_FILES['place_images']['type'][$key],
+                'tmp_name' => $tmp_name,
+                'error' => $_FILES['place_images']['error'][$key],
+                'size' => $_FILES['place_images']['size'][$key]
+            ];
+            if ($new_filename = processAndSaveImage($file)) {
+                $image_paths[] = $new_filename;
             }
         }
     }
 
-    if (!$form_error && !empty($place_name) && !empty($location) && !empty($description) && !empty($user_name) && !empty($user_email) && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+    if (!empty($place_name) && !empty($location) && !empty($description) && !empty($user_name) && !empty($user_email) && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
         $db = new Database();
-        // Converte l'array di percorsi delle immagini in una stringa JSON
         $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
         $db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json);
         $form_submitted = true;
     } else {
         $form_error = true;
-        if (empty($error_message)) {
-            $error_message = 'Per favore, compila tutti i campi correttamente.';
-        }
+        $error_message = 'Per favore, compila tutti i campi correttamente.';
     }
 }
+
+// Genera un nuovo token CSRF per il form
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -97,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 <?php endif; ?>
                 <form action="suggerisci.php" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                     <div class="mb-4">
                         <label for="place_name" class="block text-gray-700 font-bold mb-2">Nome del Luogo</label>
                         <input type="text" name="place_name" id="place_name" class="w-full px-3 py-2 border rounded-lg" required>

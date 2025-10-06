@@ -6,9 +6,15 @@ $form_submitted = false;
 $form_error = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $message = trim($_POST['message'] ?? '');
+    // 1. Verifica del token CSRF
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        die('Errore di validazione CSRF.');
+    }
+
+    // 2. Sanitizzazione e validazione degli input
+    $name = sanitize($_POST['name'] ?? '');
+    $email = sanitize($_POST['email'] ?? '');
+    $message = sanitize($_POST['message'] ?? '');
 
     if (!empty($name) && !empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($message)) {
         // Qui andrebbe il codice per inviare l'email
@@ -18,6 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $form_error = true;
     }
 }
+
+// Genera un nuovo token CSRF per il form
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -49,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 <?php endif; ?>
                 <form action="contatti.php" method="POST">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                     <div class="mb-4">
                         <label for="name" class="block text-gray-700 font-bold mb-2">Nome</label>
                         <input type="text" name="name" id="name" class="w-full px-3 py-2 border rounded-lg" required>

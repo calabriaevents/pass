@@ -55,8 +55,16 @@ try {
     // Gestione errore silenzioso per province
 }
 
+// Genera un nuovo token CSRF per il form
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
 // Gestione del form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 1. Verifica del token CSRF
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        die('Errore di validazione CSRF.');
+    }
+
     try {
         // Validazione dati
         $name = sanitize($_POST['name'] ?? '');
@@ -244,6 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endif; ?>
                     
                     <form method="POST" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                         <!-- Dati principali -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>

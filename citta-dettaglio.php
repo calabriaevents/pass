@@ -21,6 +21,27 @@ if (!$city) {
 
 // Gestione upload foto utenti
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_photo') {
+
+    function processAndSaveImage($file) {
+        if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) return null;
+        if (!extension_loaded('gd') || !function_exists('imagecreatefromstring')) {
+            error_log("GD Library not available for user photo upload.");
+            return null;
+        }
+        $sourceImage = @imagecreatefromstring(file_get_contents($file['tmp_name']));
+        if ($sourceImage === false) return null;
+
+        $newFileName = 'user_photo_' . uniqid() . bin2hex(random_bytes(4)) . '.webp';
+        $destinationPath = SECURE_UPLOAD_PATH . $newFileName;
+
+        if (imagewebp($sourceImage, $destinationPath, 80)) {
+            imagedestroy($sourceImage);
+            return $newFileName;
+        }
+        imagedestroy($sourceImage);
+        return null;
+    }
+
     $user_name = trim($_POST['user_name'] ?? '');
     $user_email = trim($_POST['user_email'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -35,34 +56,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } elseif (empty($_FILES['photo']['name'])) {
         $upload_error = 'Seleziona una foto da caricare.';
     } else {
-        // Gestione upload file
-        $upload_dir = 'uploads/user_photos/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
+        $new_photo_filename = processAndSaveImage($_FILES['photo']);
         
-        $file_extension = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            $upload_error = 'Formato file non supportato. Usa JPG, PNG, GIF o WebP.';
-        } elseif ($_FILES['photo']['size'] > 5 * 1024 * 1024) {
-            $upload_error = 'File troppo grande. Massimo 5MB.';
-        } else {
-            $filename = uniqid() . '_' . time() . '.' . $file_extension;
-            $upload_path = $upload_dir . $filename;
-            
-            if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
-                // Salva nel database
-                if ($db->createCityPhotoUpload($cityId, $user_name, $user_email, $upload_path, $_FILES['photo']['name'], $description)) {
-                    $success_message = 'Foto caricata con successo! Verrà pubblicata dopo la moderazione.';
-                } else {
-                    $upload_error = 'Errore nel salvare la foto nel database.';
-                    unlink($upload_path); // Rimuovi file se DB fallisce
-                }
+        if ($new_photo_filename) {
+            // Salva nel database solo il nome del file
+            if ($db->createCityPhotoUpload($cityId, $user_name, $user_email, $new_photo_filename, $_FILES['photo']['name'], $description)) {
+                $success_message = 'Foto caricata con successo! Verrà pubblicata dopo la moderazione.';
             } else {
-                $upload_error = 'Errore nel caricamento del file.';
+                $upload_error = 'Errore nel salvare la foto nel database.';
+                unlink(SECURE_UPLOAD_PATH . $new_photo_filename); // Rimuovi file se DB fallisce
             }
+        } else {
+            $upload_error = 'Errore nel caricamento o processamento del file.';
         }
     }
 }
@@ -185,7 +190,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>" 
+            <img src="<?php echo (strpos($heroImage, 'assets/') === 0) ? htmlspecialchars($heroImage) : 'image-proxy.php?file=' . htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
@@ -289,7 +294,7 @@ foreach ($settings as $setting) {
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
                             <?php foreach (array_slice($userPhotos, 0, 12) as $index => $photo): ?>
                             <div class="<?php echo ($index === 0) ? 'col-span-2 row-span-2' : ''; ?> group relative overflow-hidden rounded-2xl aspect-square">
-                                <img src="<?php echo htmlspecialchars($photo['image_path']); ?>" 
+                                <img src="image-proxy.php?file=<?php echo htmlspecialchars($photo['image_path']); ?>"
                                      alt="<?php echo htmlspecialchars($photo['description'] ?: $city['name']); ?>" 
                                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300"></div>
@@ -354,7 +359,7 @@ foreach ($settings as $setting) {
                                             <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block">
                                                 <div class="aspect-[16/9] bg-slate-200 overflow-hidden">
                                                     <?php if ($article['featured_image']): ?>
-                                                    <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" 
+                                                    <img src="image-proxy.php?file=<?php echo htmlspecialchars($article['featured_image']); ?>"
                                                          alt="<?php echo htmlspecialchars($article['title']); ?>" 
                                                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                                     <?php else: ?>

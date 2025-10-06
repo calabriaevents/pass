@@ -30,77 +30,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $gallery_images_json = $existingCity['gallery_images'] ?? null;
     }
 
-    // Gestione upload immagine hero
-    if (!empty($_FILES['hero_image']['name'])) {
-        $upload_dir = '../uploads/cities/hero/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
+    // --- Secure File Upload Handling ---
+
+    // Helper function to process and save an uploaded image securely as WebP
+    function processAndSaveImage($file) {
+        if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
+            return null;
         }
-        
-        $file_extension = strtolower(pathinfo($_FILES['hero_image']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            $upload_error = 'Formato file hero non supportato. Usa JPG, PNG, GIF o WebP.';
-        } elseif ($_FILES['hero_image']['size'] > 5 * 1024 * 1024) {
-            $upload_error = 'File hero troppo grande. Massimo 5MB.';
-        } else {
-            $filename = 'hero_' . uniqid() . '_' . time() . '.' . $file_extension;
-            $upload_path = $upload_dir . $filename;
-            
-            if (move_uploaded_file($_FILES['hero_image']['tmp_name'], $upload_path)) {
-                $hero_image_path = 'uploads/cities/hero/' . $filename;
-                // Elimina vecchia immagine se esiste
-                if ($existingCity && $existingCity['hero_image'] && file_exists('../' . $existingCity['hero_image'])) {
-                    unlink('../' . $existingCity['hero_image']);
-                }
-            } else {
-                $upload_error = 'Errore nel caricamento dell\'immagine hero.';
-            }
+        if (!extension_loaded('gd') || !function_exists('imagecreatefromstring')) {
+            error_log("Image Processing Error: GD Library is not available.");
+            return null;
         }
+        $sourceImage = @imagecreatefromstring(file_get_contents($file['tmp_name']));
+        if ($sourceImage === false) {
+            error_log("Image Processing Error: Could not create image from file: " . $file['name']);
+            return null;
+        }
+        $newFileName = 'city_' . uniqid() . bin2hex(random_bytes(4)) . '.webp';
+        $destinationPath = SECURE_UPLOAD_PATH . $newFileName;
+        if (imagewebp($sourceImage, $destinationPath, 80)) {
+            imagedestroy($sourceImage);
+            return $newFileName;
+        }
+        imagedestroy($sourceImage);
+        error_log("Image Processing Error: Failed to save image as WebP to " . $destinationPath);
+        return null;
     }
 
-    // Gestione upload galleria
-    if (!empty($_FILES['gallery_images']['name'][0])) {
-        $upload_dir = '../uploads/cities/gallery/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
+    // Process hero image
+    $new_hero_image = processAndSaveImage($_FILES['hero_image'] ?? null);
+    if ($new_hero_image) {
+        // If a new image is uploaded, delete the old one
+        if ($hero_image_path && file_exists(SECURE_UPLOAD_PATH . $hero_image_path)) {
+            unlink(SECURE_UPLOAD_PATH . $hero_image_path);
         }
+        $hero_image_path = $new_hero_image;
+    }
+
+    // Process gallery images
+    if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
+        $current_gallery = $gallery_images_json ? json_decode($gallery_images_json, true) : [];
         
-        $gallery_images = [];
-        if ($gallery_images_json) {
-            $gallery_images = json_decode($gallery_images_json, true) ?: [];
-        }
-        
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmp_name) {
-            if (!empty($tmp_name)) {
-                $file_extension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                
-                if (!in_array($file_extension, $allowed_extensions)) {
-                    $upload_error = 'Formato file galleria non supportato: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
-                } elseif ($_FILES['gallery_images']['size'][$key] > 5 * 1024 * 1024) {
-                    $upload_error = 'File galleria troppo grande: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
-                } else {
-                    $filename = 'gallery_' . uniqid() . '_' . time() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $filename;
-                    
-                    if (move_uploaded_file($tmp_name, $upload_path)) {
-                        $gallery_images[] = 'uploads/cities/gallery/' . $filename;
-                    } else {
-                        $upload_error = 'Errore nel caricamento di: ' . $_FILES['gallery_images']['name'][$key];
-                        break;
-                    }
-                }
+        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
+            $gallery_file = [
+                'name' => $_FILES['gallery_images']['name'][$key],
+                'type' => $_FILES['gallery_images']['type'][$key],
+                'tmp_name' => $tmpName,
+                'error' => $_FILES['gallery_images']['error'][$key],
+                'size' => $_FILES['gallery_images']['size'][$key]
+            ];
+
+            if ($new_gallery_filename = processAndSaveImage($gallery_file)) {
+                $current_gallery[] = $new_gallery_filename;
             }
         }
-        
-        if (empty($upload_error)) {
-            $gallery_images_json = json_encode($gallery_images);
-        }
+        $gallery_images_json = json_encode($current_gallery);
     }
 
     // Salvataggio nel database solo se non ci sono errori
@@ -130,9 +114,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_gallery_image'
             return $img !== $image_to_delete;
         });
         
-        // Elimina il file fisico
-        if (file_exists('../' . $image_to_delete)) {
-            unlink('../' . $image_to_delete);
+        // Elimina il file fisico dalla cartella sicura
+        if (file_exists(SECURE_UPLOAD_PATH . $image_to_delete)) {
+            unlink(SECURE_UPLOAD_PATH . $image_to_delete);
         }
         
         // Aggiorna il database
@@ -148,16 +132,16 @@ if ($action === 'delete' && $id) {
     // Elimina anche le immagini associate
     $city = $db->getCityById($id);
     if ($city) {
-        // Elimina hero image
-        if ($city['hero_image'] && file_exists('../' . $city['hero_image'])) {
-            unlink('../' . $city['hero_image']);
+        // Elimina hero image dalla cartella sicura
+        if ($city['hero_image'] && file_exists(SECURE_UPLOAD_PATH . $city['hero_image'])) {
+            unlink(SECURE_UPLOAD_PATH . $city['hero_image']);
         }
-        // Elimina galleria
+        // Elimina galleria dalla cartella sicura
         if ($city['gallery_images']) {
             $gallery_images = json_decode($city['gallery_images'], true) ?: [];
             foreach ($gallery_images as $image) {
-                if (file_exists('../' . $image)) {
-                    unlink('../' . $image);
+                if (file_exists(SECURE_UPLOAD_PATH . $image)) {
+                    unlink(SECURE_UPLOAD_PATH . $image);
                 }
             }
         }
@@ -350,7 +334,7 @@ if ($action === 'delete' && $id) {
                                     </td>
                                     <td class="py-4 px-6">
                                         <?php if ($city['hero_image']): ?>
-                                        <img src="../<?php echo htmlspecialchars($city['hero_image']); ?>" alt="Hero" class="w-12 h-8 object-cover rounded">
+                                        <img src="../image-proxy.php?file=<?php echo htmlspecialchars($city['hero_image']); ?>" alt="Hero" class="w-12 h-8 object-cover rounded">
                                         <?php else: ?>
                                         <span class="text-gray-400 text-sm">Nessuna</span>
                                         <?php endif; ?>
@@ -500,7 +484,7 @@ if ($action === 'delete' && $id) {
                                     <?php if ($cityData && $cityData['hero_image']): ?>
                                     <div class="mb-4">
                                         <p class="text-sm text-gray-600 mb-2">Immagine hero attuale:</p>
-                                        <img src="../<?php echo htmlspecialchars($cityData['hero_image']); ?>" alt="Hero attuale" class="w-32 h-20 object-cover rounded-lg border">
+                                        <img src="../image-proxy.php?file=<?php echo htmlspecialchars($cityData['hero_image']); ?>" alt="Hero attuale" class="w-32 h-20 object-cover rounded-lg border">
                                     </div>
                                     <?php endif; ?>
                                     
@@ -527,7 +511,7 @@ if ($action === 'delete' && $id) {
                                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             <?php foreach ($gallery_images as $image): ?>
                                             <div class="relative group">
-                                                <img src="../<?php echo htmlspecialchars($image); ?>" alt="Galleria" class="w-full h-24 object-cover rounded-lg border">
+                                                <img src="../image-proxy.php?file=<?php echo htmlspecialchars($image); ?>" alt="Galleria" class="w-full h-24 object-cover rounded-lg border">
                                                 <button type="button" onclick="deleteGalleryImage('<?php echo htmlspecialchars($image); ?>')" 
                                                         class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <i data-lucide="x" class="w-3 h-3"></i>

@@ -2,14 +2,10 @@
 // Configurazione generale
 define('SITE_NAME', 'Passione Calabria');
 define('SITE_DESCRIPTION', 'La tua guida alla Calabria');
-if (!defined('SITE_URL')) {
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $script_dir = str_replace(basename($_SERVER['SCRIPT_NAME']), '', $_SERVER['SCRIPT_NAME']);
-    // Rimuovi 'includes/' dal path se presente, dato che config.php è in 'includes'
-    $base_path = rtrim(preg_replace('/\/includes\/?$/', '/', $script_dir), '/');
-    define('SITE_URL', $protocol . $host . $base_path);
-}
+// URL del sito. Modificare con il dominio reale in produzione.
+// rtrim assicura che non ci sia uno slash finale, per coerenza quando si costruiscono i percorsi.
+// Per un ambiente di sviluppo locale, 'http://localhost' è un valore di default sicuro.
+define('SITE_URL', rtrim('http://localhost', '/')); // Esempio per produzione: 'https://www.tuodominio.com'
 define('ADMIN_EMAIL', 'admin@passionecalabria.it');
 
 // Configurazione database
@@ -17,6 +13,7 @@ define('DB_PATH', __DIR__ . '/../passione_calabria.db');
 
 // Configurazione upload
 define('UPLOAD_PATH', __DIR__ . '/../uploads/');
+define('SECURE_UPLOAD_PATH', __DIR__ . '/../protected_uploads/');
 define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
 
 // Configurazione sicurezza
