@@ -1,5 +1,98 @@
 // Passione Calabria - JavaScript Principale
 
+// Funzione per gestire l'invio di form con AJAX e loader
+function initAjaxForms() {
+    const forms = document.querySelectorAll('form.ajax-form');
+
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            const parentElement = submitButton ? submitButton.parentElement : form;
+            const loaderId = showLoading(parentElement);
+
+            const formData = new FormData(form);
+            const action = form.getAttribute('action');
+            const method = form.getAttribute('method') || 'POST';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open(method, action, true);
+
+            // Gestione della risposta
+            xhr.onload = function() {
+                hideLoading(parentElement, loaderId);
+                // Rimuovi la progress bar se esiste
+                const progressBarContainer = parentElement.querySelector('.progress-bar');
+                if (progressBarContainer) {
+                    progressBarContainer.remove();
+                }
+
+                let data;
+                try {
+                    // Controlla se la risposta è vuota
+                    if (xhr.responseText.trim() === '') {
+                        console.warn('Risposta JSON vuota dal server.');
+                        data = { success: false, message: 'Risposta vuota dal server.' };
+                    } else {
+                        data = JSON.parse(xhr.responseText);
+                    }
+                } catch (error) {
+                    console.error('Errore nel parsing JSON:', xhr.responseText);
+                    showNotification('Risposta del server non valida.', 'error');
+                    return;
+                }
+
+                if (data.success) {
+                    showNotification(data.message || 'Operazione completata con successo!', 'success');
+                    if (data.redirect_url) {
+                        // Aggiungi un piccolo ritardo per permettere all'utente di leggere la notifica
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url;
+                        }, 1500);
+                    }
+                } else {
+                    showNotification(data.message || 'Si è verificato un errore.', 'error');
+                }
+            };
+
+            // Gestione dell'errore
+            xhr.onerror = function() {
+                hideLoading(parentElement, loaderId);
+                console.error('Errore di rete.');
+                showNotification('Errore di connessione. Riprova più tardi.', 'error');
+            };
+
+            // Gestione del progresso (per upload di file)
+            const fileInput = form.querySelector('input[type="file"]');
+            if (fileInput && fileInput.files.length > 0) {
+                let progressBarContainer = document.createElement('div');
+                progressBarContainer.className = 'w-full bg-gray-200 rounded-full h-2.5 mt-2 progress-bar';
+                const progressBar = document.createElement('div');
+                progressBar.className = 'bg-blue-600 h-2.5 rounded-full transition-all duration-300';
+                progressBar.style.width = '0%';
+                progressBarContainer.appendChild(progressBar);
+
+                // Inserisci la progress bar dopo il pulsante di invio o alla fine del form
+                if (submitButton) {
+                    submitButton.parentNode.insertBefore(progressBarContainer, submitButton.nextSibling);
+                } else {
+                    form.appendChild(progressBarContainer);
+                }
+
+                xhr.upload.onprogress = function(event) {
+                    if (event.lengthComputable) {
+                        const percentComplete = (event.loaded / event.total) * 100;
+                        progressBar.style.width = percentComplete + '%';
+                    }
+                };
+            }
+
+            xhr.send(formData);
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Inizializza tutte le funzionalità
     initMobileMenu();
@@ -10,6 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initTooltips();
     initCategoriesSlider();
     initArticlesSliders();
+    initAjaxForms(); // Aggiungi questa linea
     
     // Inizializza mappa homepage se presente
     if (document.getElementById('homepage-map')) {

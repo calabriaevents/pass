@@ -2,17 +2,23 @@
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 
-$form_submitted = false;
-$form_error = false;
-$error_message = '';
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    $response = ['success' => false, 'message' => 'Errore sconosciuto.'];
+
     $place_name = trim($_POST['place_name'] ?? '');
     $location = trim($_POST['location'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $user_name = trim($_POST['user_name'] ?? '');
     $user_email = trim($_POST['user_email'] ?? '');
     $image_paths = [];
+
+    // Validazione dei campi di testo
+    if (empty($place_name) || empty($location) || empty($description) || empty($user_name) || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+        $response['message'] = 'Per favore, compila tutti i campi obbligatori correttamente.';
+        echo json_encode($response);
+        exit;
+    }
 
     // Gestione dell'upload delle immagini
     if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
@@ -21,51 +27,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mkdir($upload_dir, 0777, true);
         }
 
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         $max_file_size = 5 * 1024 * 1024; // 5 MB
 
         foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
+            if ($_FILES['place_images']['error'][$key] !== UPLOAD_ERR_OK) continue;
+
             $file_name = $_FILES['place_images']['name'][$key];
             $file_size = $_FILES['place_images']['size'][$key];
             $file_type = $_FILES['place_images']['type'][$key];
-            $file_error = $_FILES['place_images']['error'][$key];
 
-            if ($file_error === UPLOAD_ERR_OK) {
-                if (in_array($file_type, $allowed_types) && $file_size <= $max_file_size) {
-                    $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                    $new_file_name = uniqid('suggestion_', true) . '.' . $file_extension;
-                    $destination = $upload_dir . $new_file_name;
+            if (!in_array($file_type, $allowed_types)) {
+                $response['message'] = "Tipo di file non consentito: " . htmlspecialchars($file_name);
+                echo json_encode($response);
+                exit;
+            }
+            if ($file_size > $max_file_size) {
+                $response['message'] = "File troppo grande: " . htmlspecialchars($file_name);
+                echo json_encode($response);
+                exit;
+            }
 
-                    if (move_uploaded_file($tmp_name, $destination)) {
-                        $image_paths[] = $destination;
-                    } else {
-                        $form_error = true;
-                        $error_message = 'Errore durante lo spostamento del file.';
-                    }
-                } else {
-                    $form_error = true;
-                    $error_message = 'Tipo di file non consentito o dimensione eccessiva.';
-                }
-            } elseif ($file_error !== UPLOAD_ERR_NO_FILE) {
-                $form_error = true;
-                $error_message = 'Errore durante il caricamento del file.';
+            $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+            $new_file_name = uniqid('suggestion_', true) . '.' . $file_extension;
+            $destination = $upload_dir . $new_file_name;
+
+            if (move_uploaded_file($tmp_name, $destination)) {
+                $image_paths[] = $destination;
+            } else {
+                $response['message'] = 'Errore durante il salvataggio del file: ' . htmlspecialchars($file_name);
+                echo json_encode($response);
+                exit;
             }
         }
     }
 
-    if (!$form_error && !empty($place_name) && !empty($location) && !empty($description) && !empty($user_name) && !empty($user_email) && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-        $db = new Database();
-        // Converte l'array di percorsi delle immagini in una stringa JSON
-        $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
-        $db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json);
-        $form_submitted = true;
+    // Salvataggio nel database
+    $db = new Database();
+    $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
+    $success = $db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json);
+
+    if ($success) {
+        $response = ['success' => true, 'message' => 'Grazie per il tuo suggerimento! Il nostro team lo esaminerà al più presto.'];
     } else {
-        $form_error = true;
-        if (empty($error_message)) {
-            $error_message = 'Per favore, compila tutti i campi correttamente.';
-        }
+        $response['message'] = 'Si è verificato un errore durante il salvataggio del suggerimento. Riprova.';
     }
+
+    echo json_encode($response);
+    exit;
 }
+
+$form_submitted = false;
+$form_error = false;
+$error_message = '';
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -96,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p><?php echo $error_message; ?></p>
                     </div>
                 <?php endif; ?>
-                <form action="suggerisci.php" method="POST" enctype="multipart/form-data">
+                <form action="suggerisci.php" method="POST" enctype="multipart/form-data" class="ajax-form">
                     <div class="mb-4">
                         <label for="place_name" class="block text-gray-700 font-bold mb-2">Nome del Luogo</label>
                         <input type="text" name="place_name" id="place_name" class="w-full px-3 py-2 border rounded-lg" required>

@@ -102,13 +102,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
     }
 
-    header('Location: articoli.php');
+    // --- Risposta JSON per AJAX ---
+    header('Content-Type: application/json');
+    if ($action === 'edit') {
+        echo json_encode(['success' => true, 'message' => 'Articolo aggiornato con successo!', 'redirect_url' => 'articoli.php']);
+    } else {
+        echo json_encode(['success' => true, 'message' => 'Articolo creato con successo!', 'redirect_url' => 'articoli.php']);
+    }
     exit;
 }
 
 if ($action === 'delete' && $id) {
+    // Aggiungi la logica di eliminazione delle immagini qui se necessario
     $db->deleteArticle($id);
-    header('Location: articoli.php');
+
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'message' => 'Articolo eliminato con successo!', 'redirect_url' => 'articoli.php']);
     exit;
 }
 
@@ -213,12 +222,12 @@ if ($action === 'delete' && $id) {
                                         <i data-lucide="edit" class="w-3 h-3 mr-1"></i>
                                         Modifica
                                     </a>
-                                    <a href="articoli.php?action=delete&id=<?php echo $article['id']; ?>" 
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
-                                       onclick="return confirm('Sei sicuro di voler eliminare questo articolo? Tutte le immagini associate verranno eliminate.');">    
-                                        <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
-                                        Elimina
-                                    </a>
+                                    <form method="POST" action="articoli.php?action=delete&id=<?php echo $article['id']; ?>" class="ajax-form inline-flex" onsubmit="return confirm('Sei sicuro di voler eliminare questo articolo? Tutte le immagini associate verranno eliminate.');">
+                                        <button type="submit" class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors">
+                                            <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
+                                            Elimina
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -338,7 +347,7 @@ if ($action === 'delete' && $id) {
                     Categoria: <span class="font-bold text-blue-600"><?php echo htmlspecialchars($category_name); ?></span>
                 </p>
 
-                <form action="articoli.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data">
+                <form action="articoli.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data" class="ajax-form">
                     <input type="hidden" name="category_id" value="<?php echo htmlspecialchars($category_id); ?>">
                     <?php include $form_path; ?>
                     <div class="text-right mt-6 border-t pt-4">

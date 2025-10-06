@@ -9,10 +9,26 @@ $db = new Database();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $settings = $_POST['settings'] ?? [];
+    $all_saved = true;
     foreach ($settings as $key => $value) {
-        $db->setSetting($key, $value);
+        if (!$db->setSetting($key, $value)) {
+            $all_saved = false;
+        }
     }
-    header('Location: impostazioni.php?success=true');
+
+    header('Content-Type: application/json');
+    if ($all_saved) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Impostazioni salvate con successo!',
+            'redirect_url' => 'impostazioni.php'
+        ]);
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Si è verificato un errore durante il salvataggio di alcune impostazioni.'
+        ]);
+    }
     exit;
 }
 
@@ -183,7 +199,7 @@ function getFieldDescription($key) {
             </div>
             <?php endif; ?>
 
-            <form action="impostazioni.php" method="POST" class="space-y-8">
+            <form action="impostazioni.php" method="POST" class="space-y-8 ajax-form">
                 <?php foreach ($settingsGroups as $groupKey => $group): ?>
                     <?php if (!empty($group['settings'])): ?>
                     <!-- Settings Group -->

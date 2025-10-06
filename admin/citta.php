@@ -12,164 +12,134 @@ $id = $_GET['id'] ?? null;
 
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['city_name'] ?? '';
-    $province_id = $_POST['city_province_id'] ?? '';
-    $description = $_POST['city_description'] ?? '';
-    $latitude = !empty($_POST['city_latitude']) ? (float)$_POST['city_latitude'] : null;
-    $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
-    $google_maps_link = $_POST['city_google_maps_link'] ?? '';
+    header('Content-Type: application/json');
+    $response = ['success' => false, 'message' => 'Azione non riconosciuta.'];
 
-    $upload_error = '';
-    $hero_image_path = null;
-    $gallery_images_json = null;
-    
-    // Se è una modifica, recupera i dati esistenti
-    if ($action === 'edit' && $id) {
-        $existingCity = $db->getCityById($id);
-        $hero_image_path = $existingCity['hero_image'] ?? null;
-        $gallery_images_json = $existingCity['gallery_images'] ?? null;
-    }
-
-    // Gestione upload immagine hero
-    if (!empty($_FILES['hero_image']['name'])) {
-        $upload_dir = '../uploads/cities/hero/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        $file_extension = strtolower(pathinfo($_FILES['hero_image']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            $upload_error = 'Formato file hero non supportato. Usa JPG, PNG, GIF o WebP.';
-        } elseif ($_FILES['hero_image']['size'] > 5 * 1024 * 1024) {
-            $upload_error = 'File hero troppo grande. Massimo 5MB.';
-        } else {
-            $filename = 'hero_' . uniqid() . '_' . time() . '.' . $file_extension;
-            $upload_path = $upload_dir . $filename;
+    // Gestione eliminazione immagine galleria
+    if (isset($_POST['delete_gallery_image']) && $id) {
+        $city = $db->getCityById($id);
+        if ($city && $city['gallery_images']) {
+            $gallery_images = json_decode($city['gallery_images'], true) ?: [];
+            $image_to_delete = $_POST['delete_gallery_image'];
             
-            if (move_uploaded_file($_FILES['hero_image']['tmp_name'], $upload_path)) {
-                $hero_image_path = 'uploads/cities/hero/' . $filename;
-                // Elimina vecchia immagine se esiste
-                if ($existingCity && $existingCity['hero_image'] && file_exists('../' . $existingCity['hero_image'])) {
-                    unlink('../' . $existingCity['hero_image']);
+            $initial_count = count($gallery_images);
+            $gallery_images = array_filter($gallery_images, fn($img) => $img !== $image_to_delete);
+
+            if (count($gallery_images) < $initial_count) {
+                if (file_exists('../' . $image_to_delete)) {
+                    unlink('../' . $image_to_delete);
+                }
+                $gallery_images_json = json_encode(array_values($gallery_images));
+                $success = $db->updateCityExtended($id, $city['name'], $city['province_id'], $city['description'], $city['latitude'], $city['longitude'], $city['hero_image'], $city['google_maps_link'], $gallery_images_json);
+                if ($success) {
+                    $response = ['success' => true, 'message' => 'Immagine eliminata con successo.', 'redirect_url' => 'citta.php?action=edit&id=' . $id];
+                } else {
+                    $response['message'] = 'Errore durante l\'aggiornamento del database.';
                 }
             } else {
-                $upload_error = 'Errore nel caricamento dell\'immagine hero.';
+                $response['message'] = 'Immagine da eliminare non trovata.';
             }
         }
-    }
+    } else { // Gestione creazione/modifica città
+        $name = $_POST['city_name'] ?? '';
+        $province_id = $_POST['city_province_id'] ?? '';
+        $description = $_POST['city_description'] ?? '';
+        $latitude = !empty($_POST['city_latitude']) ? (float)$_POST['city_latitude'] : null;
+        $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
+        $google_maps_link = $_POST['city_google_maps_link'] ?? '';
 
-    // Gestione upload galleria
-    if (!empty($_FILES['gallery_images']['name'][0])) {
-        $upload_dir = '../uploads/cities/gallery/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
+        $upload_error = '';
+        $hero_image_path = null;
+        $gallery_images_json = null;
+        $existingCity = null;
+        
+        if ($action === 'edit' && $id) {
+            $existingCity = $db->getCityById($id);
+            $hero_image_path = $existingCity['hero_image'] ?? null;
+            $gallery_images_json = $existingCity['gallery_images'] ?? null;
         }
-        
-        $gallery_images = [];
-        if ($gallery_images_json) {
-            $gallery_images = json_decode($gallery_images_json, true) ?: [];
-        }
-        
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmp_name) {
-            if (!empty($tmp_name)) {
-                $file_extension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                
-                if (!in_array($file_extension, $allowed_extensions)) {
-                    $upload_error = 'Formato file galleria non supportato: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
-                } elseif ($_FILES['gallery_images']['size'][$key] > 5 * 1024 * 1024) {
-                    $upload_error = 'File galleria troppo grande: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
+
+        if (!empty($_FILES['hero_image']['name'])) {
+            $upload_dir = '../uploads/cities/hero/';
+            if (!file_exists($upload_dir)) mkdir($upload_dir, 0755, true);
+            $file_extension = strtolower(pathinfo($_FILES['hero_image']['name'], PATHINFO_EXTENSION));
+            if (!in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                $upload_error = 'Formato file hero non supportato.';
+            } elseif ($_FILES['hero_image']['size'] > 5 * 1024 * 1024) {
+                $upload_error = 'File hero troppo grande (max 5MB).';
+            } else {
+                $filename = 'hero_' . uniqid() . '.' . $file_extension;
+                if (move_uploaded_file($_FILES['hero_image']['tmp_name'], $upload_dir . $filename)) {
+                    if ($hero_image_path && file_exists('../' . $hero_image_path)) unlink('../' . $hero_image_path);
+                    $hero_image_path = 'uploads/cities/hero/' . $filename;
                 } else {
-                    $filename = 'gallery_' . uniqid() . '_' . time() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $filename;
-                    
-                    if (move_uploaded_file($tmp_name, $upload_path)) {
-                        $gallery_images[] = 'uploads/cities/gallery/' . $filename;
+                    $upload_error = 'Errore caricamento immagine hero.';
+                }
+            }
+        }
+
+        if (empty($upload_error) && !empty($_FILES['gallery_images']['name'][0])) {
+            $upload_dir = '../uploads/cities/gallery/';
+            if (!file_exists($upload_dir)) mkdir($upload_dir, 0755, true);
+            $gallery_images = $gallery_images_json ? json_decode($gallery_images_json, true) : [];
+            foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmp_name) {
+                if (!empty($tmp_name)) {
+                    $file_extension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
+                    if (!in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                        $upload_error = 'Formato file galleria non supportato: ' . $_FILES['gallery_images']['name'][$key]; break;
+                    } elseif ($_FILES['gallery_images']['size'][$key] > 5 * 1024 * 1024) {
+                        $upload_error = 'File galleria troppo grande: ' . $_FILES['gallery_images']['name'][$key]; break;
                     } else {
-                        $upload_error = 'Errore nel caricamento di: ' . $_FILES['gallery_images']['name'][$key];
-                        break;
+                        $filename = 'gallery_' . uniqid() . '.' . $file_extension;
+                        if (move_uploaded_file($tmp_name, $upload_dir . $filename)) {
+                            $gallery_images[] = 'uploads/cities/gallery/' . $filename;
+                        } else {
+                            $upload_error = 'Errore caricamento file: ' . $_FILES['gallery_images']['name'][$key]; break;
+                        }
                     }
                 }
             }
+            if (empty($upload_error)) $gallery_images_json = json_encode($gallery_images);
         }
-        
+
         if (empty($upload_error)) {
-            $gallery_images_json = json_encode($gallery_images);
-        }
-    }
-
-    // Salvataggio nel database solo se non ci sono errori
-    if (empty($upload_error)) {
-        if ($action === 'edit' && $id) {
-            $db->updateCityExtended($id, $name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            $success_message = "Città aggiornata con successo!";
+            if ($action === 'edit' && $id) {
+                $success = $db->updateCityExtended($id, $name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
+                $response = ['success' => $success, 'message' => $success ? 'Città aggiornata!' : 'Errore aggiornamento.', 'redirect_url' => 'citta.php'];
+            } else {
+                $success = $db->createCityExtended($name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
+                $response = ['success' => $success, 'message' => $success ? 'Città creata!' : 'Errore creazione.', 'redirect_url' => 'citta.php'];
+            }
         } else {
-            $db->createCityExtended($name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            $success_message = "Città creata con successo!";
+            $response['message'] = $upload_error;
         }
-        
-        header('Location: citta.php?' . http_build_query($_GET));
-        exit;
     }
-}
 
-// Gestione eliminazione immagine galleria
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_gallery_image']) && $id) {
-    $city = $db->getCityById($id);
-    if ($city && $city['gallery_images']) {
-        $gallery_images = json_decode($city['gallery_images'], true) ?: [];
-        $image_to_delete = $_POST['delete_gallery_image'];
-        
-        // Rimuovi l'immagine dall'array
-        $gallery_images = array_filter($gallery_images, function($img) use ($image_to_delete) {
-            return $img !== $image_to_delete;
-        });
-        
-        // Elimina il file fisico
-        if (file_exists('../' . $image_to_delete)) {
-            unlink('../' . $image_to_delete);
-        }
-        
-        // Aggiorna il database
-        $gallery_images_json = json_encode(array_values($gallery_images));
-        $db->updateCityExtended($id, $city['name'], $city['province_id'], $city['description'], $city['latitude'], $city['longitude'], $city['hero_image'], $city['google_maps_link'], $gallery_images_json);
-        
-        header('Location: citta.php?action=edit&id=' . $id);
-        exit;
-    }
+    echo json_encode($response);
+    exit;
 }
 
 if ($action === 'delete' && $id) {
-    // Elimina anche le immagini associate
     $city = $db->getCityById($id);
-    if ($city) {
-        // Elimina hero image
-        if ($city['hero_image'] && file_exists('../' . $city['hero_image'])) {
-            unlink('../' . $city['hero_image']);
-        }
-        // Elimina galleria
-        if ($city['gallery_images']) {
-            $gallery_images = json_decode($city['gallery_images'], true) ?: [];
-            foreach ($gallery_images as $image) {
-                if (file_exists('../' . $image)) {
-                    unlink('../' . $image);
+    $success = $db->deleteCity($id);
+
+    if ($success) {
+        if ($city) {
+            if ($city['hero_image'] && file_exists('../' . $city['hero_image'])) unlink('../' . $city['hero_image']);
+            if ($city['gallery_images']) {
+                $gallery_images = json_decode($city['gallery_images'], true) ?: [];
+                foreach ($gallery_images as $image) {
+                    if (file_exists('../' . $image)) unlink('../' . $image);
                 }
             }
         }
-    }
-    
-    $result = $db->deleteCity($id);
-    if (!$result) {
-        $error_message = 'Impossibile eliminare la città: ci sono articoli collegati.';
+        $message = "Città eliminata con successo!";
     } else {
-        $success_message = "Città eliminata con successo!";
+        $message = 'Impossibile eliminare la città: potrebbero esserci articoli collegati.';
     }
-    header('Location: citta.php');
+
+    header('Content-Type: application/json');
+    echo json_encode(['success' => $success, 'message' => $message, 'redirect_url' => 'citta.php']);
     exit;
 }
 
@@ -386,12 +356,12 @@ if ($action === 'delete' && $id) {
                                                 <i data-lucide="edit" class="w-4 h-4"></i>
                                                 <span>Modifica</span>
                                             </a>
-                                            <a href="?action=delete&id=<?php echo $city['id']; ?>" 
-                                               class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center space-x-1 transition-colors" 
-                                               onclick="return confirm('Sei sicuro di voler eliminare questa città? Questa azione eliminerà anche tutte le immagini associate e non può essere annullata.');">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                                <span>Elimina</span>
-                                            </a>
+                                            <form method="POST" action="?action=delete&id=<?php echo $city['id']; ?>" class="ajax-form inline-flex" onsubmit="return confirm('Sei sicuro di voler eliminare questa città? Questa azione eliminerà anche tutte le immagini associate e non può essere annullata.');">
+                                                <button type="submit" class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center space-x-1 transition-colors">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                    <span>Elimina</span>
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -441,7 +411,7 @@ if ($action === 'delete' && $id) {
 
                     <div class="p-6">
                         <div class="max-w-4xl mx-auto">
-                            <form action="?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data" class="space-y-8">
+                            <form action="?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data" class="space-y-8 ajax-form">
                                 
                                 <!-- Sezione Informazioni Base -->
                                 <div class="bg-slate-50 rounded-2xl p-6">
@@ -627,7 +597,7 @@ if ($action === 'delete' && $id) {
     </div>
 
     <!-- Form nascosto per eliminazione immagini galleria -->
-    <form id="deleteImageForm" method="POST" style="display: none;">
+    <form id="deleteImageForm" method="POST" style="display: none;" class="ajax-form">
         <input type="hidden" name="delete_gallery_image" id="imageToDelete">
     </form>
 

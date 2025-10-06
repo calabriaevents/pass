@@ -23,6 +23,7 @@ if (!$user_id || !$business_id) {
 
 // Gestione aggiornamento profilo
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
     try {
         // Dati Utente
         $user_name = sanitize($_POST['user_name'] ?? '');
@@ -66,11 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user_name'] = $user_name;
         $_SESSION['user_email'] = $user_email;
 
-        $message = "Profilo aggiornato con successo!";
+        echo json_encode(['success' => true, 'message' => 'Profilo aggiornato con successo!']);
 
     } catch (Exception $e) {
-        $error = $e->getMessage();
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
+    exit;
 }
 
 
@@ -112,7 +115,7 @@ if (!$user_data) {
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="user-profile.php" class="bg-white rounded-lg shadow-sm p-8 space-y-8">
+        <form method="POST" action="user-profile.php" class="bg-white rounded-lg shadow-sm p-8 space-y-8 ajax-form">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                     <i data-lucide="user" class="w-5 h-5 mr-3 text-blue-600"></i>

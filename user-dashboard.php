@@ -35,68 +35,70 @@ if (!$database_available) {
 
 // Handle subscription actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    header('Content-Type: application/json');
     $action = $_POST['action'];
 
     // Logout doesn't require database
     if ($action === 'logout') {
         session_destroy();
-        header('Location: user-auth.php');
+        echo json_encode(['success' => true, 'message' => 'Logout effettuato con successo.', 'redirect_url' => 'user-auth.php']);
         exit;
     }
 
     // Other actions require database connection
     if (!$database_available) {
-        $error = 'Azione non disponibile: sistema temporaneamente offline.';
-    } elseif ($action === 'upgrade' || $action === 'downgrade') {
+        echo json_encode(['success' => false, 'message' => 'Azione non disponibile: sistema temporaneamente offline.']);
+        exit;
+    }
+
+    if ($action === 'upgrade' || $action === 'downgrade') {
         $new_package_id = (int)$_POST['package_id'];
 
         if ($new_package_id > 0) {
-            // Controlla se il pacchetto è a pagamento
             $stmt = $db->pdo->prepare("SELECT price FROM business_packages WHERE id = ?");
             $stmt->execute([$new_package_id]);
             $package = $stmt->fetch();
             
             if ($package && $package['price'] > 0) {
-                // Pacchetto a pagamento: reindirizza a Stripe
                 $_SESSION['payment_operation'] = $action;
                 $_SESSION['payment_package_id'] = $new_package_id;
-                header('Location: api/dashboard-stripe-checkout.php');
-                exit;
+                echo json_encode(['success' => true, 'message' => 'Reindirizzamento a Stripe per il pagamento...', 'redirect_url' => 'api/dashboard-stripe-checkout.php']);
             } else {
-                // Pacchetto gratuito: processa direttamente
                 if ($db->upgradeSubscription($business_id, $new_package_id)) {
-                    $message = $action === 'upgrade' ?
-                        'Abbonamento aggiornato con successo!' :
-                        'Piano modificato con successo!';
+                    $message = $action === 'upgrade' ? 'Abbonamento aggiornato con successo!' : 'Piano modificato con successo!';
+                    echo json_encode(['success' => true, 'message' => $message, 'redirect_url' => 'user-dashboard.php']);
                 } else {
-                    $error = 'Errore durante la modifica dell\'abbonamento.';
+                    echo json_encode(['success' => false, 'message' => 'Errore durante la modifica dell\'abbonamento.']);
                 }
             }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'ID pacchetto non valido.']);
         }
-    } elseif ($action === 'buy_credits') { // NUOVA LOGICA PER ACQUISTO CREDITI
+    } elseif ($action === 'buy_credits') {
         $package_id = (int)$_POST['package_id'];
         if ($package_id > 0) {
-            // Controlla se il pacchetto crediti è a pagamento
             $stmt = $db->pdo->prepare("SELECT price FROM business_packages WHERE id = ? AND package_type = 'consumption'");
             $stmt->execute([$package_id]);
             $package = $stmt->fetch();
             
             if ($package && $package['price'] > 0) {
-                // Pacchetto a pagamento: reindirizza a Stripe
                 $_SESSION['payment_operation'] = 'buy_credits';
                 $_SESSION['payment_package_id'] = $package_id;
-                header('Location: api/dashboard-stripe-checkout.php');
-                exit;
+                echo json_encode(['success' => true, 'message' => 'Reindirizzamento a Stripe per il pagamento...', 'redirect_url' => 'api/dashboard-stripe-checkout.php']);
             } else {
-                // Pacchetto gratuito: processa direttamente
                 if ($db->purchaseCreditPackage($business_id, $package_id)) {
-                    $message = "Pacchetto crediti acquistato con successo!";
+                    echo json_encode(['success' => true, 'message' => 'Pacchetto crediti acquistato con successo!', 'redirect_url' => 'user-dashboard.php']);
                 } else {
-                    $error = "Errore durante l'acquisto dei crediti.";
+                    echo json_encode(['success' => false, 'message' => 'Errore durante l\'acquisto dei crediti.']);
                 }
             }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'ID pacchetto non valido.']);
         }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Azione non riconosciuta.']);
     }
+    exit;
 }
 
 // Get user and business info
@@ -199,7 +201,7 @@ if ($current_subscription && !empty($current_subscription['end_date'])) {
                         <p class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($business_data_missing ? 'Configurazione Incompleta' : $user_data['business_name']); ?></p>
                         <p class="text-xs text-gray-500"><?php echo htmlspecialchars($user_data['email']); ?></p>
                     </div>
-                    <form method="POST" class="inline">
+                    <form method="POST" action="user-dashboard.php" class="ajax-form">
                         <input type="hidden" name="action" value="logout">
                         <button type="submit" class="bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 transition-colors">
                             Esci
@@ -506,7 +508,7 @@ if ($current_subscription && !empty($current_subscription['end_date'])) {
                                         <?php if ($is_current): ?>
                                             <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Piano Attuale</span>
                                         <?php else: ?>
-                                            <form method="POST" class="inline">
+                                            <form method="POST" action="user-dashboard.php" class="ajax-form inline">
                                                 <input type="hidden" name="action" value="<?php echo $is_upgrade ? 'upgrade' : 'downgrade'; ?>">
                                                 <input type="hidden" name="package_id" value="<?php echo $package['id']; ?>">
                                                 <button type="submit"
@@ -549,7 +551,7 @@ if ($current_subscription && !empty($current_subscription['end_date'])) {
                                                 <span class="text-sm font-bold text-gray-900">€<?php echo number_format($package['price'], 2); ?></span>
                                             </div>
                                             <p class="text-xs text-gray-600 mb-3"><?php echo htmlspecialchars($package['description']); ?></p>
-                                            <form method="POST" class="inline">
+                                            <form method="POST" action="user-dashboard.php" class="ajax-form inline">
                                                 <input type="hidden" name="action" value="buy_credits">
                                                 <input type="hidden" name="package_id" value="<?php echo $package['id']; ?>">
                                                 <button type="submit" class="w-full text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded transition-colors" onclick="return confirm('Sei sicuro di voler acquistare questo pacchetto di crediti?')">

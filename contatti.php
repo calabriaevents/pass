@@ -2,22 +2,25 @@
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 
-$form_submitted = false;
-$form_error = false;
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $message = trim($_POST['message'] ?? '');
 
     if (!empty($name) && !empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($message)) {
-        // Qui andrebbe il codice per inviare l'email
-        // Per ora, mostriamo solo un messaggio di successo
-        $form_submitted = true;
+        // Qui andrebbe il codice per inviare l'email (es: mail() o PHPMailer)
+        // Per ora, simuliamo un successo.
+        echo json_encode(['success' => true, 'message' => 'Grazie! Il tuo messaggio è stato inviato con successo.']);
     } else {
-        $form_error = true;
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Per favore, compila tutti i campi correttamente.']);
     }
+    exit;
 }
+
+$form_submitted = false;
+$form_error = false;
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -48,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p>Per favore, compila tutti i campi correttamente.</p>
                     </div>
                 <?php endif; ?>
-                <form action="contatti.php" method="POST">
+                <form action="contatti.php" method="POST" class="ajax-form">
                     <div class="mb-4">
                         <label for="name" class="block text-gray-700 font-bold mb-2">Nome</label>
                         <input type="text" name="name" id="name" class="w-full px-3 py-2 border rounded-lg" required>

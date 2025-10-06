@@ -15,15 +15,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_status' && $id) {
         $status = $_POST['status'] ?? 'pending';
         $admin_notes = $_POST['admin_notes'] ?? null;
-        $db->updatePlaceSuggestionStatus($id, $status, $admin_notes);
-        header('Location: suggerimenti-luoghi.php');
+        $success = $db->updatePlaceSuggestionStatus($id, $status, $admin_notes);
+        $message = $success ? 'Stato del suggerimento aggiornato con successo!' : 'Errore durante l\'aggiornamento dello stato.';
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $success,
+            'message' => $message,
+            'redirect_url' => 'suggerimenti-luoghi.php'
+        ]);
         exit;
     }
 }
 
 if ($action === 'delete' && $id) {
-    $db->deletePlaceSuggestion($id);
-    header('Location: suggerimenti-luoghi.php');
+    $success = $db->deletePlaceSuggestion($id);
+    $message = $success ? 'Suggerimento eliminato con successo!' : 'Errore durante l\'eliminazione del suggerimento.';
+
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => $success,
+        'message' => $message,
+        'redirect_url' => 'suggerimenti-luoghi.php'
+    ]);
     exit;
 }
 
@@ -134,12 +148,12 @@ if ($action === 'delete' && $id) {
                                         <i data-lucide="eye" class="w-3 h-3 mr-1"></i>
                                         Visualizza
                                     </a>
-                                    <a href="suggerimenti-luoghi.php?action=delete&id=<?php echo $suggestion['id']; ?>" 
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
-                                       onclick="return confirm('Sei sicuro di voler eliminare questo suggerimento?');">    
-                                        <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
-                                        Elimina
-                                    </a>
+                                    <form method="POST" action="suggerimenti-luoghi.php?action=delete&id=<?php echo $suggestion['id']; ?>" class="ajax-form inline-flex" onsubmit="return confirm('Sei sicuro di voler eliminare questo suggerimento?');">
+                                        <button type="submit" class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors">
+                                            <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
+                                            Elimina
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -254,7 +268,7 @@ if ($action === 'delete' && $id) {
                 
                 <div class="mt-8 border-t pt-6">
                     <h3 class="font-semibold text-gray-800 mb-4">Gestisci Suggerimento</h3>
-                    <form action="suggerimenti-luoghi.php?action=update_status&id=<?php echo $suggestion['id']; ?>" method="POST">
+                    <form action="suggerimenti-luoghi.php?action=update_status&id=<?php echo $suggestion['id']; ?>" method="POST" class="ajax-form">
                         <div class="grid md:grid-cols-2 gap-4">
                             <div>
                                 <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Cambia Stato</label>

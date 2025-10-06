@@ -60,21 +60,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    if (empty($upload_error)) {
-        header('Location: province.php?' . http_build_query($_GET));
-        exit;
+    header('Content-Type: application/json');
+    if (empty($error_message)) {
+        $redirect_url = 'province.php';
+        if ($entity === 'gallery') {
+            $redirect_url = 'province.php?entity=gallery&action=manage&province_id=' . $province_id;
+        }
+        echo json_encode(['success' => true, 'message' => $success_message, 'redirect_url' => $redirect_url]);
+    } else {
+        echo json_encode(['success' => false, 'message' => $error_message]);
     }
+    exit;
 }
 
 if ($action === 'delete' && $id) {
+    $success = false;
     if ($entity === 'provinces') {
-        $db->deleteProvince($id);
-        $success_message = "Provincia eliminata con successo!";
+        $success = $db->deleteProvince($id);
+        $message = $success ? "Provincia eliminata con successo!" : "Errore durante l'eliminazione della provincia.";
+        $redirect_url = 'province.php';
     } elseif ($entity === 'gallery') {
-        $db->deleteProvinceGalleryImage($id);
-        $success_message = "Immagine eliminata dalla galleria con successo!";
+        $success = $db->deleteProvinceGalleryImage($id);
+        $message = $success ? "Immagine eliminata dalla galleria con successo!" : "Errore durante l'eliminazione dell'immagine.";
+        $redirect_url = 'province.php?entity=gallery&action=manage&province_id=' . ($_GET['province_id'] ?? '');
     }
-    header('Location: province.php?' . http_build_query(array_filter(['entity' => $_GET['entity'] ?? 'provinces', 'action' => $_GET['back_action'] ?? 'list', 'id' => $_GET['province_id'] ?? null])));
+
+    header('Content-Type: application/json');
+    echo json_encode(['success' => $success, 'message' => $message, 'redirect_url' => $redirect_url]);
     exit;
 }
 
@@ -255,12 +267,12 @@ if ($action === 'delete' && $id) {
                                                 <i data-lucide="images" class="w-4 h-4"></i>
                                                 <span>Galleria</span>
                                             </a>
-                                            <a href="?entity=provinces&action=delete&id=<?php echo $province['id']; ?>" 
-                                               class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center space-x-1 transition-colors" 
-                                               onclick="return confirm('Sei sicuro di voler eliminare questa provincia?');">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                                <span>Elimina</span>
-                                            </a>
+                                            <form method="POST" action="?entity=provinces&action=delete&id=<?php echo $province['id']; ?>" class="ajax-form inline-flex" onsubmit="return confirm('Sei sicuro di voler eliminare questa provincia?');">
+                                                <button type="submit" class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center space-x-1 transition-colors">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                    <span>Elimina</span>
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -309,7 +321,7 @@ if ($action === 'delete' && $id) {
 
                     <div class="p-6">
                         <div class="max-w-2xl mx-auto">
-                            <form action="?entity=provinces&action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data" class="space-y-6">
+                            <form action="?entity=provinces&action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data" class="space-y-6 ajax-form">
                                 <!-- Nome -->
                                 <div>
                                     <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">
@@ -449,12 +461,12 @@ if ($action === 'delete' && $id) {
                                         <span class="text-xs text-gray-500">
                                             <?php echo date('d/m/Y', strtotime($image['created_at'])); ?>
                                         </span>
-                                        <a href="?entity=gallery&action=delete&id=<?php echo $image['id']; ?>&province_id=<?php echo $province_id; ?>&back_action=manage" 
-                                           class="text-red-600 hover:text-red-700 font-semibold text-sm flex items-center space-x-1 transition-colors" 
-                                           onclick="return confirm('Sei sicuro di voler eliminare questa immagine?');">
-                                            <i data-lucide="trash-2" class="w-3 h-3"></i>
-                                            <span>Elimina</span>
-                                        </a>
+                                        <form method="POST" action="?entity=gallery&action=delete&id=<?php echo $image['id']; ?>&province_id=<?php echo $province_id; ?>&back_action=manage" class="ajax-form inline-flex" onsubmit="return confirm('Sei sicuro di voler eliminare questa immagine?');">
+                                            <button type="submit" class="text-red-600 hover:text-red-700 font-semibold text-sm flex items-center space-x-1 transition-colors">
+                                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                                <span>Elimina</span>
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
@@ -482,7 +494,7 @@ if ($action === 'delete' && $id) {
                     
                     <div class="p-6">
                         <div class="max-w-2xl mx-auto">
-                            <form action="?entity=gallery&action=add&province_id=<?php echo $province_id; ?>" method="POST" enctype="multipart/form-data" class="space-y-6">
+                            <form action="?entity=gallery&action=add&province_id=<?php echo $province_id; ?>" method="POST" enctype="multipart/form-data" class="space-y-6 ajax-form">
                                 <input type="hidden" name="province_id" value="<?php echo $province_id; ?>">
                                 
                                 <!-- Immagine -->

@@ -54,11 +54,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ]);
                     }
                     
-                    header('Location: business.php?action=manage_credits&id=' . $business_id . '&success=1');
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => true, 'message' => 'Crediti aggiornati con successo!', 'redirect_url' => 'business.php?action=manage_credits&id=' . $business_id]);
                     exit;
                 }
             } catch (Exception $e) {
-                $error = $e->getMessage();
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Errore: ' . $e->getMessage()]);
+                exit;
             }
         }
     } else {
@@ -73,20 +76,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $city_id = $_POST['city_id'] ?? null;
         $address = $_POST['address'] ?? '';
         $status = $_POST['status'] ?? 'pending';
+        $success = false;
 
         if ($action === 'edit' && $id) {
-            $db->updateBusiness($id, $name, $email, $phone, $website, $description, $category_id, $province_id, $city_id, $address, $status);
+            $success = $db->updateBusiness($id, $name, $email, $phone, $website, $description, $category_id, $province_id, $city_id, $address, $status);
+            $message = $success ? 'Business aggiornato con successo!' : 'Errore durante l\'aggiornamento del business.';
         } else {
-            $db->createBusiness($name, $email, $phone, $website, $description, $category_id, $province_id, $city_id, $address, $status);
+            $success = $db->createBusiness($name, $email, $phone, $website, $description, $category_id, $province_id, $city_id, $address, $status);
+            $message = $success ? 'Business creato con successo!' : 'Errore durante la creazione del business.';
         }
-        header('Location: business.php');
+
+        header('Content-Type: application/json');
+        echo json_encode(['success' => $success, 'message' => $message, 'redirect_url' => 'business.php']);
         exit;
     }
 }
 
 if ($action === 'delete' && $id) {
-    $db->deleteBusiness($id);
-    header('Location: business.php');
+    $success = $db->deleteBusiness($id);
+    $message = $success ? 'Business eliminato con successo!' : 'Errore durante l\'eliminazione del business.';
+    header('Content-Type: application/json');
+    echo json_encode(['success' => $success, 'message' => $message, 'redirect_url' => 'business.php']);
     exit;
 }
 
@@ -389,11 +399,11 @@ if ($action === 'delete' && $id) {
                                         </a>
                                         <?php endif; ?>
                                         
-                                        <a href="business.php?action=delete&id=<?php echo $business['id']; ?>" 
-                                           class="text-red-600 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Elimina"
-                                           onclick="return confirm('Sei sicuro di voler eliminare questo business?');">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </a>
+                                        <form method="POST" action="business.php?action=delete&id=<?php echo $business['id']; ?>" class="ajax-form inline-flex" onsubmit="return confirm('Sei sicuro di voler eliminare questo business?');">
+                                            <button type="submit" class="text-red-600 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Elimina">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -637,7 +647,7 @@ if ($action === 'delete' && $id) {
                 ?>
                 <div class="bg-white rounded-lg shadow-sm p-6">
                     <h2 class="text-lg font-semibold mb-4"><?php echo $action === 'edit' ? 'Modifica Business' : 'Nuovo Business'; ?></h2>
-                    <form action="business.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST">
+                    <form action="business.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" class="ajax-form">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label for="name" class="block text-gray-700 font-bold mb-2">Nome</label>
@@ -718,7 +728,7 @@ if ($action === 'delete' && $id) {
                     </button>
                 </div>
                 
-                <form action="business.php?action=update_credits" method="POST">
+                <form action="business.php?action=update_credits" method="POST" class="ajax-form">
                     <input type="hidden" name="purchase_id" id="modal_purchase_id">
                     <input type="hidden" name="business_id" value="<?php echo htmlspecialchars($id ?? ''); ?>">
                     

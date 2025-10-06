@@ -19,9 +19,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($subscription_id && $new_status) {
             $stmt = $db->pdo->prepare('UPDATE subscriptions SET status = ? WHERE id = ?');
-            $stmt->execute([$new_status, $subscription_id]);
-            
-            header('Location: abbonamenti.php?message=status_updated');
+            $success = $stmt->execute([$new_status, $subscription_id]);
+            $message = $success ? 'Stato dell\'abbonamento aggiornato con successo!' : 'Errore durante l\'aggiornamento dello stato.';
+
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => $success,
+                'message' => $message,
+                'redirect_url' => 'abbonamenti.php'
+            ]);
             exit;
         }
     }
@@ -396,7 +402,7 @@ $subscriptions = $stmt->fetchAll();
                                                 Cambia Stato
                                             </button>
                                             <div id="status-menu-<?php echo $subscription['id']; ?>" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10">
-                                                <form action="abbonamenti.php?action=update_status" method="POST" class="p-2">
+                                                <form action="abbonamenti.php?action=update_status" method="POST" class="p-2 ajax-form">
                                                     <input type="hidden" name="subscription_id" value="<?php echo $subscription['id']; ?>">
                                                     <button type="submit" name="status" value="active" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">✅ Attiva</button>
                                                     <button type="submit" name="status" value="cancelled" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">❌ Cancella</button>

@@ -137,7 +137,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             break;
     }
     
-    $success = true;
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true,
+        'message' => 'Sezione aggiornata con successo!',
+        'redirect_url' => 'gestione-home.php'
+    ]);
+    exit;
 }
 
 // Carica dati attuali
@@ -205,7 +211,7 @@ foreach ($settings as $setting) {
             <!-- Sezione Hero -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">🎯 Sezione Hero</h2>
-                <form action="" method="POST" enctype="multipart/form-data">
+                <form action="" method="POST" enctype="multipart/form-data" class="ajax-form">
                     <input type="hidden" name="action" value="update_hero">
                     
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -273,7 +279,7 @@ foreach ($settings as $setting) {
             <!-- Sezione Eventi/App Store -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">📱 Sezione Eventi & App Store</h2>
-                <form action="" method="POST" enctype="multipart/form-data">
+                <form action="" method="POST" enctype="multipart/form-data" class="ajax-form">
                     <input type="hidden" name="action" value="update_events">
                     
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -344,7 +350,7 @@ foreach ($settings as $setting) {
             <!-- Sezione Categorie -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">🏷️ Sezione Categorie</h2>
-                <form action="" method="POST">
+                <form action="" method="POST" class="ajax-form">
                     <input type="hidden" name="action" value="update_categories">
                     
                     <div class="space-y-4">
@@ -387,7 +393,7 @@ foreach ($settings as $setting) {
             <!-- Sezione Province -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">🏛️ Sezione Province</h2>
-                <form action="" method="POST">
+                <form action="" method="POST" class="ajax-form">
                     <input type="hidden" name="action" value="update_provinces">
                     
                     <div class="space-y-4">
@@ -425,7 +431,7 @@ foreach ($settings as $setting) {
             <!-- Sezione Mappa -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">🗺️ Sezione Mappa</h2>
-                <form action="" method="POST">
+                <form action="" method="POST" class="ajax-form">
                     <input type="hidden" name="action" value="update_map">
                     
                     <div class="space-y-4">
@@ -456,7 +462,7 @@ foreach ($settings as $setting) {
             <!-- Sezione CTA -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">📢 Sezione Call-to-Action</h2>
-                <form action="" method="POST">
+                <form action="" method="POST" class="ajax-form">
                     <input type="hidden" name="action" value="update_cta">
                     
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -520,7 +526,7 @@ foreach ($settings as $setting) {
             <!-- Sezione Newsletter -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">📧 Sezione Newsletter</h2>
-                <form action="" method="POST">
+                <form action="" method="POST" class="ajax-form">
                     <input type="hidden" name="action" value="update_newsletter">
                     
                     <div class="space-y-4">
@@ -580,7 +586,7 @@ foreach ($settings as $setting) {
             <!-- Sezione Social Media -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">📱 Social Media</h2>
-                <form action="" method="POST">
+                <form action="" method="POST" class="ajax-form">
                     <input type="hidden" name="action" value="update_social">
                     
                     <div class="space-y-4">
