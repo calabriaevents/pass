@@ -4,7 +4,13 @@ class ImageProcessor {
     private $upload_dir;
 
     public function __construct(string $base_dir = '../uploads/') {
-        $this->upload_dir = $base_dir;
+        // Adjust base_dir if the script is run from the root
+        if (strpos(getcwd(), 'admin') === false) {
+             $this->upload_dir = 'uploads/';
+        } else {
+             $this->upload_dir = $base_dir;
+        }
+
         if (!file_exists($this->upload_dir)) {
             mkdir($this->upload_dir, 0755, true);
         }
@@ -20,27 +26,23 @@ class ImageProcessor {
             mkdir($target_dir, 0755, true);
         }
 
-        // Sanitize filename and create a new name
         $original_name = pathinfo($file['name'], PATHINFO_FILENAME);
         $sanitized_name = preg_replace('/[^a-zA-Z0-9_-]/', '', $original_name);
         $new_filename = 'img_' . uniqid() . '_' . time() . '.webp';
         $upload_path = $target_dir . $new_filename;
 
-        // Create image resource from uploaded file
         $image = $this->createImageFromFile($file['tmp_name']);
         if (!$image) {
             return null;
         }
 
-        // Resize image
         $resized_image = $this->resizeImage($image, $max_width);
-        imagedestroy($image); // Free up memory
+        imagedestroy($image);
 
-        // Save as WebP
-        if (imagewebp($resized_image, $upload_path, 80)) { // 80 is quality
+        if (imagewebp($resized_image, $upload_path, 80)) {
             imagedestroy($resized_image);
-            // Return a web-accessible path, removing the leading '../'
-            return 'uploads/' . $subfolder . '/' . $new_filename;
+            // Return a path relative to the project root
+            return str_replace('../', '', $this->upload_dir) . $subfolder . '/' . $new_filename;
         }
 
         imagedestroy($resized_image);
@@ -48,7 +50,7 @@ class ImageProcessor {
     }
 
     private function createImageFromFile(string $filepath): GdImage|bool {
-        $image_info = getimagesize($filepath);
+        $image_info = @getimagesize($filepath);
         if (!$image_info) {
             return false;
         }
@@ -58,7 +60,11 @@ class ImageProcessor {
             case 'image/jpeg':
                 return imagecreatefromjpeg($filepath);
             case 'image/png':
-                return imagecreatefrompng($filepath);
+                $img = imagecreatefrompng($filepath);
+                imagepalettetotruecolor($img);
+                imagealphablending($img, true);
+                imagesavealpha($img, true);
+                return $img;
             case 'image/gif':
                 return imagecreatefromgif($filepath);
             case 'image/webp':
@@ -82,7 +88,6 @@ class ImageProcessor {
 
         $resized_image = imagecreatetruecolor($new_width, $new_height);
 
-        // Preserve transparency for PNGs and GIFs
         imagealphablending($resized_image, false);
         imagesavealpha($resized_image, true);
         $transparent = imagecolorallocatealpha($resized_image, 255, 255, 255, 127);
@@ -94,9 +99,10 @@ class ImageProcessor {
     }
 
     public function deleteImage(string $relative_path): bool {
-        // The relative path is expected to be like 'uploads/cities/hero/img_....webp'
-        // The script is likely run from a file in 'admin/', so '../' goes to the root.
-        $full_path = '../' . $relative_path;
+        // Path should be relative to the project root, e.g., 'uploads/cities/hero/img.webp'
+        if (empty($relative_path)) return false;
+
+        $full_path = dirname(__DIR__) . '/' . $relative_path;
         if (file_exists($full_path) && is_writable($full_path)) {
             return unlink($full_path);
         }

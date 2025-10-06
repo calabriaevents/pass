@@ -235,8 +235,6 @@ function initNewsletterForm() {
                 return;
             }
 
-            const loaderId = showLoading(form);
-
             // Invia richiesta
             fetch(this.action, {
                 method: 'POST',
@@ -254,14 +252,10 @@ function initNewsletterForm() {
             .catch(error => {
                 console.error('Errore:', error);
                 showNotification('Errore di connessione', 'error');
-            })
-            .finally(() => {
-                hideLoading(form, loaderId);
             });
         });
     });
 }
-
 
 // Lazy loading images
 function initLazyLoading() {
@@ -390,31 +384,27 @@ function debounce(func, wait) {
     };
 }
 
-// Loading state management - Improved version
+// Loading state management
 function showLoading(element) {
-    element.style.position = 'relative'; // Ensure parent is positioned for overlay
-    element.classList.add('opacity-70', 'pointer-events-none');
-
+    element.classList.add('opacity-50', 'pointer-events-none');
     const loader = document.createElement('div');
-    const loaderId = 'loading-' + Date.now();
-    loader.id = loaderId;
-
-    loader.className = 'absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg';
+    loader.className = 'absolute inset-0 flex items-center justify-center';
     loader.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>';
+    loader.id = 'loading-' + Date.now();
 
+    element.style.position = 'relative';
     element.appendChild(loader);
 
-    return loaderId;
+    return loader.id;
 }
 
 function hideLoading(element, loaderId) {
-    element.classList.remove('opacity-70', 'pointer-events-none');
+    element.classList.remove('opacity-50', 'pointer-events-none');
     const loader = document.getElementById(loaderId);
     if (loader) {
         loader.remove();
     }
 }
-
 
 // Form utilities
 function serializeForm(form) {
@@ -693,74 +683,65 @@ function initCategoriesSlider() {
     startAutoSlide();
 }
 
-// Homepage Map functionality - REMOVED
-// La mappa homepage viene gestita direttamente dal file index.php
-// per garantire che vengano mostrati SOLO i marker degli articoli
-
-// Map functionality placeholder
-function initMap(containerId, articles = []) {
-    console.log('Inizializzazione mappa per container:', containerId);
-    console.log('Articoli da visualizzare:', articles.length);
-
-    // Qui andrà l'implementazione della mappa con Leaflet
-    // Per ora mostra un placeholder
-    const container = document.getElementById(containerId);
-    if (container) {
-        container.innerHTML = `
-            <div class="w-full h-full bg-gradient-to-br from-blue-100 to-green-100 rounded-lg flex items-center justify-center">
-                <div class="text-center">
-                    <div class="w-16 h-16 mx-auto mb-4 text-blue-500">
-                        <svg fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                        </svg>
-                    </div>
-                    <p class="text-gray-600">Mappa interattiva della Calabria</p>
-                    <p class="text-sm text-gray-500">${articles.length} luoghi da esplorare</p>
-                </div>
-            </div>
-        `;
-    }
-}
-
-
-// --- GLOBAL FORM SUBMIT SPINNER ---
+// --- ADVANCED FORM HANDLING WITH UPLOAD PROGRESS ---
 
 /**
- * Creates and injects the CSS styles for the form loading spinner.
- * This ensures the feature is self-contained and doesn't require manual CSS file edits.
+ * Injects the CSS for the loading overlay and progress bar.
+ * This function ensures the styles are present in the document head.
  */
-function injectSpinnerStyles() {
-    const styleId = 'form-loading-spinner-styles';
-    if (document.getElementById(styleId)) return; // Styles already injected
+function injectUploadProgressStyles() {
+    const styleId = 'upload-progress-styles';
+    if (document.getElementById(styleId)) return;
 
     const styles = `
-        .form-loading-overlay {
-            position: fixed; /* Use fixed to cover the whole viewport */
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(255, 255, 255, 0.8);
-            z-index: 9999; /* High z-index to be on top of everything */
+        .upload-progress-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            -webkit-backdrop-filter: blur(3px);
-            backdrop-filter: blur(3px);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
         }
-        .form-loading-overlay .spinner {
-            width: 3.5rem; /* Slightly larger for better visibility */
-            height: 3.5rem;
-            border-top: 4px solid #3b82f6; /* Blue-600 */
-            border-right: 4px solid transparent;
+        .upload-progress-spinner {
+            width: 48px; height: 48px;
+            border: 5px solid #fff;
+            border-bottom-color: #3b82f6;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .upload-progress-text {
+            margin-top: 20px;
+            font-size: 1.25rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .upload-progress-bar-container {
+            width: 300px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        .upload-progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #3b82f6;
+            border-radius: 5px;
+            transition: width 0.2s ease-in-out;
         }
     `;
-
     const styleSheet = document.createElement('style');
     styleSheet.id = styleId;
     styleSheet.type = 'text/css';
@@ -769,40 +750,107 @@ function injectSpinnerStyles() {
 }
 
 /**
- * Shows a full-screen loading spinner.
+ * Handles form submissions with file uploads, showing a progress bar.
+ * @param {HTMLFormElement} form The form being submitted.
  */
-function showFullScreenSpinner() {
-    // First, ensure the styles are in the document
-    injectSpinnerStyles();
+function handleFormWithUploadProgress(form) {
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
 
-    // Create the overlay and spinner elements
+    // Create and show the progress overlay
+    injectUploadProgressStyles();
     const overlay = document.createElement('div');
-    overlay.className = 'form-loading-overlay';
-    overlay.innerHTML = '<div class="spinner"></div>';
+    overlay.className = 'upload-progress-overlay';
+    overlay.innerHTML = `
+        <div class="upload-progress-spinner"></div>
+        <div class="upload-progress-text">Caricamento... 0%</div>
+        <div class="upload-progress-bar-container">
+            <div class="upload-progress-bar" style="width: 0%;"></div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 
-    // Append to the body
+    const progressBar = overlay.querySelector('.upload-progress-bar');
+    const progressText = overlay.querySelector('.upload-progress-text');
+
+    xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            progressBar.style.width = percentComplete + '%';
+            progressText.textContent = `Caricamento... ${percentComplete}%`;
+        }
+    });
+
+    xhr.addEventListener('load', () => {
+        overlay.remove();
+        try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+                // If a redirect URL is provided, go there. Otherwise, show notification and reload.
+                if (response.redirect_url) {
+                    window.location.href = response.redirect_url;
+                } else {
+                    showNotification('Operazione completata con successo!', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                }
+            } else {
+                showNotification(response.error || 'Si è verificato un errore sconosciuto.', 'error');
+            }
+        } catch (e) {
+            console.error("Error parsing server response:", xhr.responseText);
+            showNotification('Errore nella risposta del server.', 'error');
+        }
+    });
+
+    xhr.addEventListener('error', () => {
+        overlay.remove();
+        showNotification('Errore di rete durante il caricamento.', 'error');
+    });
+
+    xhr.addEventListener('abort', () => {
+        overlay.remove();
+        showNotification('Caricamento annullato.', 'warning');
+    });
+
+    xhr.open('POST', form.action, true);
+    xhr.send(formData);
+}
+
+/**
+ * Shows a simple spinner for forms without file uploads.
+ */
+function showSimpleSpinner() {
+    injectUploadProgressStyles(); // Re-use the same styles for consistency
+    const overlay = document.createElement('div');
+    overlay.className = 'upload-progress-overlay';
+    overlay.innerHTML = `<div class="upload-progress-spinner"></div>`;
     document.body.appendChild(overlay);
 }
 
 /**
- * Initializes submit listeners for all standard (non-AJAX) forms.
+ * Initializes advanced handling for all forms on the page.
+ * It differentiates between forms with and without file uploads.
  */
-function initGlobalFormSpinners() {
-    // Select all forms, but exclude those we handle with custom AJAX logic (like the newsletter)
-    const allForms = document.querySelectorAll('form:not([action*="newsletter"])');
+function initAdvancedFormHandling() {
+    document.querySelectorAll('form').forEach(form => {
+        // Exclude newsletter form which has its own AJAX handler
+        if (form.action.includes('newsletter')) return;
 
-    allForms.forEach(form => {
-        form.addEventListener('submit', function() {
-            // Check for a specific class to bypass the spinner if needed
-            if (this.classList.contains('no-spinner')) {
-                return;
+        form.addEventListener('submit', function(e) {
+            // Check if the form has file inputs
+            const hasFileInputs = this.querySelector('input[type="file"]');
+
+            if (this.enctype === 'multipart/form-data' && hasFileInputs && hasFileInputs.files.length > 0) {
+                // Use progress bar uploader for forms with files
+                e.preventDefault();
+                handleFormWithUploadProgress(this);
+            } else {
+                // Use simple spinner for standard forms
+                showSimpleSpinner();
             }
-            showFullScreenSpinner();
         });
     });
 }
 
-// Add the new global initializer to the main DOMContentLoaded event
-document.addEventListener('DOMContentLoaded', function() {
-    initGlobalFormSpinners();
-});
+// Add the new initializer to the main DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', initAdvancedFormHandling);

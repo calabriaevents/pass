@@ -3,62 +3,66 @@ require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 require_once 'includes/image_processor.php'; // Includi il nuovo processore di immagini
 
-$form_submitted = false;
-$form_error = false;
-$error_message = '';
-
-$db = new Database();
-// Quando si istanzia dal root, il base_dir deve puntare direttamente alla cartella uploads
-$imageProcessor = new ImageProcessor('uploads/');
-
+// --- Gestione Richieste POST (AJAX) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $place_name = trim($_POST['place_name'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $user_name = trim($_POST['user_name'] ?? '');
-    $user_email = trim($_POST['user_email'] ?? '');
-    $image_paths = [];
+    header('Content-Type: application/json');
+    $db = new Database();
+    // Poiché questo script è nella root, il base_dir deve essere corretto
+    $imageProcessor = new ImageProcessor('uploads/');
 
-    // Gestione dell'upload delle immagini con ImageProcessor
-    if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
-        foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
-            if (!empty($tmp_name)) {
-                $file_data = [
-                    'name' => $_FILES['place_images']['name'][$key],
-                    'type' => $_FILES['place_images']['type'][$key],
-                    'tmp_name' => $tmp_name,
-                    'error' => $_FILES['place_images']['error'][$key],
-                    'size' => $_FILES['place_images']['size'][$key]
-                ];
+    try {
+        $place_name = trim($_POST['place_name'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $user_name = trim($_POST['user_name'] ?? '');
+        $user_email = trim($_POST['user_email'] ?? '');
 
-                $new_path = $imageProcessor->processUploadedImage($file_data, 'suggestions', 1280);
-                if ($new_path) {
-                    $image_paths[] = $new_path;
-                } else {
-                    $form_error = true;
-                    $error_message = 'Errore nel caricamento di un\'immagine: ' . htmlspecialchars($file_data['name']) . '. Assicurati che sia un formato valido.';
-                    break; // Interrompi al primo errore
+        // Validazione
+        if (empty($place_name) || empty($location) || empty($description) || empty($user_name) || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception('Per favore, compila tutti i campi obbligatori correttamente.');
+        }
+
+        $image_paths = [];
+        // Gestione upload con ImageProcessor
+        if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
+            foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
+                if (!empty($tmp_name)) {
+                    $file_data = [
+                        'name' => $_FILES['place_images']['name'][$key],
+                        'type' => $_FILES['place_images']['type'][$key],
+                        'tmp_name' => $tmp_name,
+                        'error' => $_FILES['place_images']['error'][$key],
+                        'size' => $_FILES['place_images']['size'][$key]
+                    ];
+                    $new_path = $imageProcessor->processUploadedImage($file_data, 'suggestions', 1280);
+                    if ($new_path) {
+                        $image_paths[] = $new_path;
+                    } else {
+                        throw new Exception('Errore nel caricamento di un\'immagine: ' . htmlspecialchars($file_data['name']));
+                    }
                 }
             }
         }
-    }
 
-    // Validazione e salvataggio nel database
-    if (!$form_error) {
-        if (empty($place_name) || empty($location) || empty($description) || empty($user_name) || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-            $form_error = true;
-            $error_message = 'Per favore, compila tutti i campi obbligatori correttamente.';
+        $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
+        if ($db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json)) {
+            // Per la risposta AJAX, inviamo un URL di successo che il JS potrà usare per reindirizzare.
+            echo json_encode(['success' => true, 'redirect_url' => 'suggerisci.php?success=1']);
         } else {
-            $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
-            if ($db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json)) {
-                $form_submitted = true;
-            } else {
-                $form_error = true;
-                $error_message = 'Si è verificato un errore nel salvataggio del suggerimento. Riprova più tardi.';
-            }
+            throw new Exception('Si è verificato un errore nel salvataggio del suggerimento.');
         }
+
+    } catch (Exception $e) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+    exit;
 }
+
+// --- Preparazione Dati per la Vista ---
+$form_submitted = isset($_GET['success']);
+$form_error = false; // L'errore viene gestito da JS, quindi non serve più qui
+$error_message = '';
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -84,36 +88,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p>Il nostro team lo esaminerà al più presto.</p>
                 </div>
             <?php else: ?>
-                <p class="text-gray-600 mb-6">Conosci un luogo, un monumento o una spiaggia speciale in Calabria che dovremmo assolutamente includere nel nostro portale? Segnalacelo compilando il modulo qui sotto!</p>
-                <?php if ($form_error): ?>
-                    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
-                        <p><?php echo htmlspecialchars($error_message); ?></p>
-                    </div>
-                <?php endif; ?>
-                <form action="suggerisci.php" method="POST" enctype="multipart/form-data" class="space-y-6">
-                    <div>
+                <p class="text-gray-600 mb-6">Conosci un luogo un Monumento una spiaggia speciale in Calabria che dovremmo assolutamente includere nel nostro portale? Segnalacelo compilando il modulo qui sotto!</p>
+                <form action="suggerisci.php" method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
                         <label for="place_name" class="block text-gray-700 font-bold mb-2">Nome del Luogo</label>
                         <input type="text" name="place_name" id="place_name" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
-                    <div>
+                    <div class="mb-4">
                         <label for="location" class="block text-gray-700 font-bold mb-2">Località (es. Comune, Provincia)</label>
                         <input type="text" name="location" id="location" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
-                    <div>
+                    <div class="mb-4">
                         <label for="description" class="block text-gray-700 font-bold mb-2">Descrizione</label>
                         <textarea name="description" id="description" rows="5" class="w-full px-3 py-2 border rounded-lg" required></textarea>
                     </div>
-                    <div>
+                    <div class="mb-4">
                         <label for="place_images" class="block text-gray-700 font-bold mb-2">Carica Immagini (opzionale)</label>
                         <input type="file" name="place_images[]" id="place_images" class="w-full px-3 py-2 border rounded-lg" multiple accept="image/*">
                         <p class="text-sm text-gray-500 mt-1">Puoi selezionare più immagini. Verranno convertite in WebP e ottimizzate.</p>
                     </div>
                     <hr class="my-6">
-                    <div>
+                    <div class="mb-4">
                         <label for="user_name" class="block text-gray-700 font-bold mb-2">Il tuo Nome</label>
                         <input type="text" name="user_name" id="user_name" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
-                    <div>
+                    <div class="mb-4">
                         <label for="user_email" class="block text-gray-700 font-bold mb-2">La tua Email</label>
                         <input type="email" name="user_email" id="user_email" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
