@@ -219,7 +219,6 @@ function scrollToTop() {
     });
 }
 
-// Newsletter form
 function initNewsletterForm() {
     const newsletterForms = document.querySelectorAll('form[action*="newsletter"]');
 
@@ -235,7 +234,8 @@ function initNewsletterForm() {
                 return;
             }
 
-            // Invia richiesta
+            const loaderId = showLoading(form); // MOSTRA LO SPINNER
+
             fetch(this.action, {
                 method: 'POST',
                 body: formData
@@ -252,6 +252,9 @@ function initNewsletterForm() {
             .catch(error => {
                 console.error('Errore:', error);
                 showNotification('Errore di connessione', 'error');
+            })
+            .finally(() => {
+                hideLoading(form, loaderId); // NASCONDE LO SPINNER
             });
         });
     });
@@ -384,22 +387,25 @@ function debounce(func, wait) {
     };
 }
 
-// Loading state management
+// Loading state management - Improved version
 function showLoading(element) {
-    element.classList.add('opacity-50', 'pointer-events-none');
-    const loader = document.createElement('div');
-    loader.className = 'absolute inset-0 flex items-center justify-center';
-    loader.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>';
-    loader.id = 'loading-' + Date.now();
+    element.style.position = 'relative'; // Ensure parent is positioned for overlay
+    element.classList.add('opacity-70', 'pointer-events-none');
 
-    element.style.position = 'relative';
+    const loader = document.createElement('div');
+    const loaderId = 'loading-' + Date.now();
+    loader.id = loaderId;
+
+    loader.className = 'absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg';
+    loader.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>';
+
     element.appendChild(loader);
 
-    return loader.id;
+    return loaderId;
 }
 
 function hideLoading(element, loaderId) {
-    element.classList.remove('opacity-50', 'pointer-events-none');
+    element.classList.remove('opacity-70', 'pointer-events-none');
     const loader = document.getElementById(loaderId);
     if (loader) {
         loader.remove();

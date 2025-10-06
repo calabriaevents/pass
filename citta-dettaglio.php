@@ -19,6 +19,9 @@ if (!$city) {
     exit;
 }
 
+// Carica la galleria di immagini della città
+$gallery_images = !empty($city['gallery_images']) ? json_decode($city['gallery_images'], true) : [];
+
 // Gestione upload foto utenti
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_photo') {
     $user_name = trim($_POST['user_name'] ?? '');
@@ -106,9 +109,11 @@ foreach ($articles as $article) {
 }
 
 // Determina l'immagine hero per la città
-$heroImage = $city['hero_image'] ?: 'assets/images/default-city-hero.jpg';
-if (empty($city['hero_image']) && !empty($articles)) {
-    $heroImage = $articles[0]['featured_image'] ?? $heroImage;
+$heroImageUrl = 'assets/images/default-city-hero.jpg'; // Default
+if (!empty($city['hero_image'])) {
+    $heroImageUrl = 'image-loader.php?path=' . urlencode($city['hero_image']);
+} elseif (!empty($articles) && !empty($articles[0]['featured_image'])) {
+    $heroImageUrl = htmlspecialchars($articles[0]['featured_image']);
 }
 
 // Carica foto utenti approvate per la città
@@ -185,8 +190,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>" 
-                 class="w-full h-full object-cover">
+            <img src="<?php echo $heroImageUrl; ?>" alt="Hero image di <?php echo htmlspecialchars($city['name']); ?>" class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
         
@@ -263,6 +267,27 @@ foreach ($settings as $setting) {
                                 </a>
                                 <?php endif; ?>
                             </div>
+                        </div>
+                    </section>
+                    <?php endif; ?>
+
+                    <!-- Galleria Ufficiale -->
+                    <?php if (!empty($gallery_images)): ?>
+                    <section>
+                        <div class="mb-12">
+                            <h2 class="text-4xl font-bold text-slate-900 mb-2">
+                                Galleria
+                            </h2>
+                            <p class="text-xl text-slate-600">
+                                Una selezione di immagini di <?php echo htmlspecialchars($city['name']); ?>
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <?php foreach ($gallery_images as $image): ?>
+                                <a href="image-loader.php?path=<?php echo urlencode($image); ?>" data-lightbox="city-gallery">
+                                    <img src="image-loader.php?path=<?php echo urlencode($image); ?>" alt="Foto della galleria di <?php echo htmlspecialchars($city['name']); ?>" class="w-full h-auto rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                                </a>
+                            <?php endforeach; ?>
                         </div>
                     </section>
                     <?php endif; ?>
