@@ -7,23 +7,25 @@ require_once 'includes/image_processor.php'; // Includi il nuovo processore di i
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     $db = new Database();
-    // Poiché questo script è nella root, il base_dir deve essere corretto
     $imageProcessor = new ImageProcessor('uploads/');
 
     try {
+        // CONTROLLO SERVER-SIDE PER UPLOAD TROPPO GRANDI
+        if (empty($_POST) && empty($_FILES) && $_SERVER['CONTENT_LENGTH'] > 0) {
+            throw new Exception('Il caricamento è troppo grande e ha superato i limiti del server. Riprova con file più piccoli.');
+        }
+
         $place_name = trim($_POST['place_name'] ?? '');
         $location = trim($_POST['location'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $user_name = trim($_POST['user_name'] ?? '');
         $user_email = trim($_POST['user_email'] ?? '');
 
-        // Validazione
         if (empty($place_name) || empty($location) || empty($description) || empty($user_name) || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
             throw new Exception('Per favore, compila tutti i campi obbligatori correttamente.');
         }
 
         $image_paths = [];
-        // Gestione upload con ImageProcessor
         if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
             foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
                 if (!empty($tmp_name)) {
@@ -46,7 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
         if ($db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json)) {
-            // Per la risposta AJAX, inviamo un URL di successo che il JS potrà usare per reindirizzare.
             echo json_encode(['success' => true, 'redirect_url' => 'suggerisci.php?success=1']);
         } else {
             throw new Exception('Si è verificato un errore nel salvataggio del suggerimento.');
@@ -61,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // --- Preparazione Dati per la Vista ---
 $form_submitted = isset($_GET['success']);
-$form_error = false; // L'errore viene gestito da JS, quindi non serve più qui
+$form_error = false;
 $error_message = '';
 ?>
 <!DOCTYPE html>
@@ -74,7 +75,6 @@ $error_message = '';
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
-    <script src="assets/js/main.js" defer></script>
 </head>
 <body class="bg-gray-100">
     <?php include 'includes/header.php'; ?>
@@ -89,7 +89,12 @@ $error_message = '';
                 </div>
             <?php else: ?>
                 <p class="text-gray-600 mb-6">Conosci un luogo un Monumento una spiaggia speciale in Calabria che dovremmo assolutamente includere nel nostro portale? Segnalacelo compilando il modulo qui sotto!</p>
-                <form action="suggerisci.php" method="POST" enctype="multipart/form-data">
+                <?php if ($form_error): ?>
+                    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+                        <p><?php echo $error_message; ?></p>
+                    </div>
+                <?php endif; ?>
+                <form id="suggestion-form" data-ajax-upload="true" action="suggerisci.php" method="POST" enctype="multipart/form-data">
                     <div class="mb-4">
                         <label for="place_name" class="block text-gray-700 font-bold mb-2">Nome del Luogo</label>
                         <input type="text" name="place_name" id="place_name" class="w-full px-3 py-2 border rounded-lg" required>
@@ -104,8 +109,8 @@ $error_message = '';
                     </div>
                     <div class="mb-4">
                         <label for="place_images" class="block text-gray-700 font-bold mb-2">Carica Immagini (opzionale)</label>
-                        <input type="file" name="place_images[]" id="place_images" class="w-full px-3 py-2 border rounded-lg" multiple accept="image/*">
-                        <p class="text-sm text-gray-500 mt-1">Puoi selezionare più immagini. Verranno convertite in WebP e ottimizzate.</p>
+                        <input type="file" name="place_images[]" id="place_images" class="w-full px-3 py-2 border rounded-lg" multiple accept="image/jpeg, image/png, image/gif">
+                        <p class="text-sm text-gray-500 mt-1">Puoi selezionare più immagini. Dimensione massima per file: 5MB.</p>
                     </div>
                     <hr class="my-6">
                     <div class="mb-4">
@@ -125,6 +130,7 @@ $error_message = '';
     </main>
 
     <?php include 'includes/footer.php'; ?>
+    <script src="assets/js/main.js"></script>
     <script>
         lucide.createIcons();
     </script>

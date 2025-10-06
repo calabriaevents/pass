@@ -683,11 +683,12 @@ function initCategoriesSlider() {
     startAutoSlide();
 }
 
-// --- ADVANCED FORM HANDLING WITH UPLOAD PROGRESS ---
+// --- TARGETED AJAX FORM HANDLING WITH UPLOAD PROGRESS ---
+
+const MAX_TOTAL_UPLOAD_SIZE = 8 * 1024 * 1024; // 8 MB
 
 /**
  * Injects the CSS for the loading overlay and progress bar.
- * This function ensures the styles are present in the document head.
  */
 function injectUploadProgressStyles() {
     const styleId = 'upload-progress-styles';
@@ -698,13 +699,9 @@ function injectUploadProgressStyles() {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(0, 0, 0, 0.8);
             z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: 'Inter', sans-serif;
-            -webkit-backdrop-filter: blur(4px);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: white; font-family: 'Inter', sans-serif;
             backdrop-filter: blur(4px);
         }
         .upload-progress-spinner {
@@ -713,33 +710,21 @@ function injectUploadProgressStyles() {
             border-bottom-color: #3b82f6;
             border-radius: 50%;
             display: inline-block;
-            box-sizing: border-box;
             animation: rotation 1s linear infinite;
         }
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .upload-progress-text {
-            margin-top: 20px;
-            font-size: 1.25rem;
-            font-weight: 500;
-            letter-spacing: 0.5px;
+            margin-top: 20px; font-size: 1.25rem; font-weight: 500;
         }
         .upload-progress-bar-container {
-            width: 300px;
-            height: 10px;
+            width: 300px; height: 10px;
             background-color: rgba(255, 255, 255, 0.2);
-            border-radius: 5px;
-            margin-top: 15px;
-            overflow: hidden;
+            border-radius: 5px; margin-top: 15px; overflow: hidden;
         }
         .upload-progress-bar {
-            width: 0%;
-            height: 100%;
+            width: 0%; height: 100%;
             background-color: #3b82f6;
-            border-radius: 5px;
-            transition: width 0.2s ease-in-out;
+            border-radius: 5px; transition: width 0.2s ease-in-out;
         }
     `;
     const styleSheet = document.createElement('style');
@@ -750,14 +735,12 @@ function injectUploadProgressStyles() {
 }
 
 /**
- * Handles form submissions with file uploads, showing a progress bar.
- * @param {HTMLFormElement} form The form being submitted.
+ * Handles the submission of a specific form with file uploads, showing a progress bar.
  */
 function handleFormWithUploadProgress(form) {
     const formData = new FormData(form);
     const xhr = new XMLHttpRequest();
 
-    // Create and show the progress overlay
     injectUploadProgressStyles();
     const overlay = document.createElement('div');
     overlay.className = 'upload-progress-overlay';
@@ -786,30 +769,22 @@ function handleFormWithUploadProgress(form) {
         try {
             const response = JSON.parse(xhr.responseText);
             if (response.success) {
-                // If a redirect URL is provided, go there. Otherwise, show notification and reload.
                 if (response.redirect_url) {
                     window.location.href = response.redirect_url;
                 } else {
-                    showNotification('Operazione completata con successo!', 'success');
-                    setTimeout(() => window.location.reload(), 1500);
+                    showNotification('Operazione completata!', 'success');
                 }
             } else {
-                showNotification(response.error || 'Si è verificato un errore sconosciuto.', 'error');
+                showNotification(response.error || 'Errore sconosciuto.', 'error');
             }
         } catch (e) {
-            console.error("Error parsing server response:", xhr.responseText);
             showNotification('Errore nella risposta del server.', 'error');
         }
     });
 
     xhr.addEventListener('error', () => {
         overlay.remove();
-        showNotification('Errore di rete durante il caricamento.', 'error');
-    });
-
-    xhr.addEventListener('abort', () => {
-        overlay.remove();
-        showNotification('Caricamento annullato.', 'warning');
+        showNotification('Errore di rete.', 'error');
     });
 
     xhr.open('POST', form.action, true);
@@ -817,40 +792,35 @@ function handleFormWithUploadProgress(form) {
 }
 
 /**
- * Shows a simple spinner for forms without file uploads.
+ * Initializes AJAX handling for forms marked with 'data-ajax-upload'.
  */
-function showSimpleSpinner() {
-    injectUploadProgressStyles(); // Re-use the same styles for consistency
-    const overlay = document.createElement('div');
-    overlay.className = 'upload-progress-overlay';
-    overlay.innerHTML = `<div class="upload-progress-spinner"></div>`;
-    document.body.appendChild(overlay);
-}
+function initTargetedAjaxUpload() {
+    const formsToHandle = document.querySelectorAll('form[data-ajax-upload="true"]');
 
-/**
- * Initializes advanced handling for all forms on the page.
- * It differentiates between forms with and without file uploads.
- */
-function initAdvancedFormHandling() {
-    document.querySelectorAll('form').forEach(form => {
-        // Exclude newsletter form which has its own AJAX handler
-        if (form.action.includes('newsletter')) return;
-
+    formsToHandle.forEach(form => {
         form.addEventListener('submit', function(e) {
-            // Check if the form has file inputs
-            const hasFileInputs = this.querySelector('input[type="file"]');
+            e.preventDefault(); // Always prevent default for these forms
 
-            if (this.enctype === 'multipart/form-data' && hasFileInputs && hasFileInputs.files.length > 0) {
-                // Use progress bar uploader for forms with files
-                e.preventDefault();
-                handleFormWithUploadProgress(this);
-            } else {
-                // Use simple spinner for standard forms
-                showSimpleSpinner();
+            const fileInputs = this.querySelectorAll('input[type="file"]');
+            let totalSize = 0;
+
+            if (fileInputs.length > 0) {
+                fileInputs.forEach(input => {
+                    for (const file of input.files) {
+                        totalSize += file.size;
+                    }
+                });
             }
+
+            if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
+                showNotification(`La dimensione totale dei file (${(totalSize / 1024 / 1024).toFixed(1)} MB) supera il limite di 8 MB.`, 'error');
+                return;
+            }
+
+            handleFormWithUploadProgress(this);
         });
     });
 }
 
 // Add the new initializer to the main DOMContentLoaded event
-document.addEventListener('DOMContentLoaded', initAdvancedFormHandling);
+document.addEventListener('DOMContentLoaded', initTargetedAjaxUpload);
