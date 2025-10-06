@@ -1,10 +1,15 @@
 <?php
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
+require_once 'includes/image_processor.php'; // Includi il nuovo processore di immagini
 
 $form_submitted = false;
 $form_error = false;
 $error_message = '';
+
+$db = new Database();
+// Quando si istanzia dal root, il base_dir deve puntare direttamente alla cartella uploads
+$imageProcessor = new ImageProcessor('uploads/');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $place_name = trim($_POST['place_name'] ?? '');
@@ -14,55 +19,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_email = trim($_POST['user_email'] ?? '');
     $image_paths = [];
 
-    // Gestione dell'upload delle immagini
+    // Gestione dell'upload delle immagini con ImageProcessor
     if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
-        $upload_dir = 'uploads/suggestions/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-        $max_file_size = 5 * 1024 * 1024; // 5 MB
-
         foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
-            $file_name = $_FILES['place_images']['name'][$key];
-            $file_size = $_FILES['place_images']['size'][$key];
-            $file_type = $_FILES['place_images']['type'][$key];
-            $file_error = $_FILES['place_images']['error'][$key];
+            if (!empty($tmp_name)) {
+                $file_data = [
+                    'name' => $_FILES['place_images']['name'][$key],
+                    'type' => $_FILES['place_images']['type'][$key],
+                    'tmp_name' => $tmp_name,
+                    'error' => $_FILES['place_images']['error'][$key],
+                    'size' => $_FILES['place_images']['size'][$key]
+                ];
 
-            if ($file_error === UPLOAD_ERR_OK) {
-                if (in_array($file_type, $allowed_types) && $file_size <= $max_file_size) {
-                    $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                    $new_file_name = uniqid('suggestion_', true) . '.' . $file_extension;
-                    $destination = $upload_dir . $new_file_name;
-
-                    if (move_uploaded_file($tmp_name, $destination)) {
-                        $image_paths[] = $destination;
-                    } else {
-                        $form_error = true;
-                        $error_message = 'Errore durante lo spostamento del file.';
-                    }
+                $new_path = $imageProcessor->processUploadedImage($file_data, 'suggestions', 1280);
+                if ($new_path) {
+                    $image_paths[] = $new_path;
                 } else {
                     $form_error = true;
-                    $error_message = 'Tipo di file non consentito o dimensione eccessiva.';
+                    $error_message = 'Errore nel caricamento di un\'immagine: ' . htmlspecialchars($file_data['name']) . '. Assicurati che sia un formato valido.';
+                    break; // Interrompi al primo errore
                 }
-            } elseif ($file_error !== UPLOAD_ERR_NO_FILE) {
-                $form_error = true;
-                $error_message = 'Errore durante il caricamento del file.';
             }
         }
     }
 
-    if (!$form_error && !empty($place_name) && !empty($location) && !empty($description) && !empty($user_name) && !empty($user_email) && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-        $db = new Database();
-        // Converte l'array di percorsi delle immagini in una stringa JSON
-        $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
-        $db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json);
-        $form_submitted = true;
-    } else {
-        $form_error = true;
-        if (empty($error_message)) {
-            $error_message = 'Per favore, compila tutti i campi correttamente.';
+    // Validazione e salvataggio nel database
+    if (!$form_error) {
+        if (empty($place_name) || empty($location) || empty($description) || empty($user_name) || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+            $form_error = true;
+            $error_message = 'Per favore, compila tutti i campi obbligatori correttamente.';
+        } else {
+            $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
+            if ($db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json)) {
+                $form_submitted = true;
+            } else {
+                $form_error = true;
+                $error_message = 'Si è verificato un errore nel salvataggio del suggerimento. Riprova più tardi.';
+            }
         }
     }
 }
@@ -77,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
+    <script src="assets/js/main.js" defer></script>
 </head>
 <body class="bg-gray-100">
     <?php include 'includes/header.php'; ?>
@@ -90,36 +84,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p>Il nostro team lo esaminerà al più presto.</p>
                 </div>
             <?php else: ?>
-                <p class="text-gray-600 mb-6">Conosci un luogo un Monumento una spiaggia speciale in Calabria che dovremmo assolutamente includere nel nostro portale? Segnalacelo compilando il modulo qui sotto!</p>
+                <p class="text-gray-600 mb-6">Conosci un luogo, un monumento o una spiaggia speciale in Calabria che dovremmo assolutamente includere nel nostro portale? Segnalacelo compilando il modulo qui sotto!</p>
                 <?php if ($form_error): ?>
                     <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
-                        <p><?php echo $error_message; ?></p>
+                        <p><?php echo htmlspecialchars($error_message); ?></p>
                     </div>
                 <?php endif; ?>
-                <form action="suggerisci.php" method="POST" enctype="multipart/form-data">
-                    <div class="mb-4">
+                <form action="suggerisci.php" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <div>
                         <label for="place_name" class="block text-gray-700 font-bold mb-2">Nome del Luogo</label>
                         <input type="text" name="place_name" id="place_name" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
-                    <div class="mb-4">
+                    <div>
                         <label for="location" class="block text-gray-700 font-bold mb-2">Località (es. Comune, Provincia)</label>
                         <input type="text" name="location" id="location" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
-                    <div class="mb-4">
+                    <div>
                         <label for="description" class="block text-gray-700 font-bold mb-2">Descrizione</label>
                         <textarea name="description" id="description" rows="5" class="w-full px-3 py-2 border rounded-lg" required></textarea>
                     </div>
-                    <div class="mb-4">
+                    <div>
                         <label for="place_images" class="block text-gray-700 font-bold mb-2">Carica Immagini (opzionale)</label>
-                        <input type="file" name="place_images[]" id="place_images" class="w-full px-3 py-2 border rounded-lg" multiple accept="image/jpeg, image/png, image/gif">
-                        <p class="text-sm text-gray-500 mt-1">Puoi selezionare più immagini. Dimensione massima per file: 5MB.</p>
+                        <input type="file" name="place_images[]" id="place_images" class="w-full px-3 py-2 border rounded-lg" multiple accept="image/*">
+                        <p class="text-sm text-gray-500 mt-1">Puoi selezionare più immagini. Verranno convertite in WebP e ottimizzate.</p>
                     </div>
                     <hr class="my-6">
-                    <div class="mb-4">
+                    <div>
                         <label for="user_name" class="block text-gray-700 font-bold mb-2">Il tuo Nome</label>
                         <input type="text" name="user_name" id="user_name" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
-                    <div class="mb-4">
+                    <div>
                         <label for="user_email" class="block text-gray-700 font-bold mb-2">La tua Email</label>
                         <input type="email" name="user_email" id="user_email" class="w-full px-3 py-2 border rounded-lg" required>
                     </div>
@@ -132,7 +126,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
     <?php include 'includes/footer.php'; ?>
-    <script src="assets/js/main.js"></script>
     <script>
         lucide.createIcons();
     </script>

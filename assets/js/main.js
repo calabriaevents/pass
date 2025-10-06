@@ -235,6 +235,8 @@ function initNewsletterForm() {
                 return;
             }
 
+            const loaderId = showLoading(form);
+
             // Invia richiesta
             fetch(this.action, {
                 method: 'POST',
@@ -252,10 +254,14 @@ function initNewsletterForm() {
             .catch(error => {
                 console.error('Errore:', error);
                 showNotification('Errore di connessione', 'error');
+            })
+            .finally(() => {
+                hideLoading(form, loaderId);
             });
         });
     });
 }
+
 
 // Lazy loading images
 function initLazyLoading() {
@@ -384,27 +390,31 @@ function debounce(func, wait) {
     };
 }
 
-// Loading state management
+// Loading state management - Improved version
 function showLoading(element) {
-    element.classList.add('opacity-50', 'pointer-events-none');
-    const loader = document.createElement('div');
-    loader.className = 'absolute inset-0 flex items-center justify-center';
-    loader.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>';
-    loader.id = 'loading-' + Date.now();
+    element.style.position = 'relative'; // Ensure parent is positioned for overlay
+    element.classList.add('opacity-70', 'pointer-events-none');
 
-    element.style.position = 'relative';
+    const loader = document.createElement('div');
+    const loaderId = 'loading-' + Date.now();
+    loader.id = loaderId;
+
+    loader.className = 'absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg';
+    loader.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>';
+
     element.appendChild(loader);
 
-    return loader.id;
+    return loaderId;
 }
 
 function hideLoading(element, loaderId) {
-    element.classList.remove('opacity-50', 'pointer-events-none');
+    element.classList.remove('opacity-70', 'pointer-events-none');
     const loader = document.getElementById(loaderId);
     if (loader) {
         loader.remove();
     }
 }
+
 
 // Form utilities
 function serializeForm(form) {
@@ -711,3 +721,88 @@ function initMap(containerId, articles = []) {
         `;
     }
 }
+
+
+// --- GLOBAL FORM SUBMIT SPINNER ---
+
+/**
+ * Creates and injects the CSS styles for the form loading spinner.
+ * This ensures the feature is self-contained and doesn't require manual CSS file edits.
+ */
+function injectSpinnerStyles() {
+    const styleId = 'form-loading-spinner-styles';
+    if (document.getElementById(styleId)) return; // Styles already injected
+
+    const styles = `
+        .form-loading-overlay {
+            position: fixed; /* Use fixed to cover the whole viewport */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 9999; /* High z-index to be on top of everything */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+        }
+        .form-loading-overlay .spinner {
+            width: 3.5rem; /* Slightly larger for better visibility */
+            height: 3.5rem;
+            border-top: 4px solid #3b82f6; /* Blue-600 */
+            border-right: 4px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    `;
+
+    const styleSheet = document.createElement('style');
+    styleSheet.id = styleId;
+    styleSheet.type = 'text/css';
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);
+}
+
+/**
+ * Shows a full-screen loading spinner.
+ */
+function showFullScreenSpinner() {
+    // First, ensure the styles are in the document
+    injectSpinnerStyles();
+
+    // Create the overlay and spinner elements
+    const overlay = document.createElement('div');
+    overlay.className = 'form-loading-overlay';
+    overlay.innerHTML = '<div class="spinner"></div>';
+
+    // Append to the body
+    document.body.appendChild(overlay);
+}
+
+/**
+ * Initializes submit listeners for all standard (non-AJAX) forms.
+ */
+function initGlobalFormSpinners() {
+    // Select all forms, but exclude those we handle with custom AJAX logic (like the newsletter)
+    const allForms = document.querySelectorAll('form:not([action*="newsletter"])');
+
+    allForms.forEach(form => {
+        form.addEventListener('submit', function() {
+            // Check for a specific class to bypass the spinner if needed
+            if (this.classList.contains('no-spinner')) {
+                return;
+            }
+            showFullScreenSpinner();
+        });
+    });
+}
+
+// Add the new global initializer to the main DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', function() {
+    initGlobalFormSpinners();
+});

@@ -1,11 +1,13 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php'; // Includi il nuovo processore di immagini
 
 // Controlla autenticazione (da implementare)
 // requireLogin();
 
 $db = new Database();
+$imageProcessor = new ImageProcessor(); // Istanzia il processore
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
@@ -21,97 +23,145 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $province_id = $_POST['province_id'] ?? null;
     $city_id = $_POST['city_id'] ?? null;
     $status = $_POST['status'] ?? 'draft';
-    $author = $_POST['author'] ?? 'Admin';
+    $author = $_POST['author'] ?? 'Admin'; // In un sistema reale, questo verrebbe dall'utente loggato
     $posted_json_data = $_POST['json_data'] ?? [];
 
-    // --- File Upload Handling ---
-    $uploadDirArticles = '../uploads/articles/';
-    $uploadDirMenus = '../uploads/menus/';
-    if (!is_dir($uploadDirArticles)) mkdir($uploadDirArticles, 0755, true);
-    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+    $upload_error = '';
 
-    // Helper function for single file upload
-    function uploadSingleFile($file, $prefix, $uploadDir, $allowedExtensions) {
-        if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = $prefix . uniqid() . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    return str_replace('../', '', $uploadDir) . $fileName;
-                }
-            }
-        }
-        return null;
-    }
-
-    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    $featured_image = uploadSingleFile($_FILES['featured_image'] ?? null, 'featured_', $uploadDirArticles, $imageExtensions);
-    $hero_image = uploadSingleFile($_FILES['hero_image'] ?? null, 'hero_', $uploadDirArticles, $imageExtensions);
-    $logo = uploadSingleFile($_FILES['logo'] ?? null, 'logo_', $uploadDirArticles, $imageExtensions);
-
-    // Handle Menu PDF upload and add it to JSON data
-    $menu_pdf = uploadSingleFile($_FILES['menu_pdf'] ?? null, 'menu_', $uploadDirMenus, ['pdf']);
-    if ($menu_pdf) {
-        $posted_json_data['menu_pdf_path'] = $menu_pdf;
-    }
-
-    // Handle gallery images upload
-    $gallery_images = null;
-    if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
-        $galleryPaths = [];
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
-            if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
-                $fileExtension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                if (in_array($fileExtension, $imageExtensions)) {
-                    $fileName = 'gallery_' . uniqid() . '.' . $fileExtension;
-                    $targetPath = $uploadDirArticles . $fileName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $galleryPaths[] = 'uploads/articles/' . $fileName;
-                    }
-                }
-            }
-        }
-        if (!empty($galleryPaths)) {
-            $gallery_images = json_encode($galleryPaths);
-        }
-    }
-    
-    // Encode the final JSON data
-    $json_data = json_encode($posted_json_data);
-
-    // --- Database Operation ---
+    // Se è una modifica, recupera i dati esistenti per gestire i file
+    $existingArticle = null;
     if ($action === 'edit' && $id) {
         $existingArticle = $db->getArticleById($id);
-
-        if ($featured_image === null) $featured_image = $existingArticle['featured_image'] ?? null;
-        if ($hero_image === null) $hero_image = $existingArticle['hero_image'] ?? null;
-        if ($logo === null) $logo = $existingArticle['logo'] ?? null;
-        if ($gallery_images === null) $gallery_images = $existingArticle['gallery_images'] ?? null;
-
-        // Special handling for menu_pdf path in JSON
-        $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
-        if ($menu_pdf === null && isset($existing_json['menu_pdf_path'])) {
-             $decoded_json = json_decode($json_data, true);
-             $decoded_json['menu_pdf_path'] = $existing_json['menu_pdf_path'];
-             $json_data = json_encode($decoded_json);
-        }
-
-        $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
-    } else {
-        $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
     }
 
-    header('Location: articoli.php');
-    exit;
+    // Inizializza i percorsi dei file con i valori esistenti (se presenti)
+    $featured_image_path = $existingArticle['featured_image'] ?? null;
+    $hero_image_path = $existingArticle['hero_image'] ?? null;
+    $logo_path = $existingArticle['logo'] ?? null;
+    $gallery_images_json = $existingArticle['gallery_images'] ?? null;
+
+    $existing_json_data = json_decode($existingArticle['json_data'] ?? '{}', true);
+    $menu_pdf_path = $existing_json_data['menu_pdf_path'] ?? null;
+
+
+    // --- Gestione Upload Immagini con ImageProcessor ---
+
+    // Featured Image
+    if (!empty($_FILES['featured_image']['name'])) {
+        $new_path = $imageProcessor->processUploadedImage($_FILES['featured_image'], 'articles/featured', 1280);
+        if ($new_path) {
+            if ($featured_image_path) $imageProcessor->deleteImage($featured_image_path);
+            $featured_image_path = $new_path;
+        } else { $upload_error = 'Errore caricamento immagine in evidenza.'; }
+    }
+
+    // Hero Image
+    if (empty($upload_error) && !empty($_FILES['hero_image']['name'])) {
+        $new_path = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'articles/hero', 1920);
+        if ($new_path) {
+            if ($hero_image_path) $imageProcessor->deleteImage($hero_image_path);
+            $hero_image_path = $new_path;
+        } else { $upload_error = 'Errore caricamento immagine hero.'; }
+    }
+
+    // Logo
+    if (empty($upload_error) && !empty($_FILES['logo']['name'])) {
+        $new_path = $imageProcessor->processUploadedImage($_FILES['logo'], 'articles/logos', 400);
+        if ($new_path) {
+            if ($logo_path) $imageProcessor->deleteImage($logo_path);
+            $logo_path = $new_path;
+        } else { $upload_error = 'Errore caricamento logo.'; }
+    }
+
+    // Gallery Images
+    if (empty($upload_error) && !empty($_FILES['gallery_images']['name'][0])) {
+        $gallery_images = $gallery_images_json ? json_decode($gallery_images_json, true) : [];
+        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmp_name) {
+            if (!empty($tmp_name)) {
+                $file_data = ['name' => $_FILES['gallery_images']['name'][$key], 'type' => $_FILES['gallery_images']['type'][$key], 'tmp_name' => $tmp_name, 'error' => $_FILES['gallery_images']['error'][$key], 'size' => $_FILES['gallery_images']['size'][$key]];
+                $new_gallery_path = $imageProcessor->processUploadedImage($file_data, 'articles/gallery', 1280);
+                if ($new_gallery_path) {
+                    $gallery_images[] = $new_gallery_path;
+                } else {
+                    $upload_error = 'Errore caricamento immagine galleria: ' . htmlspecialchars($file_data['name']);
+                    break;
+                }
+            }
+        }
+        $gallery_images_json = json_encode($gallery_images);
+    }
+    
+    // --- Gestione Upload File non Immagine (es. PDF) ---
+    if (empty($upload_error) && !empty($_FILES['menu_pdf']['name'])) {
+        $upload_dir = '../uploads/menus/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+
+        $file_extension = strtolower(pathinfo($_FILES['menu_pdf']['name'], PATHINFO_EXTENSION));
+        if ($file_extension === 'pdf') {
+            $filename = 'menu_' . uniqid() . '_' . time() . '.pdf';
+            $upload_path = $upload_dir . $filename;
+            if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $upload_path)) {
+                if ($menu_pdf_path && file_exists('../' . $menu_pdf_path)) unlink('../' . $menu_pdf_path);
+                $menu_pdf_path = 'uploads/menus/' . $filename;
+            } else { $upload_error = 'Errore nel caricamento del PDF del menu.'; }
+        } else { $upload_error = 'Formato file per menu non valido. Solo PDF è accettato.'; }
+    }
+
+    // Aggiungi il percorso del menu PDF al JSON data
+    if ($menu_pdf_path) {
+        $posted_json_data['menu_pdf_path'] = $menu_pdf_path;
+    }
+    $final_json_data = json_encode($posted_json_data);
+
+    // --- Database Operation ---
+    if (empty($upload_error)) {
+        if ($action === 'edit' && $id) {
+            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image_path, $gallery_images_json, $hero_image_path, $logo_path, $final_json_data);
+            $success_message = "Articolo aggiornato con successo!";
+        } else {
+            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image_path, $gallery_images_json, $hero_image_path, $logo_path, $final_json_data);
+            $success_message = "Articolo creato con successo!";
+        }
+        header('Location: articoli.php?success=' . urlencode($success_message));
+        exit;
+    } else {
+        // Redirect with error
+        $redirect_url = $action === 'edit' ? "articoli.php?action=edit&id=$id" : "articoli.php?action=new&category_id=$category_id";
+        header("Location: $redirect_url&error=" . urlencode($upload_error));
+        exit;
+    }
 }
 
 if ($action === 'delete' && $id) {
-    $db->deleteArticle($id);
-    header('Location: articoli.php');
+    $article = $db->getArticleById($id);
+    if ($article) {
+        // Delete all associated images
+        if ($article['featured_image']) $imageProcessor->deleteImage($article['featured_image']);
+        if ($article['hero_image']) $imageProcessor->deleteImage($article['hero_image']);
+        if ($article['logo']) $imageProcessor->deleteImage($article['logo']);
+        if ($article['gallery_images']) {
+            $gallery = json_decode($article['gallery_images'], true) ?: [];
+            foreach ($gallery as $img) $imageProcessor->deleteImage($img);
+        }
+        // Delete associated PDF from json_data
+        if ($article['json_data']) {
+            $json_data = json_decode($article['json_data'], true);
+            if (isset($json_data['menu_pdf_path']) && file_exists('../' . $json_data['menu_pdf_path'])) {
+                unlink('../' . $json_data['menu_pdf_path']);
+            }
+        }
+        $db->deleteArticle($id);
+        $success_message = "Articolo eliminato con successo!";
+    } else {
+        $error_message = "Articolo non trovato.";
+    }
+    header('Location: articoli.php?success=' . urlencode($success_message ?? '') . '&error=' . urlencode($error_message ?? ''));
     exit;
 }
 
+// Get messages from URL
+$success_message = isset($_GET['success']) ? htmlspecialchars($_GET['success']) : null;
+$error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null;
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -123,6 +173,7 @@ if ($action === 'delete' && $id) {
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="../assets/js/main.js" defer></script>
 </head>
 <body class="min-h-screen bg-gray-100 flex">
     <!-- Sidebar -->
@@ -150,81 +201,81 @@ if ($action === 'delete' && $id) {
             <div class="flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-gray-900">Gestione Articoli</h1>
                 <?php if ($action === 'list'): ?>
-                <a href="articoli.php?action=select_category" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Nuovo Articolo</a>
+                <a href="articoli.php?action=select_category" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2"><i data-lucide="plus" class="w-4 h-4"></i><span>Nuovo Articolo</span></a>
                 <?php endif; ?>
             </div>
         </header>
         <main class="flex-1 overflow-auto p-6">
+            <?php if ($success_message): ?>
+            <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6 success-alert">
+                <p class="text-sm text-green-700"><?php echo $success_message; ?></p>
+            </div>
+            <?php endif; ?>
+            <?php if ($error_message): ?>
+            <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6 error-alert">
+                 <p class="text-sm text-red-700"><?php echo $error_message; ?></p>
+            </div>
+            <?php endif; ?>
+
             <?php if ($action === 'list'): ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <h2 class="text-lg font-semibold mb-4">Elenco Articoli</h2>
-                <table class="w-full">
-                    <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Articolo</th>
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Categoria</th>
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Stato</th>
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $articles = $db->getArticles(null, 0, false); // Get all articles
-                        foreach ($articles as $article):
-                        ?>
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="py-3 px-2">
-                                <div class="flex items-center space-x-3">
-                                    <?php if (!empty($article['featured_image'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-cover rounded-lg border">
-                                    <?php else: ?>
-                                    <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
-                                        <i data-lucide="image" class="w-5 h-5 text-gray-400"></i>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b bg-gray-50">
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Articolo</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Categoria</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Stato</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $articles = $db->getArticles(null, 0, false); // Get all articles
+                            foreach ($articles as $article):
+                            ?>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-2">
+                                    <div class="flex items-center space-x-3">
+                                        <?php if (!empty($article['featured_image'])): ?>
+                                        <img src="../<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-cover rounded-lg border">
+                                        <?php else: ?>
+                                        <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
+                                            <i data-lucide="image" class="w-5 h-5 text-gray-400"></i>
+                                        </div>
+                                        <?php endif; ?>
+                                        <div>
+                                            <div class="font-medium"><?php echo htmlspecialchars($article['title']); ?></div>
+                                            <div class="text-sm text-gray-500">di <?php echo htmlspecialchars($article['author']); ?></div>
+                                        </div>
                                     </div>
-                                    <?php endif; ?>
-                                    <div>
-                                        <div class="font-medium"><?php echo htmlspecialchars($article['title']); ?></div>
-                                        <div class="text-sm text-gray-500">di <?php echo htmlspecialchars($article['author']); ?></div>
+                                </td>
+                                <td class="py-3 px-2">
+                                    <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        <?php echo htmlspecialchars($article['category_name']); ?>
+                                    </span>
+                                </td>
+                                <td class="py-3 px-2">
+                                    <?php
+                                    $statusColors = ['published' => 'bg-green-100 text-green-800', 'draft' => 'bg-yellow-100 text-yellow-800', 'archived' => 'bg-gray-100 text-gray-800'];
+                                    $statusClass = $statusColors[$article['status']] ?? 'bg-gray-100 text-gray-800';
+                                    ?>
+                                    <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full <?php echo $statusClass; ?>">
+                                        <?php echo ucfirst($article['status']); ?>
+                                    </span>
+                                </td>
+                                <td class="py-3 px-2">
+                                    <div class="flex space-x-2">
+                                        <a href="articoli.php?action=edit&id=<?php echo $article['id']; ?>" class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors"><i data-lucide="edit" class="w-3 h-3 mr-1"></i>Modifica</a>
+                                        <a href="articoli.php?action=delete&id=<?php echo $article['id']; ?>" class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors" onclick="return confirm('Sei sicuro di voler eliminare questo articolo? Tutte le immagini e i file associati verranno eliminati.');"><i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>Elimina</a>
                                     </div>
-                                </div>
-                            </td>
-                            <td class="py-3 px-2">
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    <?php echo htmlspecialchars($article['category_name']); ?>
-                                </span>
-                            </td>
-                            <td class="py-3 px-2">
-                                <?php 
-                                $statusColors = [
-                                    'published' => 'bg-green-100 text-green-800',
-                                    'draft' => 'bg-yellow-100 text-yellow-800',
-                                    'archived' => 'bg-gray-100 text-gray-800'
-                                ];
-                                $statusClass = $statusColors[$article['status']] ?? 'bg-gray-100 text-gray-800';
-                                ?>
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full <?php echo $statusClass; ?>">
-                                    <?php echo ucfirst($article['status']); ?>
-                                </span>
-                            </td>
-                            <td class="py-3 px-2">
-                                <div class="flex space-x-2">
-                                    <a href="articoli.php?action=edit&id=<?php echo $article['id']; ?>" 
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors">
-                                        <i data-lucide="edit" class="w-3 h-3 mr-1"></i>
-                                        Modifica
-                                    </a>
-                                    <a href="articoli.php?action=delete&id=<?php echo $article['id']; ?>" 
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
-                                       onclick="return confirm('Sei sicuro di voler eliminare questo articolo? Tutte le immagini associate verranno eliminate.');">    
-                                        <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
-                                        Elimina
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <?php elseif ($action === 'select_category'):
@@ -232,7 +283,7 @@ if ($action === 'delete' && $id) {
             ?>
             <div class="bg-white rounded-lg shadow-sm p-6 max-w-xl mx-auto">
                 <h2 class="text-lg font-semibold mb-4">Crea Nuovo Articolo</h2>
-                <p class="text-gray-600 mb-6">Come primo passo, seleziona la categoria per la quale vuoi creare un nuovo articolo. A seconda della categoria, ti verrà mostrato un modulo di inserimento differente.</p>
+                <p class="text-gray-600 mb-6">Seleziona la categoria per il nuovo articolo. Verrà mostrato il modulo di inserimento corretto in base alla tua scelta.</p>
                 <form action="articoli.php" method="GET">
                     <input type="hidden" name="action" value="new">
                     <div class="mb-4">
@@ -240,24 +291,18 @@ if ($action === 'delete' && $id) {
                         <select name="category_id" id="category_id" class="w-full px-3 py-2 border rounded-lg" required>
                             <option value="" disabled selected>-- Scegli una categoria --</option>
                             <?php foreach ($categories as $category): ?>
-                            <option value="<?php echo $category['id']; ?>">
-                                <?php echo htmlspecialchars($category['name']); ?>
-                            </option>
+                            <option value="<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="text-right">
                         <a href="articoli.php" class="text-gray-600 hover:underline mr-4">Annulla</a>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
-                            Procedi
-                            <i data-lucide="arrow-right" class="inline w-4 h-4 ml-1"></i>
-                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Procedi <i data-lucide="arrow-right" class="inline w-4 h-4 ml-1"></i></button>
                     </div>
                 </form>
             </div>
 
             <?php elseif ($action === 'new' || $action === 'edit'):
-                // For new articles, category_id must be set from the previous step
                 if ($action === 'new' && !isset($_GET['category_id'])) {
                     header('Location: articoli.php?action=select_category');
                     exit;
@@ -277,70 +322,49 @@ if ($action === 'delete' && $id) {
                     $category_name = $category['name'] ?? 'Sconosciuta';
                 }
 
-                // Determine which form to load based on Category NAME for robustness
-                $form_template = 'form_default.php'; // Default form
+                // Determina il template del form
+                $form_template = 'form_default.php';
                 $cat_name = isset($category) ? trim($category['name']) : '';
-
-                if ($cat_name === 'Hotel e Alloggi') {
-                    $form_template = 'form_hotel.php';
-                } else if ($cat_name === 'Ristorazione') {
-                    $form_template = 'form_ristorazione.php';
-                } else if ($cat_name === 'Stabilimenti Balneari') {
-                    $form_template = 'form_stabilimenti.php';
-                } else if ($cat_name === 'Arte e Cultura') {
-                    $form_template = 'form_arte_cultura.php';
-                } else if ($cat_name === 'Musei e Gallerie') {
-                    $form_template = 'form_musei_gallerie.php';
-                } else if ($cat_name === 'Patrimonio Storico') {
-                    $form_template = 'form_patrimonio_storico.php';
-                } else if ($cat_name === 'Piazze e Vie Storiche') {
-                    $form_template = 'form_piazze_vie_storiche.php';
-                } else if ($cat_name === 'Siti Archeologici') {
-                    $form_template = 'form_siti_archeologici.php';
-                } else if ($cat_name === 'Chiese e Santuari') {
-                    $form_template = 'form_chiese_santuari.php';
-                } else if ($cat_name === 'Teatri e Anfiteatri') {
-                    $form_template = 'form_teatri_anfiteatri.php';
-                } else if ($cat_name === 'Parchi e Aree Verdi') {
-                    $form_template = 'form_parchi_aree_verdi.php';
-                } else if ($cat_name === 'Attività Sportive e Avventura') {
-                    $form_template = 'form_attivita_sportive_avventura.php';
-                } else if ($cat_name === 'Itinerari Tematici') {
-                    $form_template = 'form_itinerari_tematici.php';
-                } else if ($cat_name === 'Tour e Guide') {
-                    $form_template = 'form_tour_guide.php';
-                } else if ($cat_name === 'Shopping e Artigianato') {
-                    $form_template = 'form_shopping_artigianato.php';
-                } else if ($cat_name === 'Benessere e Relax') {
-                    $form_template = 'form_benessere_relax.php';
-                } else if ($cat_name === 'Trasporti') {
-                    $form_template = 'form_trasporti.php';
+                $form_map = [
+                    'Hotel e Alloggi' => 'form_hotel.php',
+                    'Ristorazione' => 'form_ristorazione.php',
+                    'Stabilimenti Balneari' => 'form_stabilimenti.php',
+                    'Arte e Cultura' => 'form_arte_cultura.php',
+                    'Musei e Gallerie' => 'form_musei_gallerie.php',
+                    'Patrimonio Storico' => 'form_patrimonio_storico.php',
+                    'Piazze e Vie Storiche' => 'form_piazze_vie_storiche.php',
+                    'Siti Archeologici' => 'form_siti_archeologici.php',
+                    'Chiese e Santuari' => 'form_chiese_santuari.php',
+                    'Teatri e Anfiteatri' => 'form_teatri_anfiteatri.php',
+                    'Parchi e Aree Verdi' => 'form_parchi_aree_verdi.php',
+                    'Attività Sportive e Avventura' => 'form_attivita_sportive_avventura.php',
+                    'Itinerari Tematici' => 'form_itinerari_tematici.php',
+                    'Tour e Guide' => 'form_tour_guide.php',
+                    'Shopping e Artigianato' => 'form_shopping_artigianato.php',
+                    'Benessere e Relax' => 'form_benessere_relax.php',
+                    'Trasporti' => 'form_trasporti.php',
+                ];
+                if (array_key_exists($cat_name, $form_map)) {
+                    $form_template = $form_map[$cat_name];
                 }
 
                 $form_path = 'forms/' . $form_template;
                 if (!file_exists($form_path)) {
-                    $form_path = 'forms/form_default.php'; // Fallback
-                    if (!file_exists($form_path)) {
-                        die("Errore critico: Il form di default non è stato trovato.");
-                    }
+                    die("Errore: Il template del form '$form_path' non è stato trovato.");
                 }
 
-                // Data needed by the form
+                // Data per i form
                 $categories = $db->getCategories();
                 $provinces = $db->getProvinces();
                 $cities = $db->getCities();
             ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
-                <h2 class="text-lg font-semibold mb-1">
-                    <?php echo $action === 'edit' ? 'Modifica Articolo' : 'Nuovo Articolo'; ?>
-                </h2>
-                <p class="text-gray-500 mb-6 border-b pb-4">
-                    Categoria: <span class="font-bold text-blue-600"><?php echo htmlspecialchars($category_name); ?></span>
-                </p>
+                <h2 class="text-lg font-semibold mb-1"><?php echo $action === 'edit' ? 'Modifica Articolo' : 'Nuovo Articolo'; ?></h2>
+                <p class="text-gray-500 mb-6 border-b pb-4">Categoria: <span class="font-bold text-blue-600"><?php echo htmlspecialchars($category_name); ?></span></p>
 
                 <form action="articoli.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="category_id" value="<?php echo htmlspecialchars($category_id); ?>">
-                    <?php include $form_path; ?>
+                    <?php include $form_path; // Carica il form dinamico ?>
                     <div class="text-right mt-6 border-t pt-4">
                         <a href="articoli.php" class="text-gray-600 hover:underline mr-4">Annulla</a>
                         <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Salva Articolo</button>
@@ -353,6 +377,17 @@ if ($action === 'delete' && $id) {
 
     <script>
         lucide.createIcons();
+
+        // Auto-hide alerts
+        setTimeout(() => {
+            document.querySelectorAll('.success-alert, .error-alert').forEach(alert => {
+                if (alert) {
+                    alert.style.transition = 'opacity 0.5s';
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.remove(), 500);
+                }
+            });
+        }, 5000);
     </script>
 </body>
 </html>
