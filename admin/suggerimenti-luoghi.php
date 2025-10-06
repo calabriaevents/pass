@@ -1,27 +1,62 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-
-// Controlla autenticazione (da implementare)
-// requireLogin();
+require_once '../includes/image_processor.php';
 
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
 
-// Gestione delle azioni POST
+// Gestione delle azioni POST (AJAX)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($action === 'update_status' && $id) {
+    header('Content-Type: application/json');
+    $response = ['success' => false, 'message' => 'Azione non valida.'];
+
+    $post_action = $_POST['action'] ?? null;
+    $post_id = $_POST['id'] ?? null;
+
+    if ($post_action === 'update_status' && $post_id) {
         $status = $_POST['status'] ?? 'pending';
-        $admin_notes = $_POST['admin_notes'] ?? null;
-        $db->updatePlaceSuggestionStatus($id, $status, $admin_notes);
-        header('Location: suggerimenti-luoghi.php');
-        exit;
+        $admin_notes = $_POST['admin_notes'] ?? '';
+        if ($db->updatePlaceSuggestionStatus($post_id, $status, $admin_notes)) {
+            $response = ['success' => true, 'message' => 'Stato aggiornato con successo.'];
+        } else {
+            $response = ['success' => false, 'message' => 'Errore durante l\'aggiornamento.'];
+        }
+    } elseif ($post_action === 'delete' && $post_id) {
+        $suggestion = $db->getPlaceSuggestionById($post_id);
+        if ($suggestion && !empty($suggestion['images'])) {
+            $image_paths = json_decode($suggestion['images'], true);
+            if (is_array($image_paths)) {
+                foreach ($image_paths as $image_path) {
+                    $imageProcessor->deleteImage(ltrim($image_path, '/'));
+                }
+            }
+        }
+        if ($db->deletePlaceSuggestion($post_id)) {
+            $response = ['success' => true, 'message' => 'Suggerimento eliminato.'];
+        } else {
+            $response = ['success' => false, 'message' => 'Errore durante l\'eliminazione.'];
+        }
     }
+
+    echo json_encode($response);
+    exit;
 }
 
+// Fallback GET per eliminazione
 if ($action === 'delete' && $id) {
+    $suggestion = $db->getPlaceSuggestionById($id);
+    if ($suggestion && !empty($suggestion['images'])) {
+        $image_paths = json_decode($suggestion['images'], true);
+        if (is_array($image_paths)) {
+            foreach ($image_paths as $image_path) {
+                $imageProcessor->deleteImage(ltrim($image_path, '/'));
+            }
+        }
+    }
     $db->deletePlaceSuggestion($id);
     header('Location: suggerimenti-luoghi.php');
     exit;
@@ -67,6 +102,7 @@ if ($action === 'delete' && $id) {
             </div>
         </header>
         <main class="flex-1 overflow-auto p-6">
+            <div id="notification-placeholder" class="mb-4"></div>
             <?php if ($action === 'list'): ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <div class="flex justify-between items-center mb-4">
@@ -95,7 +131,7 @@ if ($action === 'delete' && $id) {
                         $suggestions = $db->getPlaceSuggestions($filter_status);
                         foreach ($suggestions as $suggestion):
                         ?>
-                        <tr class="border-b hover:bg-gray-50">
+                        <tr class="border-b hover:bg-gray-50" id="suggestion-row-<?php echo $suggestion['id']; ?>">
                             <td class="py-3 px-2">
                                 <div>
                                     <div class="font-medium"><?php echo htmlspecialchars($suggestion['name']); ?></div>
@@ -134,12 +170,11 @@ if ($action === 'delete' && $id) {
                                         <i data-lucide="eye" class="w-3 h-3 mr-1"></i>
                                         Visualizza
                                     </a>
-                                    <a href="suggerimenti-luoghi.php?action=delete&id=<?php echo $suggestion['id']; ?>"
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
-                                       onclick="return confirm('Sei sicuro di voler eliminare questo suggerimento?');">
+                                    <button onclick="deleteSuggestion(<?php echo $suggestion['id']; ?>)"
+                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors">
                                         <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
                                         Elimina
-                                    </a>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -254,7 +289,9 @@ if ($action === 'delete' && $id) {
 
                 <div class="mt-8 border-t pt-6">
                     <h3 class="font-semibold text-gray-800 mb-4">Gestisci Suggerimento</h3>
-                    <form action="suggerimenti-luoghi.php?action=update_status&id=<?php echo $suggestion['id']; ?>" method="POST">
+                    <form id="suggestion-form" action="suggerimenti-luoghi.php" method="POST">
+                        <input type="hidden" name="action" value="update_status">
+                        <input type="hidden" name="id" value="<?php echo $suggestion['id']; ?>">
                         <div class="grid md:grid-cols-2 gap-4">
                             <div>
                                 <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Cambia Stato</label>
@@ -283,8 +320,34 @@ if ($action === 'delete' && $id) {
         </main>
     </div>
 
+    <script src="../assets/js/main.js"></script>
     <script>
         lucide.createIcons();
+
+        function deleteSuggestion(id) {
+            if (confirm('Sei sicuro di voler eliminare questo suggerimento? Tutte le immagini associate verranno rimosse.')) {
+                const formData = new FormData();
+                formData.append('action', 'delete');
+                formData.append('id', id);
+
+                fetch('suggerimenti-luoghi.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const notificationPlaceholder = document.getElementById('notification-placeholder');
+                    PassioneCalabria.showNotification(data.message, data.success ? 'success' : 'error', notificationPlaceholder);
+                    if (data.success) {
+                        document.getElementById('suggestion-row-' + id)?.remove();
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    PassioneCalabria.showNotification('Errore di comunicazione.', 'error', notificationPlaceholder);
+                });
+            }
+        }
     </script>
 </body>
 </html>

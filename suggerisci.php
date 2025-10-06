@@ -1,67 +1,61 @@
 <?php
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
-require_once 'includes/image_processor.php'; // Includi il nuovo processore di immagini
+require_once 'includes/image_processor.php';
 
-// --- Gestione Richieste POST (AJAX) ---
+$db = new Database();
+$imageProcessor = new ImageProcessor('uploads_protected/'); // Salva fuori dalla root pubblica
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
-    $db = new Database();
-    $imageProcessor = new ImageProcessor('uploads/');
 
-    try {
-        // CONTROLLO SERVER-SIDE PER UPLOAD TROPPO GRANDI
-        if (empty($_POST) && empty($_FILES) && $_SERVER['CONTENT_LENGTH'] > 0) {
-            throw new Exception('Il caricamento è troppo grande e ha superato i limiti del server. Riprova con file più piccoli.');
-        }
+    $place_name = trim($_POST['place_name'] ?? '');
+    $location = trim($_POST['location'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $user_name = trim($_POST['user_name'] ?? '');
+    $user_email = trim($_POST['user_email'] ?? '');
 
-        $place_name = trim($_POST['place_name'] ?? '');
-        $location = trim($_POST['location'] ?? '');
-        $description = trim($_POST['description'] ?? '');
-        $user_name = trim($_POST['user_name'] ?? '');
-        $user_email = trim($_POST['user_email'] ?? '');
+    // Validazione base
+    if (empty($place_name) || empty($location) || empty($description) || empty($user_name) || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['success' => false, 'message' => 'Per favore, compila tutti i campi obbligatori correttamente.']);
+        exit;
+    }
 
-        if (empty($place_name) || empty($location) || empty($description) || empty($user_name) || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-            throw new Exception('Per favore, compila tutti i campi obbligatori correttamente.');
-        }
+    $image_paths = [];
+    if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
+        foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
+            if (!empty($tmp_name)) {
+                $file_data = [
+                    'name' => $_FILES['place_images']['name'][$key],
+                    'type' => $_FILES['place_images']['type'][$key],
+                    'tmp_name' => $tmp_name,
+                    'error' => $_FILES['place_images']['error'][$key],
+                    'size' => $_FILES['place_images']['size'][$key]
+                ];
 
-        $image_paths = [];
-        if (isset($_FILES['place_images']) && !empty($_FILES['place_images']['name'][0])) {
-            foreach ($_FILES['place_images']['tmp_name'] as $key => $tmp_name) {
-                if (!empty($tmp_name)) {
-                    $file_data = [
-                        'name' => $_FILES['place_images']['name'][$key],
-                        'type' => $_FILES['place_images']['type'][$key],
-                        'tmp_name' => $tmp_name,
-                        'error' => $_FILES['place_images']['error'][$key],
-                        'size' => $_FILES['place_images']['size'][$key]
-                    ];
-                    $new_path = $imageProcessor->processUploadedImage($file_data, 'suggestions', 1280);
-                    if ($new_path) {
-                        $image_paths[] = $new_path;
-                    } else {
-                        throw new Exception('Errore nel caricamento di un\'immagine: ' . htmlspecialchars($file_data['name']));
-                    }
+                $new_path = $imageProcessor->processUploadedImage($file_data, 'suggestions', 1280);
+                if ($new_path) {
+                    // Rimuoviamo 'uploads_protected/' dal percorso salvato nel DB per renderlo relativo al progetto
+                    $image_paths[] = str_replace('uploads_protected/', '', $new_path);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Errore durante il caricamento di un\'immagine: ' . htmlspecialchars($file_data['name'])]);
+                    exit;
                 }
             }
         }
+    }
 
-        $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
-        if ($db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json)) {
-            echo json_encode(['success' => true, 'redirect_url' => 'suggerisci.php?success=1']);
-        } else {
-            throw new Exception('Si è verificato un errore nel salvataggio del suggerimento.');
-        }
-
-    } catch (Exception $e) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    $images_json = !empty($image_paths) ? json_encode($image_paths) : null;
+    if ($db->createPlaceSuggestion($place_name, $description, $location, $user_name, $user_email, $images_json)) {
+        echo json_encode(['success' => true, 'message' => 'Grazie per il tuo suggerimento! Il nostro team lo esaminerà al più presto.']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Si è verificato un errore nel salvare il suggerimento. Riprova più tardi.']);
     }
     exit;
 }
 
-// --- Preparazione Dati per la Vista ---
-$form_submitted = isset($_GET['success']);
+// Variabili per il rendering iniziale della pagina (non più usate per la logica di submit)
+$form_submitted = false;
 $form_error = false;
 $error_message = '';
 ?>
@@ -82,19 +76,10 @@ $error_message = '';
     <main class="container mx-auto px-4 py-8">
         <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">Suggerisci un Luogo</h1>
         <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-            <?php if ($form_submitted): ?>
-                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4" role="alert">
-                    <p class="font-bold">Grazie per il tuo suggerimento!</p>
-                    <p>Il nostro team lo esaminerà al più presto.</p>
-                </div>
-            <?php else: ?>
+            <div id="form-container">
                 <p class="text-gray-600 mb-6">Conosci un luogo un Monumento una spiaggia speciale in Calabria che dovremmo assolutamente includere nel nostro portale? Segnalacelo compilando il modulo qui sotto!</p>
-                <?php if ($form_error): ?>
-                    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
-                        <p><?php echo $error_message; ?></p>
-                    </div>
-                <?php endif; ?>
-                <form id="suggestion-form" data-ajax-upload="true" action="suggerisci.php" method="POST" enctype="multipart/form-data">
+                <div id="notification-placeholder"></div>
+                <form id="suggestion-form" action="suggerisci.php" method="POST" enctype="multipart/form-data">
                     <div class="mb-4">
                         <label for="place_name" class="block text-gray-700 font-bold mb-2">Nome del Luogo</label>
                         <input type="text" name="place_name" id="place_name" class="w-full px-3 py-2 border rounded-lg" required>
@@ -109,8 +94,8 @@ $error_message = '';
                     </div>
                     <div class="mb-4">
                         <label for="place_images" class="block text-gray-700 font-bold mb-2">Carica Immagini (opzionale)</label>
-                        <input type="file" name="place_images[]" id="place_images" class="w-full px-3 py-2 border rounded-lg" multiple accept="image/jpeg, image/png, image/gif">
-                        <p class="text-sm text-gray-500 mt-1">Puoi selezionare più immagini. Dimensione massima per file: 5MB.</p>
+                        <input type="file" name="place_images[]" id="place_images" class="w-full px-3 py-2 border rounded-lg" multiple accept="image/jpeg, image/png, image/gif, image/webp">
+                        <p class="text-sm text-gray-500 mt-1">Puoi selezionare più immagini. Dimensione massima totale: 8MB.</p>
                     </div>
                     <hr class="my-6">
                     <div class="mb-4">
@@ -125,7 +110,11 @@ $error_message = '';
                         <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Invia Suggerimento</button>
                     </div>
                 </form>
-            <?php endif; ?>
+            </div>
+            <div id="success-message" class="hidden bg-green-100 border-l-4 border-green-500 text-green-700 p-4" role="alert">
+                <p class="font-bold">Grazie per il tuo suggerimento!</p>
+                <p>Il nostro team lo esaminerà al più presto.</p>
+            </div>
         </div>
     </main>
 

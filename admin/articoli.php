@@ -1,20 +1,27 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-require_once '../includes/image_processor.php'; // Includi il nuovo processore di immagini
+require_once '../includes/image_processor.php';
 
-// --- Inizializzazione ---
+// Controlla autenticazione (da implementare)
+// requireLogin();
+
 $db = new Database();
 $imageProcessor = new ImageProcessor();
+
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
 
-// --- Gestione Richieste POST (AJAX) ---
+// Gestione delle azioni POST (AJAX)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
+    $response = ['success' => false, 'message' => 'Errore generico.'];
 
-    try {
-        // Dati standard dal form
+    $current_action = $_POST['action'] ?? null;
+    $entity_id = $_POST['id'] ?? null;
+
+    // Aggiunta o Modifica Articolo
+    if (isset($_POST['title'])) {
         $title = $_POST['title'] ?? '';
         $slug = $_POST['slug'] ?? '';
         $content = $_POST['content'] ?? '';
@@ -23,91 +30,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $province_id = $_POST['province_id'] ?? null;
         $city_id = $_POST['city_id'] ?? null;
         $status = $_POST['status'] ?? 'draft';
-        $author = $_POST['author'] ?? 'Admin';
+        $author = $_POST['author'] ?? 'Admin'; // Dovrebbe essere l'utente loggato
         $posted_json_data = $_POST['json_data'] ?? [];
 
-        // Recupera l'articolo esistente se siamo in modalità modifica
-        $existingArticle = ($action === 'edit' && $id) ? $db->getArticleById($id) : null;
+        // Recupera dati esistenti in caso di modifica
+        $existingArticle = null;
+        if ($current_action === 'edit' && $entity_id) {
+            $existingArticle = $db->getArticleById($entity_id);
+        }
 
-        // Inizializza i percorsi dei file con i valori esistenti (o dai campi hidden)
-        $featured_image_path = $_POST['existing_featured_image'] ?? ($existingArticle['featured_image'] ?? null);
-        $hero_image_path = $_POST['existing_hero_image'] ?? ($existingArticle['hero_image'] ?? null);
-        $logo_path = $_POST['existing_logo'] ?? ($existingArticle['logo'] ?? null);
-        $gallery_images_json = $_POST['existing_gallery_images'] ?? ($existingArticle['gallery_images'] ?? '[]');
+        // Inizializza i percorsi delle immagini con i valori esistenti (se presenti)
+        $featured_image = $existingArticle['featured_image'] ?? null;
+        $hero_image = $existingArticle['hero_image'] ?? null;
+        $logo = $existingArticle['logo'] ?? null;
+        $gallery_images_json = $existingArticle['gallery_images'] ?? null;
 
-        $existing_json_data = json_decode($existingArticle['json_data'] ?? '{}', true);
-        $menu_pdf_path = $posted_json_data['menu_pdf_path'] ?? ($existing_json_data['menu_pdf_path'] ?? null);
-
-        // Processa le immagini con ImageProcessor
+        // Processa nuova immagine in evidenza
         if (!empty($_FILES['featured_image']['name'])) {
-            $new_path = $imageProcessor->processUploadedImage($_FILES['featured_image'], 'articles/featured', 1280);
-            if ($new_path) {
-                if ($featured_image_path) $imageProcessor->deleteImage($featured_image_path);
-                $featured_image_path = $new_path;
-            } else { throw new Exception('Errore caricamento immagine in evidenza.'); }
-        }
-        if (!empty($_FILES['hero_image']['name'])) {
-            $new_path = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'articles/hero', 1920);
-            if ($new_path) {
-                if ($hero_image_path) $imageProcessor->deleteImage($hero_image_path);
-                $hero_image_path = $new_path;
-            } else { throw new Exception('Errore caricamento immagine hero.'); }
-        }
-        if (!empty($_FILES['logo']['name'])) {
-            $new_path = $imageProcessor->processUploadedImage($_FILES['logo'], 'articles/logos', 400);
-            if ($new_path) {
-                if ($logo_path) $imageProcessor->deleteImage($logo_path);
-                $logo_path = $new_path;
-            } else { throw new Exception('Errore caricamento logo.'); }
+            $new_featured_image = $imageProcessor->processUploadedImage($_FILES['featured_image'], 'articles', 1200);
+            if ($new_featured_image) {
+                if ($featured_image) $imageProcessor->deleteImage($featured_image);
+                $featured_image = $new_featured_image;
+            }
         }
 
-        // Processa la galleria
+        // Processa nuova immagine hero
+        if (!empty($_FILES['hero_image']['name'])) {
+            $new_hero_image = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'articles', 1920);
+            if ($new_hero_image) {
+                if ($hero_image) $imageProcessor->deleteImage($hero_image);
+                $hero_image = $new_hero_image;
+            }
+        }
+
+        // Processa nuovo logo
+        if (!empty($_FILES['logo']['name'])) {
+            $new_logo = $imageProcessor->processUploadedImage($_FILES['logo'], 'articles/logos', 500);
+            if ($new_logo) {
+                if ($logo) $imageProcessor->deleteImage($logo);
+                $logo = $new_logo;
+            }
+        }
+
+        // Processa galleria immagini
         if (!empty($_FILES['gallery_images']['name'][0])) {
             $gallery_images = $gallery_images_json ? json_decode($gallery_images_json, true) : [];
             foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmp_name) {
                 if (!empty($tmp_name)) {
-                    $file_data = ['name' => $_FILES['gallery_images']['name'][$key], 'type' => $_FILES['gallery_images']['type'][$key], 'tmp_name' => $tmp_name, 'error' => $_FILES['gallery_images']['error'][$key], 'size' => $_FILES['gallery_images']['size'][$key]];
+                    $file_data = ['name' => $_FILES['gallery_images']['name'][$key], 'tmp_name' => $tmp_name, 'error' => $_FILES['gallery_images']['error'][$key]];
                     $new_gallery_path = $imageProcessor->processUploadedImage($file_data, 'articles/gallery', 1280);
-                    if ($new_gallery_path) $gallery_images[] = $new_gallery_path;
+                    if ($new_gallery_path) {
+                        $gallery_images[] = $new_gallery_path;
+                    }
                 }
             }
-            $gallery_images_json = json_encode(array_values($gallery_images));
+            $gallery_images_json = json_encode($gallery_images);
         }
 
-        // Processa il PDF del menu
+        // Gestione PDF Menu (non usa ImageProcessor)
+        $existing_json = $existingArticle ? json_decode($existingArticle['json_data'], true) : [];
         if (!empty($_FILES['menu_pdf']['name'])) {
-            $upload_dir = '../uploads/menus/';
-            if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-            if (strtolower(pathinfo($_FILES['menu_pdf']['name'], PATHINFO_EXTENSION)) !== 'pdf') throw new Exception('Il menu deve essere un file PDF.');
-
-            $filename = 'menu_' . uniqid() . '.pdf';
-            if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $upload_dir . $filename)) {
-                if ($menu_pdf_path && file_exists('../' . $menu_pdf_path)) unlink('../' . $menu_pdf_path);
-                $menu_pdf_path = 'uploads/menus/' . $filename;
-            } else { throw new Exception('Errore nel caricamento del PDF.'); }
+            $uploadDirMenus = '../uploads/menus/';
+            if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+            $fileName = 'menu_' . uniqid() . '.pdf';
+            if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $uploadDirMenus . $fileName)) {
+                if (isset($existing_json['menu_pdf_path']) && file_exists('../' . $existing_json['menu_pdf_path'])) {
+                    unlink('../' . $existing_json['menu_pdf_path']);
+                }
+                $posted_json_data['menu_pdf_path'] = 'uploads/menus/' . $fileName;
+            }
+        } elseif (isset($existing_json['menu_pdf_path'])) {
+            $posted_json_data['menu_pdf_path'] = $existing_json['menu_pdf_path'];
         }
-        if ($menu_pdf_path) $posted_json_data['menu_pdf_path'] = $menu_pdf_path;
-        $final_json_data = json_encode($posted_json_data);
+
+        $json_data = json_encode($posted_json_data);
 
         // Operazione sul Database
-        if ($action === 'edit' && $id) {
-            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image_path, $gallery_images_json, $hero_image_path, $logo_path, $final_json_data);
-            $success_message = "Articolo aggiornato con successo!";
+        if ($current_action === 'edit' && $entity_id) {
+            $db->updateArticle($entity_id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images_json, $hero_image, $logo, $json_data);
+            $response = ['success' => true, 'message' => 'Articolo aggiornato con successo.'];
         } else {
-            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image_path, $gallery_images_json, $hero_image_path, $logo_path, $final_json_data);
-            $success_message = "Articolo creato con successo!";
+            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images_json, $hero_image, $logo, $json_data);
+            $response = ['success' => true, 'message' => 'Articolo creato con successo.'];
         }
-
-        echo json_encode(['success' => true, 'redirect_url' => 'articoli.php?success=' . urlencode($success_message)]);
-
-    } catch (Exception $e) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+
+    // Eliminazione Articolo (ricevuta via AJAX)
+    elseif ($current_action === 'delete_article' && $entity_id) {
+        $article = $db->getArticleById($entity_id);
+        if ($article) {
+            if ($article['featured_image']) $imageProcessor->deleteImage($article['featured_image']);
+            if ($article['hero_image']) $imageProcessor->deleteImage($article['hero_image']);
+            if ($article['logo']) $imageProcessor->deleteImage($article['logo']);
+            if ($article['gallery_images']) {
+                $gallery = json_decode($article['gallery_images'], true);
+                foreach ($gallery as $img) $imageProcessor->deleteImage($img);
+            }
+        }
+        if ($db->deleteArticle($entity_id)) {
+            $response = ['success' => true, 'message' => 'Articolo eliminato con successo.'];
+        } else {
+            $response = ['success' => false, 'message' => 'Impossibile eliminare l\'articolo.'];
+        }
+    }
+
+    echo json_encode($response);
     exit;
 }
 
-// --- Gestione Richieste GET (Eliminazione) ---
+// Gestione eliminazione (da link, GET request) - Mantenuto per fallback o JS disabilitato
 if ($action === 'delete' && $id) {
     $article = $db->getArticleById($id);
     if ($article) {
@@ -115,24 +146,15 @@ if ($action === 'delete' && $id) {
         if ($article['hero_image']) $imageProcessor->deleteImage($article['hero_image']);
         if ($article['logo']) $imageProcessor->deleteImage($article['logo']);
         if ($article['gallery_images']) {
-            $gallery = json_decode($article['gallery_images'], true) ?: [];
+            $gallery = json_decode($article['gallery_images'], true);
             foreach ($gallery as $img) $imageProcessor->deleteImage($img);
-        }
-        if ($article['json_data']) {
-            $json_data = json_decode($article['json_data'], true);
-            if (isset($json_data['menu_pdf_path']) && file_exists('../' . $json_data['menu_pdf_path'])) {
-                unlink('../' . $json_data['menu_pdf_path']);
-            }
         }
     }
     $db->deleteArticle($id);
-    header('Location: articoli.php?success=Articolo eliminato con successo');
+    header('Location: articoli.php');
     exit;
 }
 
-// --- Preparazione Dati per la Vista ---
-$success_message = isset($_GET['success']) ? htmlspecialchars($_GET['success']) : null;
-$error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null;
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -144,7 +166,6 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/main.js" defer></script>
 </head>
 <body class="min-h-screen bg-gray-100 flex">
     <!-- Sidebar -->
@@ -177,6 +198,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
             </div>
         </header>
         <main class="flex-1 overflow-auto p-6">
+            <div id="notification-placeholder" class="mb-4"></div>
             <?php if ($action === 'list'): ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <h2 class="text-lg font-semibold mb-4">Elenco Articoli</h2>
@@ -194,7 +216,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                         $articles = $db->getArticles(null, 0, false); // Get all articles
                         foreach ($articles as $article):
                         ?>
-                        <tr class="border-b hover:bg-gray-50">
+                        <tr class="border-b hover:bg-gray-50" id="article-row-<?php echo $article['id']; ?>">
                             <td class="py-3 px-2">
                                 <div class="flex items-center space-x-3">
                                     <?php if (!empty($article['featured_image'])): ?>
@@ -235,12 +257,11 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                                         <i data-lucide="edit" class="w-3 h-3 mr-1"></i>
                                         Modifica
                                     </a>
-                                    <a href="articoli.php?action=delete&id=<?php echo $article['id']; ?>"
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
-                                       onclick="return confirm('Sei sicuro di voler eliminare questo articolo? Tutte le immagini associate verranno eliminate.');">
+                                    <button onclick="deleteArticle(<?php echo $article['id']; ?>)"
+                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors">
                                         <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
                                         Elimina
-                                    </a>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -360,15 +381,10 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                     Categoria: <span class="font-bold text-blue-600"><?php echo htmlspecialchars($category_name); ?></span>
                 </p>
 
-                <form action="articoli.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data">
+                <form id="article-form" action="articoli.php" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="<?php echo $action; ?>">
+                    <input type="hidden" name="id" value="<?php echo $id; ?>">
                     <input type="hidden" name="category_id" value="<?php echo htmlspecialchars($category_id); ?>">
-
-                    <!-- Hidden fields to track existing files for deletion -->
-                    <input type="hidden" name="existing_featured_image" value="<?php echo htmlspecialchars($article['featured_image'] ?? ''); ?>">
-                    <input type="hidden" name="existing_hero_image" value="<?php echo htmlspecialchars($article['hero_image'] ?? ''); ?>">
-                    <input type="hidden" name="existing_logo" value="<?php echo htmlspecialchars($article['logo'] ?? ''); ?>">
-                    <input type="hidden" name="existing_gallery_images" value="<?php echo htmlspecialchars($article['gallery_images'] ?? '[]'); ?>">
-
                     <?php include $form_path; ?>
                     <div class="text-right mt-6 border-t pt-4">
                         <a href="articoli.php" class="text-gray-600 hover:underline mr-4">Annulla</a>
@@ -380,8 +396,38 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
         </main>
     </div>
 
+    <script src="../assets/js/main.js"></script>
     <script>
         lucide.createIcons();
+
+        function deleteArticle(articleId) {
+            if (confirm('Sei sicuro di voler eliminare questo articolo? Tutte le immagini e i file associati verranno eliminati definitivamente.')) {
+                const formData = new FormData();
+                formData.append('action', 'delete_article');
+                formData.append('id', articleId);
+
+                fetch('articoli.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const notificationPlaceholder = document.getElementById('notification-placeholder');
+                    PassioneCalabria.showNotification(data.message, data.success ? 'success' : 'error', notificationPlaceholder);
+                    if (data.success) {
+                        const row = document.getElementById('article-row-' + articleId);
+                        if(row) {
+                            row.remove();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    const notificationPlaceholder = document.getElementById('notification-placeholder');
+                    PassioneCalabria.showNotification('Errore di comunicazione con il server.', 'error', notificationPlaceholder);
+                });
+            }
+        }
     </script>
 </body>
 </html>

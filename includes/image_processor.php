@@ -8,7 +8,6 @@ class ImageProcessor {
     /**
      * The constructor calculates an absolute path to the project's root directory.
      * This makes all internal file operations consistent and reliable.
-     * It assumes this file is located in a directory one level down from the project root (e.g., /includes/).
      */
     public function __construct() {
         $this->project_root = dirname(__DIR__);
@@ -44,9 +43,8 @@ class ImageProcessor {
         $resized_image = $this->resizeImage($image, $max_width);
         imagedestroy($image);
 
-        if (imagewebp($resized_image, $upload_path_abs, 80)) { // Use absolute path for saving
+        if (imagewebp($resized_image, $upload_path_abs, 80)) {
             imagedestroy($resized_image);
-            // Return a path relative to the project root for the database
             return $this->upload_dir_name . '/' . $subfolder . '/' . $new_filename;
         }
 
@@ -111,7 +109,6 @@ class ImageProcessor {
     public function deleteImage(string $relative_path): bool {
         if (empty($relative_path)) return false;
 
-        // Construct the full, absolute path from the project root and the relative path.
         $full_path = $this->project_root . '/' . ltrim($relative_path, '/');
 
         if (file_exists($full_path) && is_writable($full_path)) {

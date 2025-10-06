@@ -1,66 +1,89 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-require_once '../includes/image_processor.php'; // Includi il nuovo processore di immagini
+require_once '../includes/image_processor.php';
 
-// --- Inizializzazione ---
+// Controlla autenticazione (da implementare)
+// requireLogin();
+
 $db = new Database();
 $imageProcessor = new ImageProcessor();
+
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
 
-// --- Gestione Richieste POST (AJAX) ---
+// Gestione delle azioni POST (AJAX)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
-    try {
+    $response = ['success' => false, 'message' => 'Azione non valida.'];
+
+    $current_action = $_POST['action'] ?? null;
+    $entity_id = $_POST['id'] ?? null;
+
+    // Gestione Aggiunta/Modifica
+    if (isset($_POST['name'])) {
         $name = $_POST['name'] ?? '';
         $description = $_POST['description'] ?? '';
-        $icon_path = $_POST['current_icon'] ?? null;
+        $icon = $_POST['current_icon'] ?? '';
+
+        // Se è una modifica, recupera l'icona esistente
+        if ($current_action === 'edit' && $entity_id) {
+            $existing_category = $db->getCategoryById($entity_id);
+            $icon = $existing_category['icon'] ?? '';
+        }
 
         // Gestione upload icona con ImageProcessor
-        if (isset($_FILES['icon']) && $_FILES['icon']['error'] === UPLOAD_ERR_OK) {
-            $new_icon_path = $imageProcessor->processUploadedImage($_FILES['icon'], 'categories', 256);
+        if (!empty($_FILES['icon']['name'])) {
+            $new_icon_path = $imageProcessor->processUploadedImage($_FILES['icon'], 'categories', 128); // 128px max width
             if ($new_icon_path) {
-                if ($icon_path && strpos($icon_path, 'uploads/') !== false) {
-                    $imageProcessor->deleteImage($icon_path);
+                // Elimina il file precedente se esiste e non è un emoji
+                if (!empty($icon) && strpos($icon, 'uploads/') !== false) {
+                    $imageProcessor->deleteImage($icon);
                 }
-                $icon_path = $new_icon_path;
+                $icon = $new_icon_path;
             } else {
-                throw new Exception('Errore nel caricamento dell\'icona. Formato non supportato o file corrotto.');
+                echo json_encode(['success' => false, 'message' => 'Errore nel caricamento dell\'icona.']);
+                exit;
             }
         }
 
-        if ($action === 'edit' && $id) {
-            $db->updateCategory($id, $name, $description, $icon_path);
-            $success_message = "Categoria aggiornata con successo!";
+        if ($current_action === 'edit' && $entity_id) {
+            $db->updateCategory($entity_id, $name, $description, $icon);
+            $response = ['success' => true, 'message' => 'Categoria aggiornata con successo.'];
         } else {
-            $db->createCategory($name, $description, $icon_path);
-            $success_message = "Categoria creata con successo!";
+            $db->createCategory($name, $description, $icon);
+            $response = ['success' => true, 'message' => 'Categoria creata con successo.'];
         }
-
-        echo json_encode(['success' => true, 'redirect_url' => 'categorie.php?success=' . urlencode($success_message)]);
-
-    } catch (Exception $e) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+
+    // Gestione Eliminazione
+    elseif ($current_action === 'delete_category' && $entity_id) {
+        $category = $db->getCategoryById($entity_id);
+        if ($category && !empty($category['icon']) && strpos($category['icon'], 'uploads/') !== false) {
+            $imageProcessor->deleteImage($category['icon']);
+        }
+        if ($db->deleteCategory($entity_id)) {
+            $response = ['success' => true, 'message' => 'Categoria eliminata con successo.'];
+        } else {
+            $response = ['success' => false, 'message' => 'Impossibile eliminare la categoria, potrebbero esserci articoli collegati.'];
+        }
+    }
+
+    echo json_encode($response);
     exit;
 }
 
-// --- Gestione Richieste GET (Eliminazione) ---
+// Gestione eliminazione (GET request per fallback)
 if ($action === 'delete' && $id) {
     $category = $db->getCategoryById($id);
     if ($category && !empty($category['icon']) && strpos($category['icon'], 'uploads/') !== false) {
         $imageProcessor->deleteImage($category['icon']);
     }
     $db->deleteCategory($id);
-    header('Location: categorie.php?success=Categoria eliminata con successo!');
+    header('Location: categorie.php');
     exit;
 }
 
-// --- Preparazione Dati per la Vista ---
-$success_message = isset($_GET['success']) ? htmlspecialchars($_GET['success']) : null;
-$error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null;
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -72,7 +95,6 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/main.js" defer></script>
 </head>
 <body class="min-h-screen bg-gray-100 flex">
     <!-- Sidebar -->
@@ -105,17 +127,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
             </div>
         </header>
         <main class="flex-1 overflow-auto p-6">
-            <?php if ($success_message): ?>
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 success-alert">
-                <p><?php echo $success_message; ?></p>
-            </div>
-            <?php endif; ?>
-            <?php if ($error_message): ?>
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 error-alert">
-                 <p><?php echo $error_message; ?></p>
-            </div>
-            <?php endif; ?>
-
+            <div id="notification-placeholder" class="mb-4"></div>
             <?php if ($action === 'list'): ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <h2 class="text-lg font-semibold mb-4">Elenco Categorie</h2>
@@ -133,7 +145,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                         $categories = $db->getCategories();
                         foreach ($categories as $category):
                         ?>
-                        <tr class="border-b">
+                        <tr class="border-b" id="category-row-<?php echo $category['id']; ?>">
                             <td class="py-2">
                                 <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
                                     <img src="../<?php echo htmlspecialchars($category['icon']); ?>" alt="Icona" class="w-8 h-8 object-cover rounded">
@@ -145,7 +157,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                             <td class="py-2"><?php echo htmlspecialchars($category['description']); ?></td>
                             <td class="py-2">
                                 <a href="categorie.php?action=edit&id=<?php echo $category['id']; ?>" class="text-blue-600 hover:underline">Modifica</a>
-                                <a href="categorie.php?action=delete&id=<?php echo $category['id']; ?>" class="text-red-600 hover:underline ml-4" onclick="return confirm('Sei sicuro di voler eliminare questa categoria?');">Elimina</a>
+                                <button onclick="deleteCategory(<?php echo $category['id']; ?>)" class="text-red-600 hover:underline ml-4">Elimina</button>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -160,7 +172,9 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
             ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <h2 class="text-lg font-semibold mb-4"><?php echo $action === 'edit' ? 'Modifica Categoria' : 'Nuova Categoria'; ?></h2>
-                <form action="categorie.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data">
+                <form id="category-form" action="categorie.php" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="<?php echo $action; ?>">
+                    <input type="hidden" name="id" value="<?php echo $id; ?>">
                     <div class="mb-4">
                         <label for="name" class="block text-gray-700 font-bold mb-2">Nome</label>
                         <input type="text" name="name" id="name" class="w-full px-3 py-2 border rounded-lg" value="<?php echo htmlspecialchars($category['name'] ?? ''); ?>" required>
@@ -201,18 +215,35 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
         </main>
     </div>
 
+    <script src="../assets/js/main.js"></script>
     <script>
         lucide.createIcons();
-        // Auto-hide alerts
-        setTimeout(() => {
-            document.querySelectorAll('.success-alert, .error-alert').forEach(alert => {
-                if (alert) {
-                    alert.style.transition = 'opacity 0.5s';
-                    alert.style.opacity = '0';
-                    setTimeout(() => alert.remove(), 500);
-                }
-            });
-        }, 5000);
+
+        function deleteCategory(categoryId) {
+            if (confirm('Sei sicuro di voler eliminare questa categoria?')) {
+                const formData = new FormData();
+                formData.append('action', 'delete_category');
+                formData.append('id', categoryId);
+
+                fetch('categorie.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const notificationPlaceholder = document.getElementById('notification-placeholder');
+                    PassioneCalabria.showNotification(data.message, data.success ? 'success' : 'error', notificationPlaceholder);
+                    if (data.success) {
+                        document.getElementById('category-row-' + categoryId)?.remove();
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    const notificationPlaceholder = document.getElementById('notification-placeholder');
+                    PassioneCalabria.showNotification('Errore di comunicazione con il server.', 'error', notificationPlaceholder);
+                });
+            }
+        }
     </script>
 </body>
 </html>

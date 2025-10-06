@@ -1,97 +1,102 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-require_once '../includes/image_processor.php'; // Includi il nuovo processore di immagini
+require_once '../includes/image_processor.php';
 
-// --- Inizializzazione ---
 $db = new Database();
 $imageProcessor = new ImageProcessor();
+
 $entity = $_GET['entity'] ?? 'provinces';
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
-$province_id = $_GET['province_id'] ?? null;
 
-// --- Gestione Richieste POST (AJAX) ---
+// Gestione delle azioni POST (AJAX)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
-    try {
-        if ($entity === 'provinces') {
-            $name = $_POST['name'] ?? '';
-            $description = $_POST['description'] ?? '';
-            $image_path = $_POST['existing_image_path'] ?? null;
+    $response = ['success' => false, 'message' => 'Azione non riconosciuta.'];
 
-            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                $new_image_path = $imageProcessor->processUploadedImage($_FILES['image'], 'provinces', 1920);
-                if ($new_image_path) {
-                    if ($image_path) $imageProcessor->deleteImage($image_path);
-                    $image_path = $new_image_path;
-                } else {
-                    throw new Exception('Errore nel caricamento dell\'immagine rappresentativa.');
-                }
-            }
+    $post_action = $_POST['action'] ?? null;
+    $post_entity = $_POST['entity'] ?? null;
+    $post_id = $_POST['id'] ?? null;
 
-            if ($action === 'edit' && $id) {
-                $db->updateProvince($id, $name, $description, $image_path);
-                $success_message = "Provincia aggiornata con successo!";
+    // Gestione Province (Crea/Modifica)
+    if ($post_entity === 'provinces') {
+        $name = $_POST['name'] ?? '';
+        $description = $_POST['description'] ?? '';
+
+        $existing_province = ($post_action === 'edit' && $post_id) ? $db->getProvinceById($post_id) : null;
+        $image_path = $existing_province['image_path'] ?? null;
+
+        if (!empty($_FILES['image']['name'])) {
+            $new_image_path = $imageProcessor->processUploadedImage($_FILES['image'], 'provinces', 1920);
+            if ($new_image_path) {
+                if ($image_path) $imageProcessor->deleteImage($image_path);
+                $image_path = $new_image_path;
             } else {
-                $db->createProvince($name, $description, $image_path);
-                $success_message = "Provincia creata con successo!";
+                echo json_encode(['success' => false, 'message' => 'Errore caricamento immagine.']);
+                exit;
             }
-            echo json_encode(['success' => true, 'redirect_url' => 'province.php?success=' . urlencode($success_message)]);
+        }
 
-        } elseif ($entity === 'gallery' && isset($_POST['province_id'])) {
-            $province_id_post = (int)$_POST['province_id'];
-            $title = $_POST['title'] ?? '';
-            $description = $_POST['description'] ?? '';
+        if ($post_action === 'edit' && $post_id) {
+            $db->updateProvince($post_id, $name, $description, $image_path);
+            $response = ['success' => true, 'message' => 'Provincia aggiornata con successo!'];
+        } else {
+            $db->createProvince($name, $description, $image_path);
+            $response = ['success' => true, 'message' => 'Provincia creata con successo!'];
+        }
+    }
 
-            if (isset($_FILES['gallery_image']) && $_FILES['gallery_image']['error'] === UPLOAD_ERR_OK) {
-                $gallery_image_path = $imageProcessor->processUploadedImage($_FILES['gallery_image'], 'galleries', 1280);
-                if ($gallery_image_path) {
-                    $db->addProvinceGalleryImage($province_id_post, $gallery_image_path, $title, $description);
-                    $success_message = "Immagine aggiunta alla galleria con successo!";
-                    echo json_encode(['success' => true, 'redirect_url' => 'province.php?entity=gallery&action=manage&province_id=' . $province_id_post . '&success=' . urlencode($success_message)]);
-                } else {
-                    throw new Exception('Errore nel caricamento dell\'immagine della galleria.');
-                }
+    // Gestione Galleria (Aggiungi immagine)
+    elseif ($post_entity === 'gallery' && $post_action === 'add') {
+        $province_id = (int)($_POST['province_id'] ?? 0);
+        $title = $_POST['title'] ?? '';
+        $description = $_POST['description'] ?? '';
+
+        if ($province_id > 0 && !empty($_FILES['gallery_image']['name'])) {
+            $image_path = $imageProcessor->processUploadedImage($_FILES['gallery_image'], 'galleries', 1280);
+            if ($image_path) {
+                $db->addProvinceGalleryImage($province_id, $image_path, $title, $description);
+                $response = ['success' => true, 'message' => 'Immagine aggiunta alla galleria!'];
             } else {
-                throw new Exception('Nessuna immagine selezionata per la galleria.');
+                $response = ['success' => false, 'message' => 'Errore caricamento immagine galleria.'];
             }
         } else {
-            throw new Exception('Azione non valida o dati mancanti.');
+            $response = ['success' => false, 'message' => 'Dati mancanti per aggiungere l\'immagine.'];
         }
-    } catch (Exception $e) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+
+    // Gestione Eliminazione (Province o Immagini Galleria)
+    elseif ($post_action === 'delete') {
+        if ($post_entity === 'provinces' && $post_id) {
+            $db->deleteProvince($post_id); // Assumendo che il DB gestisca le relazioni o che non ci siano dipendenze critiche
+            $response = ['success' => true, 'message' => 'Provincia eliminata.'];
+        } elseif ($post_entity === 'gallery' && $post_id) {
+            $image = $db->getProvinceGalleryImageById($post_id);
+            if ($image) $imageProcessor->deleteImage($image['image_path']);
+            $db->deleteProvinceGalleryImage($post_id);
+            $response = ['success' => true, 'message' => 'Immagine eliminata dalla galleria.'];
+        }
+    }
+
+    echo json_encode($response);
     exit;
 }
 
-// --- Gestione Richieste GET (Eliminazione) ---
+// Gestione GET per eliminazione (fallback)
 if ($action === 'delete' && $id) {
     if ($entity === 'provinces') {
-        $province = $db->getProvinceById($id);
-        if ($province) {
-            if ($province['image_path']) $imageProcessor->deleteImage($province['image_path']);
-            $gallery_images = $db->getProvinceGalleryImages($id);
-            foreach ($gallery_images as $image) $imageProcessor->deleteImage($image['image_path']);
-        }
         $db->deleteProvince($id);
-        header('Location: province.php?success=Provincia e immagini associate eliminate.');
-        exit;
     } elseif ($entity === 'gallery') {
         $image = $db->getProvinceGalleryImageById($id);
-        if ($image) {
-            $imageProcessor->deleteImage($image['image_path']);
-            $db->deleteProvinceGalleryImage($id);
-        }
-        header('Location: province.php?entity=gallery&action=manage&province_id=' . ($province_id ?? $image['province_id']) . '&success=Immagine eliminata.');
-        exit;
+        if ($image) $imageProcessor->deleteImage($image['image_path']);
+        $db->deleteProvinceGalleryImage($id);
     }
+    $redirect_url = 'province.php?' . http_build_query(array_filter(['entity' => $_GET['entity'] ?? 'provinces', 'action' => 'list', 'province_id' => $_GET['province_id'] ?? null]));
+    header('Location: ' . $redirect_url);
+    exit;
 }
 
-// --- Preparazione Dati per la Vista ---
-$success_message = isset($_GET['success']) ? htmlspecialchars($_GET['success']) : null;
-$error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null;
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -103,7 +108,6 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="../assets/js/main.js" defer></script>
 
     <script>
         tailwind.config = {
@@ -160,6 +164,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
         </header>
 
         <main class="flex-1 overflow-auto p-6">
+            <div id="notification-placeholder" class="mb-4"></div>
             <?php if (isset($success_message)): ?>
             <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
                 <div class="flex">
@@ -227,7 +232,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                                 $provinces = $db->getProvinces();
                                 foreach ($provinces as $province):
                                 ?>
-                                <tr class="hover:bg-gray-50 transition-colors">
+                                <tr class="hover:bg-gray-50 transition-colors" id="province-row-<?php echo $province['id']; ?>">
                                     <td class="py-4 px-6">
                                         <div class="flex items-center">
                                             <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
@@ -270,12 +275,11 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                                                 <i data-lucide="images" class="w-4 h-4"></i>
                                                 <span>Galleria</span>
                                             </a>
-                                            <a href="?entity=provinces&action=delete&id=<?php echo $province['id']; ?>"
-                                               class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center space-x-1 transition-colors"
-                                               onclick="return confirm('Sei sicuro di voler eliminare questa provincia?');">
+                                            <button onclick="deleteItem('provinces', <?php echo $province['id']; ?>)"
+                                               class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center space-x-1 transition-colors">
                                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                                                 <span>Elimina</span>
-                                            </a>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -324,7 +328,10 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
 
                     <div class="p-6">
                         <div class="max-w-2xl mx-auto">
-                            <form action="?entity=provinces&action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data" class="space-y-6">
+                            <form id="province-form" action="province.php" method="POST" enctype="multipart/form-data" class="space-y-6">
+                                <input type="hidden" name="entity" value="provinces">
+                                <input type="hidden" name="action" value="<?php echo $action; ?>">
+                                <input type="hidden" name="id" value="<?php echo $id; ?>">
                                 <!-- Nome -->
                                 <div>
                                     <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">
@@ -451,7 +458,7 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                     <div class="p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             <?php foreach ($gallery_images as $image): ?>
-                            <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
+                            <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow" id="gallery-image-row-<?php echo $image['id']; ?>">
                                 <div class="aspect-[4/3] bg-gray-100">
                                     <img src="../<?php echo htmlspecialchars($image['image_path']); ?>"
                                          alt="<?php echo htmlspecialchars($image['title']); ?>"
@@ -464,12 +471,11 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
                                         <span class="text-xs text-gray-500">
                                             <?php echo date('d/m/Y', strtotime($image['created_at'])); ?>
                                         </span>
-                                        <a href="?entity=gallery&action=delete&id=<?php echo $image['id']; ?>&province_id=<?php echo $province_id; ?>&back_action=manage"
-                                           class="text-red-600 hover:text-red-700 font-semibold text-sm flex items-center space-x-1 transition-colors"
-                                           onclick="return confirm('Sei sicuro di voler eliminare questa immagine?');">
+                                        <button onclick="deleteItem('gallery', <?php echo $image['id']; ?>)"
+                                           class="text-red-600 hover:text-red-700 font-semibold text-sm flex items-center space-x-1 transition-colors">
                                             <i data-lucide="trash-2" class="w-3 h-3"></i>
                                             <span>Elimina</span>
-                                        </a>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -497,7 +503,9 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
 
                     <div class="p-6">
                         <div class="max-w-2xl mx-auto">
-                            <form action="?entity=gallery&action=add&province_id=<?php echo $province_id; ?>" method="POST" enctype="multipart/form-data" class="space-y-6">
+                            <form id="gallery-form" action="province.php" method="POST" enctype="multipart/form-data" class="space-y-6">
+                                <input type="hidden" name="entity" value="gallery">
+                                <input type="hidden" name="action" value="add">
                                 <input type="hidden" name="province_id" value="<?php echo $province_id; ?>">
 
                                 <!-- Immagine -->
@@ -567,9 +575,41 @@ $error_message = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : null
         </main>
     </div>
 
+    <script src="../assets/js/main.js"></script>
     <script>
         // Inizializza Lucide icons
         lucide.createIcons();
+
+        function deleteItem(entity, id) {
+            const message = entity === 'provinces'
+                ? 'Sei sicuro di voler eliminare questa provincia?'
+                : 'Sei sicuro di voler eliminare questa immagine dalla galleria?';
+
+            if (confirm(message)) {
+                const formData = new FormData();
+                formData.append('entity', entity);
+                formData.append('action', 'delete');
+                formData.append('id', id);
+
+                fetch('province.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const notificationPlaceholder = document.getElementById('notification-placeholder');
+                    PassioneCalabria.showNotification(data.message, data.success ? 'success' : 'error', notificationPlaceholder);
+                    if (data.success) {
+                        const rowId = entity === 'provinces' ? `province-row-${id}` : `gallery-image-row-${id}`;
+                        document.getElementById(rowId)?.remove();
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    PassioneCalabria.showNotification('Errore di comunicazione con il server.', 'error', document.getElementById('notification-placeholder'));
+                });
+            }
+        }
         
         // Funzioni per l'upload delle immagini
         function previewImage(input) {
