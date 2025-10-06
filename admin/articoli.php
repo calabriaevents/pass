@@ -1,11 +1,13 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php';
 
 // Controlla autenticazione (da implementare)
 // requireLogin();
 
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
@@ -24,56 +26,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $author = $_POST['author'] ?? 'Admin';
     $posted_json_data = $_POST['json_data'] ?? [];
 
-    // --- File Upload Handling ---
-    $uploadDirArticles = '../uploads/articles/';
-    $uploadDirMenus = '../uploads/menus/';
-    if (!is_dir($uploadDirArticles)) mkdir($uploadDirArticles, 0755, true);
-    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+    // --- New Image Upload Handling ---
+    $upload_error = '';
+    $featured_image = $_POST['existing_featured_image'] ?? null;
+    $hero_image = $_POST['existing_hero_image'] ?? null;
+    $logo = $_POST['existing_logo'] ?? null;
+    $gallery_images = $_POST['existing_gallery_images'] ?? '[]';
 
-    // Helper function for single file upload
-    function uploadSingleFile($file, $prefix, $uploadDir, $allowedExtensions) {
-        if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = $prefix . uniqid() . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    return str_replace('../', '', $uploadDir) . $fileName;
+    // Helper for processing a single image
+    function processAndReplaceImage($file_key, $current_path, $subfolder, $imageProcessor) {
+        if (isset($_FILES[$file_key]) && $_FILES[$file_key]['error'] === UPLOAD_ERR_OK) {
+            $new_path = $imageProcessor->processUploadedImage($_FILES[$file_key], $subfolder, 1920);
+            if ($new_path) {
+                if ($current_path) {
+                    $imageProcessor->deleteImage($current_path);
                 }
+                return $new_path;
+            } else {
+                // Set an error message, but return the original path to avoid data loss
+                $GLOBALS['upload_error'] .= "Errore caricamento per {$file_key}. ";
+                return $current_path;
             }
         }
-        return null;
+        return $current_path;
     }
 
-    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    $featured_image = uploadSingleFile($_FILES['featured_image'] ?? null, 'featured_', $uploadDirArticles, $imageExtensions);
-    $hero_image = uploadSingleFile($_FILES['hero_image'] ?? null, 'hero_', $uploadDirArticles, $imageExtensions);
-    $logo = uploadSingleFile($_FILES['logo'] ?? null, 'logo_', $uploadDirArticles, $imageExtensions);
-
-    // Handle Menu PDF upload and add it to JSON data
-    $menu_pdf = uploadSingleFile($_FILES['menu_pdf'] ?? null, 'menu_', $uploadDirMenus, ['pdf']);
-    if ($menu_pdf) {
-        $posted_json_data['menu_pdf_path'] = $menu_pdf;
-    }
+    $featured_image = processAndReplaceImage('featured_image', $featured_image, 'articles/featured', $imageProcessor);
+    $hero_image = processAndReplaceImage('hero_image', $hero_image, 'articles/hero', $imageProcessor);
+    $logo = processAndReplaceImage('logo', $logo, 'articles/logos', $imageProcessor);
 
     // Handle gallery images upload
-    $gallery_images = null;
     if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
-        $galleryPaths = [];
+        $galleryPaths = json_decode($gallery_images, true) ?: [];
         foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
             if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
-                $fileExtension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                if (in_array($fileExtension, $imageExtensions)) {
-                    $fileName = 'gallery_' . uniqid() . '.' . $fileExtension;
-                    $targetPath = $uploadDirArticles . $fileName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $galleryPaths[] = 'uploads/articles/' . $fileName;
-                    }
+                $file_data = [
+                    'name' => $_FILES['gallery_images']['name'][$key],
+                    'type' => $_FILES['gallery_images']['type'][$key],
+                    'tmp_name' => $tmpName,
+                    'error' => $_FILES['gallery_images']['error'][$key],
+                    'size' => $_FILES['gallery_images']['size'][$key]
+                ];
+                $new_gallery_path = $imageProcessor->processUploadedImage($file_data, 'articles/gallery', 1280);
+                if ($new_gallery_path) {
+                    $galleryPaths[] = $new_gallery_path;
+                } else {
+                     $upload_error .= "Errore caricamento immagine galleria: " . htmlspecialchars($file_data['name']) . ". ";
                 }
             }
         }
-        if (!empty($galleryPaths)) {
-            $gallery_images = json_encode($galleryPaths);
+        $gallery_images = json_encode(array_values($galleryPaths));
+    }
+
+    // --- PDF Menu Upload (un-changed) ---
+    $uploadDirMenus = '../uploads/menus/';
+    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+    if (isset($_FILES['menu_pdf']) && $_FILES['menu_pdf']['error'] === UPLOAD_ERR_OK) {
+        $fileExtension = strtolower(pathinfo($_FILES['menu_pdf']['name'], PATHINFO_EXTENSION));
+        if ($fileExtension === 'pdf') {
+            $fileName = 'menu_' . uniqid() . '.' . $fileExtension;
+            $targetPath = $uploadDirMenus . $fileName;
+            if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $targetPath)) {
+                $posted_json_data['menu_pdf_path'] = str_replace('../', '', $uploadDirMenus) . $fileName;
+            }
         }
     }
     
@@ -106,7 +121,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// Gestione Eliminazione Immagine Galleria (AJAX/POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_gallery_image']) && $id) {
+    $article = $db->getArticleById($id);
+    $image_to_delete = $_POST['delete_gallery_image'];
+
+    if ($article && $article['gallery_images']) {
+        $gallery_images = json_decode($article['gallery_images'], true) ?: [];
+        $gallery_images = array_filter($gallery_images, fn($img) => $img !== $image_to_delete);
+
+        $imageProcessor->deleteImage($image_to_delete);
+
+        $new_gallery_json = json_encode(array_values($gallery_images));
+
+        // Call the existing updateArticle with all its parameters, only changing gallery_images
+        $db->updateArticle($id, $article['title'], $article['slug'], $article['content'], $article['excerpt'], $article['category_id'], $article['province_id'], $article['city_id'], $article['status'], $article['featured_image'], $new_gallery_json, $article['hero_image'], $article['logo'], $article['json_data']);
+
+        header('Location: articoli.php?action=edit&id=' . $id);
+        exit;
+    }
+}
+
 if ($action === 'delete' && $id) {
+    $article = $db->getArticleById($id);
+    if ($article) {
+        // Delete all associated images
+        if (!empty($article['featured_image'])) {
+            $imageProcessor->deleteImage($article['featured_image']);
+        }
+        if (!empty($article['hero_image'])) {
+            $imageProcessor->deleteImage($article['hero_image']);
+        }
+        if (!empty($article['logo'])) {
+            $imageProcessor->deleteImage($article['logo']);
+        }
+        if (!empty($article['gallery_images'])) {
+            $gallery = json_decode($article['gallery_images'], true) ?: [];
+            foreach ($gallery as $img) {
+                $imageProcessor->deleteImage($img);
+            }
+        }
+    }
     $db->deleteArticle($id);
     header('Location: articoli.php');
     exit;
@@ -176,7 +231,7 @@ if ($action === 'delete' && $id) {
                             <td class="py-3 px-2">
                                 <div class="flex items-center space-x-3">
                                     <?php if (!empty($article['featured_image'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-cover rounded-lg border">
+                                    <img src="../image-loader.php?path=<?php echo urlencode($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-cover rounded-lg border">
                                     <?php else: ?>
                                     <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
                                         <i data-lucide="image" class="w-5 h-5 text-gray-400"></i>
@@ -340,6 +395,13 @@ if ($action === 'delete' && $id) {
 
                 <form action="articoli.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="category_id" value="<?php echo htmlspecialchars($category_id); ?>">
+
+                    <!-- Hidden fields for existing images -->
+                    <input type="hidden" name="existing_featured_image" value="<?php echo htmlspecialchars($article['featured_image'] ?? ''); ?>">
+                    <input type="hidden" name="existing_hero_image" value="<?php echo htmlspecialchars($article['hero_image'] ?? ''); ?>">
+                    <input type="hidden" name="existing_logo" value="<?php echo htmlspecialchars($article['logo'] ?? ''); ?>">
+                    <input type="hidden" name="existing_gallery_images" value="<?php echo htmlspecialchars($article['gallery_images'] ?? '[]'); ?>">
+
                     <?php include $form_path; ?>
                     <div class="text-right mt-6 border-t pt-4">
                         <a href="articoli.php" class="text-gray-600 hover:underline mr-4">Annulla</a>
@@ -351,8 +413,18 @@ if ($action === 'delete' && $id) {
         </main>
     </div>
 
+    <form id="deleteImageForm" method="POST" action="articoli.php?action=edit&id=<?php echo $id; ?>" style="display:none;">
+        <input type="hidden" name="delete_gallery_image" id="imageToDelete">
+    </form>
+
     <script>
         lucide.createIcons();
+        function deleteGalleryImage(imagePath) {
+            if (confirm('Sei sicuro di voler eliminare questa immagine dalla galleria?')) {
+                document.getElementById('imageToDelete').value = imagePath;
+                document.getElementById('deleteImageForm').submit();
+            }
+        }
     </script>
 </body>
 </html>
