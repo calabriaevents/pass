@@ -98,6 +98,7 @@ if (!is_array($json_data)) $json_data = [];
     </div>
 </div>
 
+<?php include __DIR__ . '/partials/logo_upload_section.php'; ?>
 <?php include __DIR__ . '/partials/seo_section.php'; ?>
 
 <!-- Settings -->
