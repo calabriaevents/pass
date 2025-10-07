@@ -28,7 +28,7 @@
                 </div>
             </div>
         </div>
-        <?php include 'partials/menu.php'; ?>
+        <?php include __DIR__ . '/menu.php'; ?>
         <div class="p-4 border-t border-gray-700">
             <a href="../index.php" class="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"><i data-lucide="log-out" class="w-5 h-5"></i><span>Torna al Sito</span></a>
         </div>

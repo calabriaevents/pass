@@ -164,4 +164,4 @@ function scrollToTop() {
 </script>
 
 <!-- Upload Progress JavaScript -->
-<script src="<?php echo BASE_URL; ?>assets/js/upload-progress.js"></script>
+<script src="<?php echo SITE_URL; ?>/assets/js/upload-progress.js"></script>
