@@ -241,7 +241,7 @@ class Database {
     // Metodi per Articoli
     public function getArticles($limit = null, $offset = 0, $onlyPublished = true) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name, ci.name as city_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id LEFT JOIN cities ci ON a.city_id = ci.id';
+        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo, c.name as category_name, p.name as province_name, ci.name as city_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id LEFT JOIN cities ci ON a.city_id = ci.id';
         $params = [];
         if ($onlyPublished) {
             $sql .= ' WHERE a.status = ?';
@@ -258,14 +258,14 @@ class Database {
 
     public function getArticleById($id) {
         if (!$this->isConnected()) { return null; }
-        $stmt = $this->pdo->prepare('SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name, ci.name as city_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id LEFT JOIN cities ci ON a.city_id = ci.id WHERE a.id = ?');
+        $stmt = $this->pdo->prepare('SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo, c.name as category_name, p.name as province_name, ci.name as city_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id LEFT JOIN cities ci ON a.city_id = ci.id WHERE a.id = ?');
         $stmt->execute([$id]);
         return $stmt->fetch();
     }
 
     public function getArticlesByCity($cityId, $limit = null) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id WHERE a.city_id = ? AND a.status = ? ORDER BY a.created_at DESC';
+        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo, c.name as category_name, p.name as province_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id WHERE a.city_id = ? AND a.status = ? ORDER BY a.created_at DESC';
         if ($limit) {
             $sql .= ' LIMIT ' . (int)$limit;
         }
@@ -307,14 +307,14 @@ public function updateArticle($id, $title, $slug, $content, $excerpt, $category_
 
     public function getFeaturedArticles($limit = 6) {
         if (!$this->isConnected()) { return []; }
-        $stmt = $this->pdo->prepare('SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id WHERE a.featured = 1 AND a.status = ? ORDER BY a.views DESC LIMIT ?');
+        $stmt = $this->pdo->prepare('SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo, c.name as category_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id WHERE a.featured = 1 AND a.status = ? ORDER BY a.views DESC LIMIT ?');
         $stmt->execute(['published', $limit]);
         return $stmt->fetchAll();
     }
 
     public function getArticlesByCategory($categoryId, $limit = null) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id WHERE a.category_id = ? AND a.status = ? ORDER BY a.created_at DESC';
+        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo, c.name as category_name, p.name as province_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id WHERE a.category_id = ? AND a.status = ? ORDER BY a.created_at DESC';
         if ($limit) {
             $sql .= ' LIMIT ' . (int)$limit;
         }
@@ -325,7 +325,7 @@ public function updateArticle($id, $title, $slug, $content, $excerpt, $category_
 
     public function getArticlesByProvince($provinceId, $limit = null) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id WHERE a.province_id = ? AND a.status = ? ORDER BY a.created_at DESC';
+        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo, c.name as category_name, p.name as province_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id WHERE a.province_id = ? AND a.status = ? ORDER BY a.created_at DESC';
         if ($limit) {
             $sql .= ' LIMIT ' . (int)$limit;
         }
@@ -338,7 +338,7 @@ public function getArticleBySlug($slug) {
     if (!$this->isConnected()) { return null; }
     $stmt = $this->pdo->prepare('
         SELECT
-            a.*,
+            a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo,
             c.name as category_name,
             p.name as province_name,
             ci.name as city_name
@@ -373,7 +373,7 @@ public function getArticleBySlug($slug) {
         if (!$this->isConnected()) { return []; }
         
         // ✅ ERRORE 500 RISOLTO: Rimossi campi inesistenti a.hero_image, a.logo, a.json_data
-        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name 
+        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, a.logo, c.name as category_name, p.name as province_name
                 FROM articles a 
                 LEFT JOIN categories c ON a.category_id = c.id 
                 LEFT JOIN provinces p ON a.province_id = p.id 

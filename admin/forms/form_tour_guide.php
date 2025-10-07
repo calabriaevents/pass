@@ -84,6 +84,7 @@ if (!is_array($json_data)) $json_data = [];
         <label for="gallery_images" class="block text-gray-700 font-bold mb-2">Galleria Immagini</label>
         <input type="file" name="gallery_images[]" id="gallery_images" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" multiple>
     </div>
+    <?php include __DIR__ . '/partials/logo_upload_section.php'; ?>
 </div>
 
 <?php include __DIR__ . '/partials/seo_section.php'; ?>

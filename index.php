@@ -289,22 +289,21 @@ foreach ($homeSections as $section) {
                                                     <h4 class="text-sm font-semibold text-gray-900 group-hover/article:text-blue-600 transition-colors line-clamp-2 leading-tight">
                                                         <?php echo htmlspecialchars($article['title']); ?>
                                                     </h4>
-
-    <div class="flex items-center justify-between mt-1">
-        <div class="flex items-center text-xs text-gray-500">
-            <?php // Aggiungiamo qui la logica per visualizzare l'icona della categoria ?>
-            <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
-                <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
-            <?php else: ?>
-                <span class="mr-1.5"><?php echo $category['icon']; ?></span>
-            <?php endif; ?>
-            <span><?php echo formatDate($article['created_at']); ?></span>
-        </div>
-
-        <div class="flex items-center text-xs text-gray-400">
-            <i data-lucide="eye" class="w-3 h-3 mr-1"></i>
-            <span><?php echo $article['views']; ?></span>
-        </div>
+                                                    <div class="flex items-center justify-between mt-1">
+                                                        <div class="flex items-center text-xs text-gray-500">
+                                                            <?php if (!empty($article['logo'])): ?>
+                                                                <img src="<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo" class="w-4 h-4 mr-1.5 rounded object-contain">
+                                                            <?php elseif (strpos($category['icon'], 'uploads/') !== false): ?>
+                                                                <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
+                                                            <?php else: ?>
+                                                                <span class="mr-1.5"><?php echo $category['icon']; ?></span>
+                                                            <?php endif; ?>
+                                                            <span><?php echo formatDate($article['created_at']); ?></span>
+                                                        </div>
+                                                        <div class="flex items-center text-xs text-gray-400">
+                                                            <i data-lucide="eye" class="w-3 h-3 mr-1"></i>
+                                                            <span><?php echo $article['views']; ?></span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
