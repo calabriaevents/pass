@@ -239,20 +239,33 @@ class Database {
     }
 
     // Metodi per Articoli
-    public function getArticles($limit = null, $offset = 0, $onlyPublished = true) {
+    public function getArticles($limit = 50, $offset = 0, $onlyPublished = true) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name, ci.name as city_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id LEFT JOIN cities ci ON a.city_id = ci.id';
-        $params = [];
+
+        // Fallback per il limite se viene passato null, per evitare di caricare l'intera tabella
+        $limit = $limit ?? 50;
+
+        $sql = 'SELECT a.*, c.name as category_name, p.name as province_name, ci.name as city_name
+                FROM articles a
+                LEFT JOIN categories c ON a.category_id = c.id
+                LEFT JOIN provinces p ON a.province_id = p.id
+                LEFT JOIN cities ci ON a.city_id = ci.id';
+
         if ($onlyPublished) {
-            $sql .= ' WHERE a.status = ?';
-            $params[] = 'published';
+            $sql .= ' WHERE a.status = :status';
         }
-        $sql .= ' ORDER BY a.created_at DESC';
-        if ($limit) {
-            $sql .= ' LIMIT ' . (int)$limit . ' OFFSET ' . (int)$offset;
-        }
+
+        $sql .= ' ORDER BY a.created_at DESC LIMIT :limit OFFSET :offset';
+
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
+
+        if ($onlyPublished) {
+            $stmt->bindValue(':status', 'published');
+        }
+        $stmt->bindValue(':limit', (int) $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int) $offset, PDO::PARAM_INT);
+
+        $stmt->execute();
         return $stmt->fetchAll();
     }
 
