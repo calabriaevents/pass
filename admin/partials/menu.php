@@ -35,21 +35,24 @@ $pendingCounts = [
 ];
 
 if (isset($db) && $db->isConnected()) {
-    if (method_exists($db, 'getPendingEventSuggestionsCount')) {
-        $pendingCounts['events'] = $db->getPendingEventSuggestionsCount();
+    // Helper function to safely get counts
+    function getSafeCount($db, $methodName) {
+        try {
+            if (method_exists($db, $methodName)) {
+                return $db->$methodName();
+            }
+        } catch (PDOException $e) {
+            // Log the specific error for debugging, but don't crash the page
+            error_log("Error in admin menu calling {$methodName}: " . $e->getMessage());
+        }
+        return 0; // Return 0 if the method doesn't exist or fails
     }
-    if (method_exists($db, 'getPendingPlaceSuggestionsCount')) {
-        $pendingCounts['places'] = $db->getPendingPlaceSuggestionsCount();
-    }
-    if (method_exists($db, 'getPendingCommentsCount')) {
-        $pendingCounts['comments'] = $db->getPendingCommentsCount();
-    }
-    if (method_exists($db, 'getPendingBusinessesCount')) {
-        $pendingCounts['businesses'] = $db->getPendingBusinessesCount();
-    }
-    if (method_exists($db, 'getPendingUserUploadsCount')) {
-        $pendingCounts['uploads'] = $db->getPendingUserUploadsCount();
-    }
+
+    $pendingCounts['events'] = getSafeCount($db, 'getPendingEventSuggestionsCount');
+    $pendingCounts['places'] = getSafeCount($db, 'getPendingPlaceSuggestionsCount');
+    $pendingCounts['comments'] = getSafeCount($db, 'getPendingCommentsCount');
+    $pendingCounts['businesses'] = getSafeCount($db, 'getPendingBusinessesCount');
+    $pendingCounts['uploads'] = getSafeCount($db, 'getPendingUserUploadsCount');
 }
 ?>
 <nav class="flex-1 p-4 overflow-y-auto">
