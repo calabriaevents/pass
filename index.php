@@ -272,15 +272,13 @@ foreach ($homeSections as $section) {
                                         <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block group/article">
                                             <div class="flex items-start space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                                 <!-- Article Image -->
-                                                <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
-                                                    <?php if ($article['featured_image']): ?>
-                                                    <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" 
-                                                         alt="<?php echo htmlspecialchars($article['title']); ?>"
-                                                         class="w-full h-full object-cover group-hover/article:scale-105 transition-transform duration-300">
+                                                <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                                    <?php if (!empty($article['logo'])): ?>
+                                                        <img src="<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo" class="w-full h-full object-contain p-1">
+                                                    <?php elseif (!empty($article['featured_image'])): ?>
+                                                        <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-full h-full object-cover">
                                                     <?php else: ?>
-                                                    <div class="w-full h-full bg-gradient-to-br from-blue-200 to-teal-300 flex items-center justify-center">
-                                                        <i data-lucide="image" class="w-4 h-4 text-gray-500"></i>
-                                                    </div>
+                                                        <i data-lucide="image" class="w-6 h-6 text-gray-400"></i>
                                                     <?php endif; ?>
                                                 </div>
                                                 
@@ -291,13 +289,6 @@ foreach ($homeSections as $section) {
                                                     </h4>
                                                     <div class="flex items-center justify-between mt-1">
                                                         <div class="flex items-center text-xs text-gray-500">
-                                                            <?php if (!empty($article['logo'])): ?>
-                                                                <img src="<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo" class="w-4 h-4 mr-1.5 rounded object-contain">
-                                                            <?php elseif (strpos($category['icon'], 'uploads/') !== false): ?>
-                                                                <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
-                                                            <?php else: ?>
-                                                                <span class="mr-1.5"><?php echo $category['icon']; ?></span>
-                                                            <?php endif; ?>
                                                             <span><?php echo formatDate($article['created_at']); ?></span>
                                                         </div>
                                                         <div class="flex items-center text-xs text-gray-400">
