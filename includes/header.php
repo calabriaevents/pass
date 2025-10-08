@@ -51,7 +51,6 @@ require_once __DIR__ . '/maintenance_check.php';
                         <a href="citta.php" class="hover:text-yellow-300 transition-colors font-medium">Città</a>
                         <a href="mappa.php" class="hover:text-yellow-300 transition-colors font-medium">Mappa</a>
                         <a href="iscrizione-attivita.php" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-full transition-colors font-medium">Iscrivi la tua attività</a>
-                        <a href="admin/" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full transition-colors font-medium">Admin</a>
                     </div>
                 </div>
                 
@@ -154,8 +153,6 @@ require_once __DIR__ . '/maintenance_check.php';
                         </a>
                     </div>
                 <?php endif; ?>
-                
-                <a href="admin/" class="block py-2 hover:text-yellow-300 transition-colors">Admin</a>
             </div>
         </div>
     </nav>

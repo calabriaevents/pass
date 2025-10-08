@@ -43,24 +43,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!$db->isConnected()) {
         $error = 'Il sistema è temporaneamente non disponibile. Riprova più tardi.';
     } else {
-        // Check credentials using safe database method
-        $user = $db->authenticateBusinessUser($email);
+        // Check credentials using the new generic method
+        $user = $db->authenticateUserByEmail($email);
         
         if ($user && password_verify($password, $user['password'])) {
-            // Successful login
+            // Successful login, set common session variables
             $_SESSION['user_logged_in'] = true;
             $_SESSION['user_id'] = $user['id'];
-            $_SESSION['business_id'] = $user['business_id'];
             $_SESSION['user_email'] = $user['email'];
             $_SESSION['user_name'] = $user['name'];
-            $_SESSION['business_status'] = $user['business_status'];
-            
-            // Update last login using safe database method
+            $_SESSION['user_role'] = $user['role'];
+
+            // Update last login
             $db->updateUserLastLogin($user['id']);
-            
-            // Redirect to dashboard
-            header('Location: user-dashboard.php');
-            exit;
+
+            // Role-based redirection
+            if ($user['role'] === 'admin') {
+                // Redirect to admin dashboard
+                header('Location: admin/index.php');
+                exit;
+            } else {
+                // For business users, set their specific session variables
+                $_SESSION['business_id'] = $user['business_id'];
+                $_SESSION['business_status'] = $user['business_status'];
+
+                // Redirect to user dashboard
+                header('Location: user-dashboard.php');
+                exit;
+            }
         } else {
             $error = 'Credenziali non valide. Verifica email e password.';
         }
