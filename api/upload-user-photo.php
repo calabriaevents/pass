@@ -1,93 +1,81 @@
 <?php
+// Imposta gli header per la risposta JSON e per il CORS
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
+// Accetta solo richieste di tipo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    http_response_code(405); // Method Not Allowed
+    echo json_encode(['success' => false, 'error' => 'Metodo non consentito.']);
     exit;
 }
 
+// Includi le classi necessarie
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php'; // <-- Includiamo il nostro processore di immagini
 
 try {
-    // Validazione input
+    // --- 1. Validazione degli Input ---
     $user_name = trim($_POST['user_name'] ?? '');
     $user_email = trim($_POST['user_email'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $article_id = isset($_POST['article_id']) ? intval($_POST['article_id']) : null;
     $province_id = isset($_POST['province_id']) ? intval($_POST['province_id']) : null;
     
-    // Validazione campi obbligatori
+    // Controlla che i campi di testo obbligatori non siano vuoti
     if (empty($user_name) || empty($user_email) || empty($description)) {
-        throw new Exception('Nome, email e descrizione sono obbligatori');
+        throw new Exception('Nome, email e descrizione sono obbligatori.');
     }
     
+    // Valida il formato dell'email
     if (!filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-        throw new Exception('Indirizzo email non valido');
+        throw new Exception('L\'indirizzo email inserito non è valido.');
     }
     
+    // Assicurati che sia stato fornito un ID per l'articolo o per la provincia
     if (!$article_id && !$province_id) {
-        throw new Exception('Specificare articolo o provincia');
+        throw new Exception('È necessario specificare un articolo o una provincia di riferimento.');
     }
     
-    // Validazione file
+    // --- 2. Validazione del File Caricato ---
     if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception('Errore nel caricamento della foto');
+        throw new Exception('Errore durante il caricamento della foto. Assicurati di aver selezionato un file.');
     }
     
     $file = $_FILES['photo'];
     $maxSize = 5 * 1024 * 1024; // 5MB
-    $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     
+    // Controlla la dimensione del file
     if ($file['size'] > $maxSize) {
-        throw new Exception('La foto è troppo grande. Massimo 5MB consentiti');
+        throw new Exception('La foto è troppo grande. La dimensione massima consentita è 5MB.');
     }
     
-    if (!in_array($file['type'], $allowedTypes)) {
-        throw new Exception('Formato file non supportato. Usa JPG, PNG o WebP');
+    // Controlla che il tipo MIME sia tra quelli permessi
+    $fileMimeType = mime_content_type($file['tmp_name']);
+    if (!in_array($fileMimeType, $allowedMimeTypes)) {
+        throw new Exception('Formato file non supportato. Sono consentiti solo JPG, PNG, GIF e WebP.');
     }
     
-    // Verifica se è realmente un'immagine
-    $imageInfo = getimagesize($file['tmp_name']);
-    if ($imageInfo === false) {
-        throw new Exception('Il file caricato non è una immagine valida');
+    // --- 3. Elaborazione dell'Immagine ---
+    // Crea un'istanza del nostro processore di immagini
+    $imageProcessor = new ImageProcessor();
+    
+    // Processa l'immagine. La classe si occuperà di ridimensionare, convertire e salvare il file.
+    // La cartella di destinazione sarà 'uploads_protected/user-experiences/'
+    $relativePath = $imageProcessor->processUploadedImage($file, 'user-experiences', 1200);
+    
+    if (!$relativePath) {
+        throw new Exception('Si è verificato un errore tecnico durante l\'elaborazione dell\'immagine.');
     }
     
-    // Crea directory se non esiste
-    $uploadDir = '../uploads/user-experiences/';
-    if (!file_exists($uploadDir)) {
-        if (!mkdir($uploadDir, 0755, true)) {
-            throw new Exception('Impossibile creare la directory di upload');
-        }
-    }
-    
-    // Genera nome file unico
-    $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if (empty($fileExtension)) {
-        $fileExtension = 'jpg'; // default
-    }
-    
-    $fileName = uniqid('user_exp_', true) . '.' . $fileExtension;
-    $filePath = $uploadDir . $fileName;
-    $relativePath = 'uploads/user-experiences/' . $fileName;
-    
-    // Sposta il file
-    if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-        throw new Exception('Errore nel salvataggio della foto');
-    }
-    
-    // Ridimensiona l'immagine se troppo grande
-    if ($imageInfo[0] > 1200 || $imageInfo[1] > 1200) {
-        resizeImage($filePath, $filePath, 1200, 1200);
-    }
-    
-    // Salva nel database
+    // --- 4. Salvataggio nel Database ---
     $db = new Database();
-    
-    $stmt = $db->pdo->prepare("
+    $pdo = $db->pdo; // Usa la proprietà pubblica pdo
+
+    $stmt = $pdo->prepare("
         INSERT INTO user_uploads (
             article_id, 
             province_id, 
@@ -101,99 +89,39 @@ try {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
     ");
     
-    if (!$stmt->execute([
+    // Esegui la query per inserire i dati nel database
+    $success = $stmt->execute([
         $article_id, 
         $province_id, 
         $user_name, 
         $user_email, 
-        $relativePath, 
-        $file['name'], 
+        $relativePath, // <-- Usiamo il nuovo percorso relativo sicuro
+        $file['name'], // Salviamo comunque il nome originale per riferimento
         $description
-    ])) {
-        // Rimuovi il file se il database fallisce
-        unlink($filePath);
-        throw new Exception('Errore nel salvataggio dei dati');
+    ]);
+
+    if (!$success) {
+        // Se l'inserimento nel database fallisce, dobbiamo eliminare l'immagine appena caricata
+        $imageProcessor->deleteImage($relativePath);
+        throw new Exception('Errore durante il salvataggio dei dati nel database.');
     }
     
-    $uploadId = $db->pdo->lastInsertId();
+    $uploadId = $pdo->lastInsertId();
     
+    // --- 5. Risposta di Successo ---
     echo json_encode([
         'success' => true,
-        'message' => 'Foto caricata con successo! Sarà pubblicata dopo la moderazione.',
+        'message' => 'Foto caricata con successo! Sarà pubblicata dopo l\'approvazione del nostro staff.',
         'upload_id' => $uploadId,
         'file_path' => $relativePath
     ]);
     
 } catch (Exception $e) {
-    http_response_code(400);
+    // In caso di qualsiasi errore, invia una risposta JSON con il messaggio di errore
+    http_response_code(400); // Bad Request
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
     ]);
-}
-
-/**
- * Ridimensiona un'immagine mantenendo le proporzioni
- */
-function resizeImage($sourcePath, $destPath, $maxWidth, $maxHeight) {
-    $imageInfo = getimagesize($sourcePath);
-    $width = $imageInfo[0];
-    $height = $imageInfo[1];
-    $type = $imageInfo[2];
-    
-    // Calcola le nuove dimensioni
-    $ratio = min($maxWidth / $width, $maxHeight / $height);
-    $newWidth = intval($width * $ratio);
-    $newHeight = intval($height * $ratio);
-    
-    // Crea l'immagine source
-    switch ($type) {
-        case IMAGETYPE_JPEG:
-            $source = imagecreatefromjpeg($sourcePath);
-            break;
-        case IMAGETYPE_PNG:
-            $source = imagecreatefrompng($sourcePath);
-            break;
-        case IMAGETYPE_WEBP:
-            $source = imagecreatefromwebp($sourcePath);
-            break;
-        default:
-            return false;
-    }
-    
-    if (!$source) return false;
-    
-    // Crea l'immagine destinazione
-    $dest = imagecreatetruecolor($newWidth, $newHeight);
-    
-    // Preserva la trasparenza per PNG
-    if ($type == IMAGETYPE_PNG) {
-        imagealphablending($dest, false);
-        imagesavealpha($dest, true);
-        $transparent = imagecolorallocatealpha($dest, 255, 255, 255, 127);
-        imagefilledrectangle($dest, 0, 0, $newWidth, $newHeight, $transparent);
-    }
-    
-    // Ridimensiona
-    imagecopyresampled($dest, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-    
-    // Salva
-    $result = false;
-    switch ($type) {
-        case IMAGETYPE_JPEG:
-            $result = imagejpeg($dest, $destPath, 85);
-            break;
-        case IMAGETYPE_PNG:
-            $result = imagepng($dest, $destPath, 6);
-            break;
-        case IMAGETYPE_WEBP:
-            $result = imagewebp($dest, $destPath, 80);
-            break;
-    }
-    
-    imagedestroy($source);
-    imagedestroy($dest);
-    
-    return $result;
 }
 ?>
