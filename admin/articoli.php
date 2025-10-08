@@ -1,6 +1,7 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php';
 
 // Controlla autenticazione (da implementare)
 // requireLogin();
@@ -24,61 +25,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $author = $_POST['author'] ?? 'Admin';
     $posted_json_data = $_POST['json_data'] ?? [];
 
-    // --- File Upload Handling ---
-    $uploadDirArticles = '../uploads/articles/';
+// --- File Upload Handling ---
+$imageProcessor = new ImageProcessor(); // Istanzia il processore di immagini
+
+// Funzione di supporto per elaborare una singola immagine
+function processAndUploadImage($file, $subfolder, $processor) {
+    if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
+        return $processor->processUploadedImage($file, $subfolder);
+    }
+    return null;
+}
+
+$featured_image = processAndUploadImage($_FILES['featured_image'] ?? null, 'articles/featured', $imageProcessor);
+$hero_image = processAndUploadImage($_FILES['hero_image'] ?? null, 'articles/hero', $imageProcessor);
+$logo = processAndUploadImage($_FILES['logo'] ?? null, 'articles/logos', $imageProcessor);
+
+// Gestione upload PDF del menu (logica invariata perché non è un'immagine)
+$menu_pdf = null;
+if (isset($_FILES['menu_pdf']) && $_FILES['menu_pdf']['error'] === UPLOAD_ERR_OK) {
     $uploadDirMenus = '../uploads/menus/';
-    if (!is_dir($uploadDirArticles)) mkdir($uploadDirArticles, 0755, true);
-    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
-
-    // Helper function for single file upload
-    function uploadSingleFile($file, $prefix, $uploadDir, $allowedExtensions) {
-        if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = $prefix . uniqid() . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    return str_replace('../', '', $uploadDir) . $fileName;
-                }
-            }
-        }
-        return null;
+    if (!is_dir($uploadDirMenus)) {
+        mkdir($uploadDirMenus, 0755, true);
     }
-
-    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    $featured_image = uploadSingleFile($_FILES['featured_image'] ?? null, 'featured_', $uploadDirArticles, $imageExtensions);
-    $hero_image = uploadSingleFile($_FILES['hero_image'] ?? null, 'hero_', $uploadDirArticles, $imageExtensions);
-    $logo = uploadSingleFile($_FILES['logo'] ?? null, 'logo_', $uploadDirArticles, $imageExtensions);
-
-    // Handle Menu PDF upload and add it to JSON data
-    $menu_pdf = uploadSingleFile($_FILES['menu_pdf'] ?? null, 'menu_', $uploadDirMenus, ['pdf']);
-    if ($menu_pdf) {
-        $posted_json_data['menu_pdf_path'] = $menu_pdf;
+    $fileName = 'menu_' . uniqid() . '.pdf';
+    $targetPath = $uploadDirMenus . $fileName;
+    if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $targetPath)) {
+        $menu_pdf = 'uploads/menus/' . $fileName;
     }
+}
+if ($menu_pdf) {
+    $posted_json_data['menu_pdf_path'] = $menu_pdf;
+}
 
-    // Handle gallery images upload
-    $gallery_images = null;
-    if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
-        $galleryPaths = [];
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
-            if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
-                $fileExtension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                if (in_array($fileExtension, $imageExtensions)) {
-                    $fileName = 'gallery_' . uniqid() . '.' . $fileExtension;
-                    $targetPath = $uploadDirArticles . $fileName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $galleryPaths[] = 'uploads/articles/' . $fileName;
-                    }
-                }
-            }
-        }
-        if (!empty($galleryPaths)) {
-            $gallery_images = json_encode($galleryPaths);
+// Gestione immagini della galleria
+$gallery_images = null;
+if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
+    $galleryPaths = [];
+    foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
+        // Ricrea l'array del file per ogni immagine della galleria
+        $gallery_file = [
+            'name' => $_FILES['gallery_images']['name'][$key],
+            'type' => $_FILES['gallery_images']['type'][$key],
+            'tmp_name' => $tmpName,
+            'error' => $_FILES['gallery_images']['error'][$key],
+            'size' => $_FILES['gallery_images']['size'][$key],
+        ];
+
+        $path = processAndUploadImage($gallery_file, 'articles/gallery', $imageProcessor);
+        if ($path) {
+            $galleryPaths[] = $path;
         }
     }
-    
-    // Encode the final JSON data
-    $json_data = json_encode($posted_json_data);
+    if (!empty($galleryPaths)) {
+        // Se esiste già una galleria, unisci le nuove immagini con le vecchie
+        if ($action === 'edit' && $id) {
+            $existingArticle = $db->getArticleById($id);
+            $existing_gallery = json_decode($existingArticle['gallery_images'] ?? '[]', true);
+            $galleryPaths = array_merge($existing_gallery, $galleryPaths);
+        }
+        $gallery_images = json_encode($galleryPaths);
+    }
+}
+
+// Encode the final JSON data
+$json_data = json_encode($posted_json_data);
 
     // --- Database Operation ---
     if ($action === 'edit' && $id) {
