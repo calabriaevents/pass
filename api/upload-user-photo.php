@@ -10,109 +10,78 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// Includi le classi necessarie
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php'; // <-- NUOVO: Includi ImageProcessor
 
 try {
-    // Validazione input
+    // Validazione input (invariata)
     $user_name = trim($_POST['user_name'] ?? '');
     $user_email = trim($_POST['user_email'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $article_id = isset($_POST['article_id']) ? intval($_POST['article_id']) : null;
     $province_id = isset($_POST['province_id']) ? intval($_POST['province_id']) : null;
     
-    // Validazione campi obbligatori
+    // Validazione campi obbligatori (invariata)
     if (empty($user_name) || empty($user_email) || empty($description)) {
         throw new Exception('Nome, email e descrizione sono obbligatori');
     }
-    
     if (!filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
         throw new Exception('Indirizzo email non valido');
     }
-    
     if (!$article_id && !$province_id) {
         throw new Exception('Specificare articolo o provincia');
     }
     
-    // Validazione file
+    // Validazione file (invariata)
     if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
         throw new Exception('Errore nel caricamento della foto');
     }
     
     $file = $_FILES['photo'];
     $maxSize = 5 * 1024 * 1024; // 5MB
-    $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     
     if ($file['size'] > $maxSize) {
         throw new Exception('La foto è troppo grande. Massimo 5MB consentiti');
     }
     
-    if (!in_array($file['type'], $allowedTypes)) {
-        throw new Exception('Formato file non supportato. Usa JPG, PNG o WebP');
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime_type = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    if (!in_array($mime_type, $allowedMimeTypes)) {
+        throw new Exception('Formato file non supportato. Usa JPG, PNG, GIF o WebP');
     }
-    
-    // Verifica se è realmente un'immagine
-    $imageInfo = getimagesize($file['tmp_name']);
-    if ($imageInfo === false) {
-        throw new Exception('Il file caricato non è una immagine valida');
+
+    // --- NUOVA LOGICA DI UPLOAD ---
+    $imageProcessor = new ImageProcessor(); // Utilizza la classe
+    $relativePath = $imageProcessor->processUploadedImage($file, 'user-experiences', 1200);
+
+    if ($relativePath === null) {
+        throw new Exception('Errore durante l\'elaborazione dell\'immagine.');
     }
-    
-    // Crea directory se non esiste
-    $uploadDir = '../uploads/user-experiences/';
-    if (!file_exists($uploadDir)) {
-        if (!mkdir($uploadDir, 0755, true)) {
-            throw new Exception('Impossibile creare la directory di upload');
-        }
-    }
-    
-    // Genera nome file unico
-    $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if (empty($fileExtension)) {
-        $fileExtension = 'jpg'; // default
-    }
-    
-    $fileName = uniqid('user_exp_', true) . '.' . $fileExtension;
-    $filePath = $uploadDir . $fileName;
-    $relativePath = 'uploads/user-experiences/' . $fileName;
-    
-    // Sposta il file
-    if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-        throw new Exception('Errore nel salvataggio della foto');
-    }
-    
-    // Ridimensiona l'immagine se troppo grande
-    if ($imageInfo[0] > 1200 || $imageInfo[1] > 1200) {
-        resizeImage($filePath, $filePath, 1200, 1200);
-    }
-    
+    // --- FINE NUOVA LOGICA ---
+
     // Salva nel database
     $db = new Database();
-    
     $stmt = $db->pdo->prepare("
         INSERT INTO user_uploads (
-            article_id, 
-            province_id, 
-            user_name, 
-            user_email, 
-            image_path, 
-            original_filename, 
-            description, 
-            status, 
-            created_at
+            article_id, province_id, user_name, user_email,
+            image_path, original_filename, description, status, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
     ");
     
+    // Esegui la query usando il nuovo $relativePath
     if (!$stmt->execute([
-        $article_id, 
-        $province_id, 
-        $user_name, 
-        $user_email, 
-        $relativePath, 
-        $file['name'], 
+        $article_id, $province_id, $user_name, $user_email,
+        $relativePath, // <-- Ora contiene il percorso del file .webp
+        htmlspecialchars($file['name']),
         $description
     ])) {
-        // Rimuovi il file se il database fallisce
-        unlink($filePath);
-        throw new Exception('Errore nel salvataggio dei dati');
+        // Se il DB fallisce, cancella l'immagine appena creata
+        $imageProcessor->deleteImage($relativePath);
+        throw new Exception('Errore nel salvataggio dei dati nel database');
     }
     
     $uploadId = $db->pdo->lastInsertId();
@@ -121,7 +90,7 @@ try {
         'success' => true,
         'message' => 'Foto caricata con successo! Sarà pubblicata dopo la moderazione.',
         'upload_id' => $uploadId,
-        'file_path' => $relativePath
+        'file_path' => $relativePath // Restituisce il nuovo percorso
     ]);
     
 } catch (Exception $e) {
@@ -132,68 +101,5 @@ try {
     ]);
 }
 
-/**
- * Ridimensiona un'immagine mantenendo le proporzioni
- */
-function resizeImage($sourcePath, $destPath, $maxWidth, $maxHeight) {
-    $imageInfo = getimagesize($sourcePath);
-    $width = $imageInfo[0];
-    $height = $imageInfo[1];
-    $type = $imageInfo[2];
-    
-    // Calcola le nuove dimensioni
-    $ratio = min($maxWidth / $width, $maxHeight / $height);
-    $newWidth = intval($width * $ratio);
-    $newHeight = intval($height * $ratio);
-    
-    // Crea l'immagine source
-    switch ($type) {
-        case IMAGETYPE_JPEG:
-            $source = imagecreatefromjpeg($sourcePath);
-            break;
-        case IMAGETYPE_PNG:
-            $source = imagecreatefrompng($sourcePath);
-            break;
-        case IMAGETYPE_WEBP:
-            $source = imagecreatefromwebp($sourcePath);
-            break;
-        default:
-            return false;
-    }
-    
-    if (!$source) return false;
-    
-    // Crea l'immagine destinazione
-    $dest = imagecreatetruecolor($newWidth, $newHeight);
-    
-    // Preserva la trasparenza per PNG
-    if ($type == IMAGETYPE_PNG) {
-        imagealphablending($dest, false);
-        imagesavealpha($dest, true);
-        $transparent = imagecolorallocatealpha($dest, 255, 255, 255, 127);
-        imagefilledrectangle($dest, 0, 0, $newWidth, $newHeight, $transparent);
-    }
-    
-    // Ridimensiona
-    imagecopyresampled($dest, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-    
-    // Salva
-    $result = false;
-    switch ($type) {
-        case IMAGETYPE_JPEG:
-            $result = imagejpeg($dest, $destPath, 85);
-            break;
-        case IMAGETYPE_PNG:
-            $result = imagepng($dest, $destPath, 6);
-            break;
-        case IMAGETYPE_WEBP:
-            $result = imagewebp($dest, $destPath, 80);
-            break;
-    }
-    
-    imagedestroy($source);
-    imagedestroy($dest);
-    
-    return $result;
-}
+// La vecchia funzione resizeImage() non è più necessaria e può essere rimossa.
 ?>
