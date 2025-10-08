@@ -273,10 +273,10 @@ foreach ($homeSections as $section) {
                                             <div class="flex items-start space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                                 <!-- Article Image -->
                                                 <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
-                                                    <?php if ($article['featured_image']): ?>
-                                                    <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" 
-                                                         alt="<?php echo htmlspecialchars($article['title']); ?>"
-                                                         class="w-full h-full object-cover group-hover/article:scale-105 transition-transform duration-300">
+                                                    <?php if ($article['logo']): ?>
+                                                    <img src="<?php echo htmlspecialchars($article['logo']); ?>"
+                                                         alt="Logo <?php echo htmlspecialchars($article['title']); ?>"
+                                                         class="w-full h-full object-contain group-hover/article:scale-105 transition-transform duration-300 p-1">
                                                     <?php else: ?>
                                                     <div class="w-full h-full bg-gradient-to-br from-blue-200 to-teal-300 flex items-center justify-center">
                                                         <i data-lucide="image" class="w-4 h-4 text-gray-500"></i>

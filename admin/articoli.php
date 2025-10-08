@@ -162,6 +162,7 @@ if ($action === 'delete' && $id) {
                 <table class="w-full">
                     <thead>
                         <tr class="border-b bg-gray-50">
+                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Logo</th>
                             <th class="text-left py-3 px-2 font-semibold text-gray-700">Articolo</th>
                             <th class="text-left py-3 px-2 font-semibold text-gray-700">Categoria</th>
                             <th class="text-left py-3 px-2 font-semibold text-gray-700">Stato</th>
@@ -176,17 +177,19 @@ if ($action === 'delete' && $id) {
                         <tr class="border-b hover:bg-gray-50">
                             <td class="py-3 px-2">
                                 <div class="flex items-center space-x-3">
-                                    <?php if (!empty($article['featured_image'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-cover rounded-lg border">
+                                    <?php if (!empty($article['logo'])): ?>
+                                    <img src="../<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo <?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
                                     <?php else: ?>
                                     <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
-                                        <i data-lucide="image" class="w-5 h-5 text-gray-400"></i>
+                                        <i data-lucide="image-off" class="w-5 h-5 text-gray-400"></i>
                                     </div>
                                     <?php endif; ?>
-                                    <div>
-                                        <div class="font-medium"><?php echo htmlspecialchars($article['title']); ?></div>
-                                        <div class="text-sm text-gray-500">di <?php echo htmlspecialchars($article['author']); ?></div>
-                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-2">
+                                <div>
+                                    <div class="font-medium"><?php echo htmlspecialchars($article['title']); ?></div>
+                                    <div class="text-sm text-gray-500">di <?php echo htmlspecialchars($article['author']); ?></div>
                                 </div>
                             </td>
                             <td class="py-3 px-2">
