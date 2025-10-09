@@ -21,7 +21,18 @@ try {
     $article_id = isset($_POST['article_id']) ? intval($_POST['article_id']) : null;
     $province_id = isset($_POST['province_id']) ? intval($_POST['province_id']) : null;
     
-    // ... (validazione campi obbligatori invariata) ...
+    // Validazione campi obbligatori
+    if (empty($user_name) || empty($user_email) || empty($description)) {
+        throw new Exception('Nome, email e descrizione sono obbligatori');
+    }
+
+    if (!filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+        throw new Exception('Indirizzo email non valido');
+    }
+
+    if (!$article_id && !$province_id) {
+        throw new Exception('Specificare articolo o provincia');
+    }
     
     // Validazione file
     if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {

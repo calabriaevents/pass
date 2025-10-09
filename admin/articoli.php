@@ -256,24 +256,112 @@ if (isset($_GET['success'])) {
             </div>
 
             <?php elseif ($action === 'select_category'):
-                // ... codice invariato ...
+                $categories = $db->getCategories();
             ?>
+            <div class="bg-white rounded-lg shadow-sm p-6 max-w-xl mx-auto">
+                <h2 class="text-lg font-semibold mb-4">Crea Nuovo Articolo</h2>
+                <p class="text-gray-600 mb-6">Come primo passo, seleziona la categoria per la quale vuoi creare un nuovo articolo. A seconda della categoria, ti verrà mostrato un modulo di inserimento differente.</p>
+                <form action="articoli.php" method="GET">
+                    <input type="hidden" name="action" value="new">
+                    <div class="mb-4">
+                        <label for="category_id" class="block text-gray-700 font-bold mb-2">Seleziona Categoria</label>
+                        <select name="category_id" id="category_id" class="w-full px-3 py-2 border rounded-lg" required>
+                            <option value="" disabled selected>-- Scegli una categoria --</option>
+                            <?php foreach ($categories as $category): ?>
+                            <option value="<?php echo $category['id']; ?>">
+                                <?php echo htmlspecialchars($category['name']); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="text-right">
+                        <a href="articoli.php" class="text-gray-600 hover:underline mr-4">Annulla</a>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                            Procedi
+                            <i data-lucide="arrow-right" class="inline w-4 h-4 ml-1"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
 
             <?php elseif ($action === 'new' || $action === 'edit'):
-                // ... codice quasi invariato ...
+                // For new articles, category_id must be set from the previous step
+                if ($action === 'new' && !isset($_GET['category_id'])) {
+                    header('Location: articoli.php?action=select_category');
+                    exit;
+                }
+
+                $article = null;
+                $category_id = $_GET['category_id'] ?? null;
+                $category_name = 'Default';
+
                 if ($action === 'edit' && $id) {
                     $article = $db->getArticleById($id);
                     $category_id = $article['category_id'];
                 }
-                // ... resto del codice per caricare il form ...
+
+                if ($category_id) {
+                    $category = $db->getCategoryById($category_id);
+                    $category_name = $category['name'] ?? 'Sconosciuta';
+                }
+
+                // Determine which form to load based on Category NAME for robustness
+                $form_template = 'form_default.php'; // Default form
+                $cat_name = isset($category) ? trim($category['name']) : '';
+
+                if ($cat_name === 'Hotel e Alloggi') {
+                    $form_template = 'form_hotel.php';
+                } else if ($cat_name === 'Ristorazione') {
+                    $form_template = 'form_ristorazione.php';
+                } else if ($cat_name === 'Stabilimenti Balneari') {
+                    $form_template = 'form_stabilimenti.php';
+                } else if ($cat_name === 'Arte e Cultura') {
+                    $form_template = 'form_arte_cultura.php';
+                } else if ($cat_name === 'Musei e Gallerie') {
+                    $form_template = 'form_musei_gallerie.php';
+                } else if ($cat_name === 'Patrimonio Storico') {
+                    $form_template = 'form_patrimonio_storico.php';
+                } else if ($cat_name === 'Piazze e Vie Storiche') {
+                    $form_template = 'form_piazze_vie_storiche.php';
+                } else if ($cat_name === 'Siti Archeologici') {
+                    $form_template = 'form_siti_archeologici.php';
+                } else if ($cat_name === 'Chiese e Santuari') {
+                    $form_template = 'form_chiese_santuari.php';
+                } else if ($cat_name === 'Teatri e Anfiteatri') {
+                    $form_template = 'form_teatri_anfiteatri.php';
+                } else if ($cat_name === 'Parchi e Aree Verdi') {
+                    $form_template = 'form_parchi_aree_verdi.php';
+                } else if ($cat_name === 'Attività Sportive e Avventura') {
+                    $form_template = 'form_attivita_sportive_avventura.php';
+                } else if ($cat_name === 'Itinerari Tematici') {
+                    $form_template = 'form_itinerari_tematici.php';
+                } else if ($cat_name === 'Tour e Guide') {
+                    $form_template = 'form_tour_guide.php';
+                } else if ($cat_name === 'Shopping e Artigianato') {
+                    $form_template = 'form_shopping_artigianato.php';
+                } else if ($cat_name === 'Benessere e Relax') {
+                    $form_template = 'form_benessere_relax.php';
+                } else if ($cat_name === 'Trasporti') {
+                    $form_template = 'form_trasporti.php';
+                }
+
+                $form_path = 'forms/' . $form_template;
+                if (!file_exists($form_path)) {
+                    $form_path = 'forms/form_default.php'; // Fallback
+                    if (!file_exists($form_path)) {
+                        die("Errore critico: Il form di default non è stato trovato.");
+                    }
+                }
+
+                // Data needed by the form
+                $categories = $db->getCategories();
+                $provinces = $db->getProvinces();
+                $cities = $db->getCities();
             ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <form action="articoli.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="category_id" value="<?php echo htmlspecialchars($category_id); ?>">
                     <?php
-                    // Caricamento del template del form
-                    // (la logica per determinare $form_path rimane la stessa)
-                    // ...
                     include $form_path;
                     ?>
                     <div class="text-right mt-6 border-t pt-4">

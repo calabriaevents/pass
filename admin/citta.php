@@ -2,7 +2,7 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-require_once '../includes/image_processor.php'; // Image Processor è già incluso
+require_once '../includes/image_processor.php';
 
 $db = new Database();
 $imageProcessor = new ImageProcessor();
@@ -14,34 +14,36 @@ $success_message = '';
 
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_gallery_image'])) {
-    $name = $_POST['city_name'] ?? '';
-    $province_id = $_POST['city_province_id'] ?? '';
-    $description = $_POST['city_description'] ?? '';
-    $latitude = !empty($_POST['city_latitude']) ? (float)$_POST['city_latitude'] : null;
-    $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
-    $google_maps_link = $_POST['city_google_maps_link'] ?? '';
-
-    $hero_image_path = null;
-    $gallery_images_json = null;
-
-    if ($action === 'edit' && $id) {
-        $existingCity = $db->getCityById($id);
-        $hero_image_path = $existingCity['hero_image'] ?? null;
-        $gallery_images_json = $existingCity['gallery_images'] ?? null;
-    }
-
     try {
+        $name = $_POST['city_name'] ?? '';
+        $province_id = $_POST['city_province_id'] ?? '';
+        $description = $_POST['city_description'] ?? '';
+        $latitude = !empty($_POST['city_latitude']) ? (float)$_POST['city_latitude'] : null;
+        $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
+        $google_maps_link = $_POST['city_google_maps_link'] ?? '';
+
+        $hero_image_path = null;
+        $gallery_images_json = null;
+
+        // Se è una modifica, carica i dati esistenti per confronto
+        $existingCity = null;
+        if ($action === 'edit' && $id) {
+            $existingCity = $db->getCityById($id);
+            $hero_image_path = $existingCity['hero_image'] ?? null;
+            $gallery_images_json = $existingCity['gallery_images'] ?? null;
+        }
+
         // --- NUOVA GESTIONE UPLOAD CON CONTROLLO ERRORI ---
         if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
             $new_hero_path = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'cities/hero');
-            if ($new_hero_path) {
-                if ($hero_image_path) {
-                    $imageProcessor->deleteImage($hero_image_path);
-                }
-                $hero_image_path = $new_hero_path;
-            } else {
+            if (!$new_hero_path) {
                 throw new Exception("Errore nel caricamento dell'immagine hero: " . $imageProcessor->getLastError());
             }
+
+            if ($existingCity && !empty($existingCity['hero_image'])) {
+                $imageProcessor->deleteImage($existingCity['hero_image']);
+            }
+            $hero_image_path = $new_hero_path;
         }
 
         if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
@@ -71,7 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_gallery_image
         // Salvataggio nel database
         if ($action === 'edit' && $id) {
             $db->updateCityExtended($id, $name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            // Non impostare $success_message qui per evitare che venga mostrato dopo l'header
         } else {
             $db->createCityExtended($name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
         }
@@ -139,7 +140,6 @@ if ($action === 'delete' && $id) {
     exit;
 }
 
-// Aggiungi questo in cima alla sezione HTML per mostrare i messaggi
 if (isset($_GET['success'])) {
     $success_message = "Operazione completata con successo!";
 }
