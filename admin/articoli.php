@@ -2,18 +2,16 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-
-// Controlla autenticazione (da implementare)
-// requireLogin();
+require_once '../includes/image_processor.php'; // Aggiunto Image Processor
 
 $db = new Database();
+$imageProcessor = new ImageProcessor(); // Istanza di ImageProcessor
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
 
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Standard fields
     $title = $_POST['title'] ?? '';
     $slug = $_POST['slug'] ?? '';
     $content = $_POST['content'] ?? '';
@@ -23,53 +21,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $city_id = $_POST['city_id'] ?? null;
     $status = $_POST['status'] ?? 'draft';
     $author = $_POST['author'] ?? 'Admin';
-    $posted_json_data = $_POST['json_data'] ?? [];
+    $posted_json_data = isset($_POST['json_data']) && is_array($_POST['json_data']) ? $_POST['json_data'] : [];
 
-    // --- File Upload Handling ---
-    $uploadDirArticles = '../uploads/articles/';
-    $uploadDirMenus = '../uploads/menus/';
-    if (!is_dir($uploadDirArticles)) mkdir($uploadDirArticles, 0755, true);
-    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+    // --- GESTIONE UPLOAD SICURA ---
 
-    // Helper function for single file upload
-    function uploadSingleFile($file, $prefix, $uploadDir, $allowedExtensions) {
-        if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = $prefix . uniqid() . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    return str_replace('../', '', $uploadDir) . $fileName;
-                }
-            }
+    // Inizializza tutte le variabili dei file a null
+    $featured_image = null;
+    $hero_image = null;
+    $logo = null;
+    $menu_pdf = null; // Variabile per il PDF del menu
+
+    // Gestione immagini con ImageProcessor
+    if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === UPLOAD_ERR_OK) {
+        $featured_image = $imageProcessor->processUploadedImage($_FILES['featured_image'], 'articles/featured');
+    }
+
+    if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
+        $hero_image = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'articles/hero');
+    }
+
+    if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+        $logo = $imageProcessor->processUploadedImage($_FILES['logo'], 'articles/logos');
+    }
+
+    // Gestione Menu PDF (salvato ancora in 'uploads' pubblici per ora)
+    if (isset($_FILES['menu_pdf']) && $_FILES['menu_pdf']['error'] === UPLOAD_ERR_OK) {
+        $uploadDirMenus = '../uploads/menus/';
+        if (!is_dir($uploadDirMenus)) {
+            mkdir($uploadDirMenus, 0755, true);
         }
-        return null;
+        $fileName = 'menu_' . uniqid() . '.pdf';
+        $targetPath = $uploadDirMenus . $fileName;
+        if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $targetPath)) {
+            $menu_pdf = str_replace('../', '', $uploadDirMenus) . $fileName;
+            $posted_json_data['menu_pdf_path'] = $menu_pdf;
+        }
     }
 
-    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    $featured_image = uploadSingleFile($_FILES['featured_image'] ?? null, 'featured_', $uploadDirArticles, $imageExtensions);
-    $hero_image = uploadSingleFile($_FILES['hero_image'] ?? null, 'hero_', $uploadDirArticles, $imageExtensions);
-    $logo = uploadSingleFile($_FILES['logo'] ?? null, 'logo_', $uploadDirArticles, $imageExtensions);
-
-    // Handle Menu PDF upload and add it to JSON data
-    $menu_pdf = uploadSingleFile($_FILES['menu_pdf'] ?? null, 'menu_', $uploadDirMenus, ['pdf']);
-    if ($menu_pdf) {
-        $posted_json_data['menu_pdf_path'] = $menu_pdf;
-    }
-
-    // Handle gallery images upload
+    // Gestione galleria immagini con ImageProcessor
     $gallery_images = null;
     if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
         $galleryPaths = [];
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
-            if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
-                $fileExtension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                if (in_array($fileExtension, $imageExtensions)) {
-                    $fileName = 'gallery_' . uniqid() . '.' . $fileExtension;
-                    $targetPath = $uploadDirArticles . $fileName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $galleryPaths[] = 'uploads/articles/' . $fileName;
-                    }
+        $files = $_FILES['gallery_images'];
+        foreach ($files['tmp_name'] as $key => $tmpName) {
+            if ($files['error'][$key] === UPLOAD_ERR_OK) {
+                $file_info = [
+                    'name' => $files['name'][$key],
+                    'type' => $files['type'][$key],
+                    'tmp_name' => $tmpName,
+                    'error' => $files['error'][$key],
+                    'size' => $files['size'][$key]
+                ];
+                $gallery_path = $imageProcessor->processUploadedImage($file_info, 'articles/gallery');
+                if ($gallery_path) {
+                    $galleryPaths[] = $gallery_path;
                 }
             }
         }
@@ -78,19 +83,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Encode the final JSON data
+    // Codifica finale dei dati JSON
     $json_data = json_encode($posted_json_data);
 
-    // --- Database Operation ---
+    // --- OPERAZIONI SUL DATABASE ---
     if ($action === 'edit' && $id) {
         $existingArticle = $db->getArticleById($id);
 
+        // Se non è stata caricata una nuova immagine, mantiene la vecchia
         if ($featured_image === null) $featured_image = $existingArticle['featured_image'] ?? null;
         if ($hero_image === null) $hero_image = $existingArticle['hero_image'] ?? null;
         if ($logo === null) $logo = $existingArticle['logo'] ?? null;
         if ($gallery_images === null) $gallery_images = $existingArticle['gallery_images'] ?? null;
 
-        // Special handling for menu_pdf path in JSON
+        // Gestione speciale per il percorso del menu_pdf nel JSON
         $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
         if ($menu_pdf === null && isset($existing_json['menu_pdf_path'])) {
              $decoded_json = json_decode($json_data, true);
@@ -108,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($action === 'delete' && $id) {
+    // Aggiungere qui la logica per eliminare le immagini associate prima di eliminare l'articolo
     $db->deleteArticle($id);
     header('Location: articoli.php');
     exit;
@@ -126,7 +133,6 @@ if ($action === 'delete' && $id) {
     <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body class="min-h-screen bg-gray-100 flex">
-    <!-- Sidebar -->
     <div class="bg-gray-900 text-white w-64 flex flex-col">
         <div class="p-4 border-b border-gray-700">
             <div class="flex items-center space-x-3">
@@ -145,7 +151,6 @@ if ($action === 'delete' && $id) {
         </div>
     </div>
 
-    <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
             <div class="flex justify-between items-center">
@@ -178,7 +183,7 @@ if ($action === 'delete' && $id) {
                             <td class="py-3 px-2">
                                 <div class="flex items-center space-x-3">
                                     <?php if (!empty($article['logo'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo <?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
+                                    <img src="../image-loader.php?path=<?php echo urlencode($article['logo']); ?>" alt="Logo <?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
                                     <?php else: ?>
                                     <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
                                         <i data-lucide="image-off" class="w-5 h-5 text-gray-400"></i>
@@ -261,7 +266,6 @@ if ($action === 'delete' && $id) {
             </div>
 
             <?php elseif ($action === 'new' || $action === 'edit'):
-                // For new articles, category_id must be set from the previous step
                 if ($action === 'new' && !isset($_GET['category_id'])) {
                     header('Location: articoli.php?action=select_category');
                     exit;
@@ -281,55 +285,38 @@ if ($action === 'delete' && $id) {
                     $category_name = $category['name'] ?? 'Sconosciuta';
                 }
 
-                // Determine which form to load based on Category NAME for robustness
-                $form_template = 'form_default.php'; // Default form
+                $form_template = 'form_default.php';
                 $cat_name = isset($category) ? trim($category['name']) : '';
 
-                if ($cat_name === 'Hotel e Alloggi') {
-                    $form_template = 'form_hotel.php';
-                } else if ($cat_name === 'Ristorazione') {
-                    $form_template = 'form_ristorazione.php';
-                } else if ($cat_name === 'Stabilimenti Balneari') {
-                    $form_template = 'form_stabilimenti.php';
-                } else if ($cat_name === 'Arte e Cultura') {
-                    $form_template = 'form_arte_cultura.php';
-                } else if ($cat_name === 'Musei e Gallerie') {
-                    $form_template = 'form_musei_gallerie.php';
-                } else if ($cat_name === 'Patrimonio Storico') {
-                    $form_template = 'form_patrimonio_storico.php';
-                } else if ($cat_name === 'Piazze e Vie Storiche') {
-                    $form_template = 'form_piazze_vie_storiche.php';
-                } else if ($cat_name === 'Siti Archeologici') {
-                    $form_template = 'form_siti_archeologici.php';
-                } else if ($cat_name === 'Chiese e Santuari') {
-                    $form_template = 'form_chiese_santuari.php';
-                } else if ($cat_name === 'Teatri e Anfiteatri') {
-                    $form_template = 'form_teatri_anfiteatri.php';
-                } else if ($cat_name === 'Parchi e Aree Verdi') {
-                    $form_template = 'form_parchi_aree_verdi.php';
-                } else if ($cat_name === 'Attività Sportive e Avventura') {
-                    $form_template = 'form_attivita_sportive_avventura.php';
-                } else if ($cat_name === 'Itinerari Tematici') {
-                    $form_template = 'form_itinerari_tematici.php';
-                } else if ($cat_name === 'Tour e Guide') {
-                    $form_template = 'form_tour_guide.php';
-                } else if ($cat_name === 'Shopping e Artigianato') {
-                    $form_template = 'form_shopping_artigianato.php';
-                } else if ($cat_name === 'Benessere e Relax') {
-                    $form_template = 'form_benessere_relax.php';
-                } else if ($cat_name === 'Trasporti') {
-                    $form_template = 'form_trasporti.php';
+                $form_map = [
+                    'Hotel e Alloggi' => 'form_hotel.php',
+                    'Ristorazione' => 'form_ristorazione.php',
+                    'Stabilimenti Balneari' => 'form_stabilimenti.php',
+                    'Arte e Cultura' => 'form_arte_cultura.php',
+                    'Musei e Gallerie' => 'form_musei_gallerie.php',
+                    'Patrimonio Storico' => 'form_patrimonio_storico.php',
+                    'Piazze e Vie Storiche' => 'form_piazze_vie_storiche.php',
+                    'Siti Archeologici' => 'form_siti_archeologici.php',
+                    'Chiese e Santuari' => 'form_chiese_santuari.php',
+                    'Teatri e Anfiteatri' => 'form_teatri_anfiteatri.php',
+                    'Parchi e Aree Verdi' => 'form_parchi_aree_verdi.php',
+                    'Attività Sportive e Avventura' => 'form_attivita_sportive_avventura.php',
+                    'Itinerari Tematici' => 'form_itinerari_tematici.php',
+                    'Tour e Guide' => 'form_tour_guide.php',
+                    'Shopping e Artigianato' => 'form_shopping_artigianato.php',
+                    'Benessere e Relax' => 'form_benessere_relax.php',
+                    'Trasporti' => 'form_trasporti.php'
+                ];
+
+                if (array_key_exists($cat_name, $form_map)) {
+                    $form_template = $form_map[$cat_name];
                 }
 
                 $form_path = 'forms/' . $form_template;
                 if (!file_exists($form_path)) {
-                    $form_path = 'forms/form_default.php'; // Fallback
-                    if (!file_exists($form_path)) {
-                        die("Errore critico: Il form di default non è stato trovato.");
-                    }
+                    $form_path = 'forms/form_default.php';
                 }
 
-                // Data needed by the form
                 $categories = $db->getCategories();
                 $provinces = $db->getProvinces();
                 $cities = $db->getCities();

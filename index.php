@@ -240,7 +240,7 @@ foreach ($homeSections as $section) {
                             </div>
                             <div class="text-4xl">
                                 <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
-                                    <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-10 h-10 object-cover rounded-lg">
+                                    <img src="image-loader.php?path=<?php echo urlencode($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-10 h-10 object-cover rounded-lg">
                                 <?php else: ?>
                                     <?php echo $category['icon']; ?>
                                 <?php endif; ?>
@@ -274,7 +274,7 @@ foreach ($homeSections as $section) {
                                                 <!-- Article Image -->
                                                 <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
                                                     <?php if ($article['logo']): ?>
-                                                    <img src="<?php echo htmlspecialchars($article['logo']); ?>"
+                                                    <img src="image-loader.php?path=<?php echo urlencode($article['logo']); ?>"
                                                          alt="Logo <?php echo htmlspecialchars($article['title']); ?>"
                                                          class="w-full h-full object-contain group-hover/article:scale-105 transition-transform duration-300 p-1">
                                                     <?php else: ?>
@@ -294,7 +294,7 @@ foreach ($homeSections as $section) {
         <div class="flex items-center text-xs text-gray-500">
             <?php // Aggiungiamo qui la logica per visualizzare l'icona della categoria ?>
             <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
-                <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
+                <img src="image-loader.php?path=<?php echo urlencode($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
             <?php else: ?>
                 <span class="mr-1.5"><?php echo $category['icon']; ?></span>
             <?php endif; ?>
@@ -381,7 +381,7 @@ foreach ($homeSections as $section) {
                     <div class="aspect-[4/3] relative overflow-hidden">
                         <?php if (!empty($province['image_path'])): ?>
                         <!-- Province Image from Admin -->
-                        <img src="<?php echo htmlspecialchars($province['image_path']); ?>" 
+                        <img src="image-loader.php?path=<?php echo urlencode($province['image_path']); ?>"
                              alt="<?php echo htmlspecialchars($province['name']); ?>" 
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10"></div>
@@ -596,7 +596,7 @@ foreach ($homeSections as $section) {
                         var popupContent = '<div class="p-3 min-w-64">' +
                             '<div class="flex items-start space-x-3">' +
                             (article.featured_image ? 
-                                '<img src="' + article.featured_image + '" alt="' + article.title + '" class="w-16 h-12 object-cover rounded">' : 
+                                '<img src="image-loader.php?path=' + encodeURIComponent(article.featured_image) + '" alt="' + article.title + '" class="w-16 h-12 object-cover rounded">' :
                                 '<div class="w-16 h-12 bg-gray-200 rounded flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></div>'
                             ) +
                             '<div class="flex-1">' +

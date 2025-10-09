@@ -2,17 +2,17 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-
-// Controlla autenticazione (da implementare)
-// requireLogin();
+require_once '../includes/image_processor.php'; // Aggiunto Image Processor
 
 $db = new Database();
+$imageProcessor = new ImageProcessor(); // Istanza di ImageProcessor
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
 
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // ... (codice per i campi standard invariato) ...
     $name = $_POST['city_name'] ?? '';
     $province_id = $_POST['city_province_id'] ?? '';
     $description = $_POST['city_description'] ?? '';
@@ -24,81 +24,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $hero_image_path = null;
     $gallery_images_json = null;
     
-    // Se è una modifica, recupera i dati esistenti
     if ($action === 'edit' && $id) {
         $existingCity = $db->getCityById($id);
         $hero_image_path = $existingCity['hero_image'] ?? null;
         $gallery_images_json = $existingCity['gallery_images'] ?? null;
     }
 
-    // Gestione upload immagine hero
-    if (!empty($_FILES['hero_image']['name'])) {
-        $upload_dir = '../uploads/cities/hero/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        $file_extension = strtolower(pathinfo($_FILES['hero_image']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            $upload_error = 'Formato file hero non supportato. Usa JPG, PNG, GIF o WebP.';
-        } elseif ($_FILES['hero_image']['size'] > 5 * 1024 * 1024) {
-            $upload_error = 'File hero troppo grande. Massimo 5MB.';
-        } else {
-            $filename = 'hero_' . uniqid() . '_' . time() . '.' . $file_extension;
-            $upload_path = $upload_dir . $filename;
-            
-            if (move_uploaded_file($_FILES['hero_image']['tmp_name'], $upload_path)) {
-                $hero_image_path = 'uploads/cities/hero/' . $filename;
-                // Elimina vecchia immagine se esiste
-                if ($existingCity && $existingCity['hero_image'] && file_exists('../' . $existingCity['hero_image'])) {
-                    unlink('../' . $existingCity['hero_image']);
-                }
-            } else {
-                $upload_error = 'Errore nel caricamento dell\'immagine hero.';
+    // --- NUOVA GESTIONE UPLOAD CON IMAGEPROCESSOR ---
+    if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
+        $new_hero_path = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'cities/hero');
+        if ($new_hero_path) {
+            // Elimina la vecchia immagine se esiste
+            if ($hero_image_path) {
+                $imageProcessor->deleteImage($hero_image_path);
             }
+            $hero_image_path = $new_hero_path;
+        } else {
+            $upload_error = 'Errore nel caricamento dell\'immagine hero.';
         }
     }
 
-    // Gestione upload galleria
-    if (!empty($_FILES['gallery_images']['name'][0])) {
-        $upload_dir = '../uploads/cities/gallery/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        $gallery_images = [];
-        if ($gallery_images_json) {
-            $gallery_images = json_decode($gallery_images_json, true) ?: [];
-        }
-        
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmp_name) {
-            if (!empty($tmp_name)) {
-                $file_extension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                
-                if (!in_array($file_extension, $allowed_extensions)) {
-                    $upload_error = 'Formato file galleria non supportato: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
-                } elseif ($_FILES['gallery_images']['size'][$key] > 5 * 1024 * 1024) {
-                    $upload_error = 'File galleria troppo grande: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
+    if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
+        $gallery_images = $gallery_images_json ? json_decode($gallery_images_json, true) : [];
+        $files = $_FILES['gallery_images'];
+
+        foreach ($files['tmp_name'] as $key => $tmpName) {
+            if ($files['error'][$key] === UPLOAD_ERR_OK) {
+                $file_info = [
+                    'name' => $files['name'][$key],
+                    'type' => $files['type'][$key],
+                    'tmp_name' => $tmpName,
+                    'error' => $files['error'][$key],
+                    'size' => $files['size'][$key]
+                ];
+                $gallery_path = $imageProcessor->processUploadedImage($file_info, 'cities/gallery');
+                if ($gallery_path) {
+                    $gallery_images[] = $gallery_path;
                 } else {
-                    $filename = 'gallery_' . uniqid() . '_' . time() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $filename;
-                    
-                    if (move_uploaded_file($tmp_name, $upload_path)) {
-                        $gallery_images[] = 'uploads/cities/gallery/' . $filename;
-                    } else {
-                        $upload_error = 'Errore nel caricamento di: ' . $_FILES['gallery_images']['name'][$key];
-                        break;
-                    }
+                     $upload_error = 'Errore nel caricamento di un file della galleria.';
+                     break;
                 }
             }
         }
-        
         if (empty($upload_error)) {
             $gallery_images_json = json_encode($gallery_images);
         }
@@ -108,13 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($upload_error)) {
         if ($action === 'edit' && $id) {
             $db->updateCityExtended($id, $name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            $success_message = "Città aggiornata con successo!";
         } else {
             $db->createCityExtended($name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            $success_message = "Città creata con successo!";
         }
-        
-        header('Location: citta.php?' . http_build_query($_GET));
+        header('Location: citta.php');
         exit;
     }
 }
@@ -127,17 +91,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_gallery_image'
         $image_to_delete = $_POST['delete_gallery_image'];
         
         // Rimuovi l'immagine dall'array
-        $gallery_images = array_filter($gallery_images, function($img) use ($image_to_delete) {
+        $new_gallery = array_filter($gallery_images, function($img) use ($image_to_delete) {
             return $img !== $image_to_delete;
         });
         
         // Elimina il file fisico
-        if (file_exists('../' . $image_to_delete)) {
-            unlink('../' . $image_to_delete);
-        }
+        $imageProcessor->deleteImage($image_to_delete);
         
         // Aggiorna il database
-        $gallery_images_json = json_encode(array_values($gallery_images));
+        $gallery_images_json = json_encode(array_values($new_gallery));
         $db->updateCityExtended($id, $city['name'], $city['province_id'], $city['description'], $city['latitude'], $city['longitude'], $city['hero_image'], $city['google_maps_link'], $gallery_images_json);
         
         header('Location: citta.php?action=edit&id=' . $id);
@@ -150,16 +112,14 @@ if ($action === 'delete' && $id) {
     $city = $db->getCityById($id);
     if ($city) {
         // Elimina hero image
-        if ($city['hero_image'] && file_exists('../' . $city['hero_image'])) {
-            unlink('../' . $city['hero_image']);
+        if ($city['hero_image']) {
+            $imageProcessor->deleteImage($city['hero_image']);
         }
         // Elimina galleria
         if ($city['gallery_images']) {
             $gallery_images = json_decode($city['gallery_images'], true) ?: [];
             foreach ($gallery_images as $image) {
-                if (file_exists('../' . $image)) {
-                    unlink('../' . $image);
-                }
+                $imageProcessor->deleteImage($image);
             }
         }
     }
@@ -351,7 +311,7 @@ if ($action === 'delete' && $id) {
                                     </td>
                                     <td class="py-4 px-6">
                                         <?php if ($city['hero_image']): ?>
-                                        <img src="../<?php echo htmlspecialchars($city['hero_image']); ?>" alt="Hero" class="w-12 h-8 object-cover rounded">
+                                        <img src="../image-loader.php?path=<?php echo htmlspecialchars($city['hero_image']); ?>" alt="Hero" class="w-12 h-8 object-cover rounded">
                                         <?php else: ?>
                                         <span class="text-gray-400 text-sm">Nessuna</span>
                                         <?php endif; ?>
@@ -501,7 +461,7 @@ if ($action === 'delete' && $id) {
                                     <?php if ($cityData && $cityData['hero_image']): ?>
                                     <div class="mb-4">
                                         <p class="text-sm text-gray-600 mb-2">Immagine hero attuale:</p>
-                                        <img src="../<?php echo htmlspecialchars($cityData['hero_image']); ?>" alt="Hero attuale" class="w-32 h-20 object-cover rounded-lg border">
+                                        <img src="../image-loader.php?path=<?php echo htmlspecialchars($cityData['hero_image']); ?>" alt="Hero attuale" class="w-32 h-20 object-cover rounded-lg border">
                                     </div>
                                     <?php endif; ?>
                                     
@@ -528,7 +488,7 @@ if ($action === 'delete' && $id) {
                                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             <?php foreach ($gallery_images as $image): ?>
                                             <div class="relative group">
-                                                <img src="../<?php echo htmlspecialchars($image); ?>" alt="Galleria" class="w-full h-24 object-cover rounded-lg border">
+                                                <img src="../image-loader.php?path=<?php echo htmlspecialchars($image); ?>" alt="Galleria" class="w-full h-24 object-cover rounded-lg border">
                                                 <button type="button" onclick="deleteGalleryImage('<?php echo htmlspecialchars($image); ?>')" 
                                                         class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <i data-lucide="x" class="w-3 h-3"></i>

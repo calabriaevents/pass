@@ -185,7 +185,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>" 
+            <img src="image-loader.php?path=<?php echo urlencode($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
@@ -289,7 +289,7 @@ foreach ($settings as $setting) {
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
                             <?php foreach (array_slice($userPhotos, 0, 12) as $index => $photo): ?>
                             <div class="<?php echo ($index === 0) ? 'col-span-2 row-span-2' : ''; ?> group relative overflow-hidden rounded-2xl aspect-square">
-                                <img src="<?php echo htmlspecialchars($photo['image_path']); ?>" 
+                                <img src="image-loader.php?path=<?php echo urlencode($photo['image_path']); ?>"
                                      alt="<?php echo htmlspecialchars($photo['description'] ?: $city['name']); ?>" 
                                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300"></div>
@@ -354,7 +354,7 @@ foreach ($settings as $setting) {
                                             <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block">
                                                 <div class="aspect-[16/9] bg-slate-200 overflow-hidden">
                                                     <?php if ($article['featured_image']): ?>
-                                                    <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" 
+                                                    <img src="image-loader.php?path=<?php echo urlencode($article['featured_image']); ?>"
                                                          alt="<?php echo htmlspecialchars($article['title']); ?>" 
                                                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                                     <?php else: ?>
