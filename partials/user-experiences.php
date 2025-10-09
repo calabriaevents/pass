@@ -71,7 +71,7 @@ $total_count = count($experiences); // Semplificato per ora, si può aggiungere 
             <?php foreach ($experiences as $experience): ?>
             <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group">
                 <div class="relative aspect-w-4 aspect-h-3 overflow-hidden cursor-pointer" onclick="openExperienceModal(<?php echo htmlspecialchars(json_encode($experience)); ?>)">
-                    <img src="/<?php echo htmlspecialchars($experience['image_path']); ?>" 
+                    <img src="image-loader.php?path=<?php echo urlencode($experience['image_path']); ?>"
                          alt="Esperienza di <?php echo htmlspecialchars($experience['user_name']); ?>"
                          class="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
                          loading="lazy">
@@ -123,7 +123,7 @@ function openExperienceModal(experience) {
     
     content.innerHTML = `
         <div class="relative">
-            <img src="/${experience.image_path}" 
+            <img src="image-loader.php?path=${encodeURIComponent(experience.image_path)}"
                  alt="Esperienza di ${experience.user_name}"
                  class="w-full h-64 md:h-80 object-cover rounded-t-2xl">
             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">

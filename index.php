@@ -96,7 +96,12 @@ foreach ($homeSections as $section) {
     <!-- Hero Section -->
     <section class="relative bg-gradient-to-br from-blue-900 via-blue-700 to-amber-600 text-white py-24 overflow-hidden">
         <!-- Background Image -->
-        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('<?php echo $heroSection['image_path'] ?? 'https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80'; ?>')"></div>
+        <?php
+        $heroImageUrl = $heroSection['image_path']
+            ? 'image-loader.php?path=' . urlencode($heroSection['image_path'])
+            : 'https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80';
+        ?>
+        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('<?php echo $heroImageUrl; ?>')"></div>
         <div class="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-blue-700/70 to-amber-600/60"></div>
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold mb-6">
@@ -180,13 +185,13 @@ foreach ($homeSections as $section) {
                     
                     <?php if (!empty($eventData['app_store_link']) && !empty($eventData['app_store_image'])): ?>
                     <a href="<?php echo htmlspecialchars($eventData['app_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                        <img src="<?php echo htmlspecialchars($eventData['app_store_image']); ?>" alt="Scarica su App Store" class="h-14 w-auto">
+                        <img src="image-loader.php?path=<?php echo urlencode($eventData['app_store_image']); ?>" alt="Scarica su App Store" class="h-14 w-auto">
                     </a>
                     <?php endif; ?>
                     
                     <?php if (!empty($eventData['play_store_link']) && !empty($eventData['play_store_image'])): ?>
                     <a href="<?php echo htmlspecialchars($eventData['play_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                        <img src="<?php echo htmlspecialchars($eventData['play_store_image']); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
+                        <img src="image-loader.php?path=<?php echo urlencode($eventData['play_store_image']); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
                     </a>
                     <?php endif; ?>
                 </div>
@@ -240,7 +245,7 @@ foreach ($homeSections as $section) {
                             </div>
                             <div class="text-4xl">
                                 <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
-                                    <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-10 h-10 object-cover rounded-lg">
+                                    <img src="image-loader.php?path=<?php echo urlencode($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-10 h-10 object-cover rounded-lg">
                                 <?php else: ?>
                                     <?php echo $category['icon']; ?>
                                 <?php endif; ?>
@@ -274,7 +279,7 @@ foreach ($homeSections as $section) {
                                                 <!-- Article Image -->
                                                 <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
                                                     <?php if ($article['logo']): ?>
-                                                    <img src="<?php echo htmlspecialchars($article['logo']); ?>"
+                                                    <img src="image-loader.php?path=<?php echo urlencode($article['logo']); ?>"
                                                          alt="Logo <?php echo htmlspecialchars($article['title']); ?>"
                                                          class="w-full h-full object-contain group-hover/article:scale-105 transition-transform duration-300 p-1">
                                                     <?php else: ?>
@@ -294,7 +299,7 @@ foreach ($homeSections as $section) {
         <div class="flex items-center text-xs text-gray-500">
             <?php // Aggiungiamo qui la logica per visualizzare l'icona della categoria ?>
             <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
-                <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
+                <img src="image-loader.php?path=<?php echo urlencode($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
             <?php else: ?>
                 <span class="mr-1.5"><?php echo $category['icon']; ?></span>
             <?php endif; ?>
@@ -381,7 +386,7 @@ foreach ($homeSections as $section) {
                     <div class="aspect-[4/3] relative overflow-hidden">
                         <?php if (!empty($province['image_path'])): ?>
                         <!-- Province Image from Admin -->
-                        <img src="<?php echo htmlspecialchars($province['image_path']); ?>" 
+                        <img src="image-loader.php?path=<?php echo urlencode($province['image_path']); ?>"
                              alt="<?php echo htmlspecialchars($province['name']); ?>" 
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10"></div>
@@ -596,7 +601,7 @@ foreach ($homeSections as $section) {
                         var popupContent = '<div class="p-3 min-w-64">' +
                             '<div class="flex items-start space-x-3">' +
                             (article.featured_image ? 
-                                '<img src="' + article.featured_image + '" alt="' + article.title + '" class="w-16 h-12 object-cover rounded">' : 
+                                '<img src="image-loader.php?path=' + encodeURIComponent(article.featured_image) + '" alt="' + article.title + '" class="w-16 h-12 object-cover rounded">' :
                                 '<div class="w-16 h-12 bg-gray-200 rounded flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></div>'
                             ) +
                             '<div class="flex-1">' +

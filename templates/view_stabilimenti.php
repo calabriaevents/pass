@@ -33,7 +33,7 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
     <div class="relative bg-gray-800 text-white">
         <div class="h-96 md:h-[500px] w-full">
             <?php if ($hero_image): ?>
-                <img src="/<?php echo htmlspecialchars($hero_image); ?>" alt="Hero image for <?php echo $activity_name; ?>" class="absolute inset-0 w-full h-full object-cover">
+                <img src="image-loader.php?path=<?php echo urlencode($hero_image); ?>" alt="Hero image for <?php echo $activity_name; ?>" class="absolute inset-0 w-full h-full object-cover">
             <?php endif; ?>
         </div>
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
@@ -125,8 +125,8 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
                     <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Galleria</h2>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <?php foreach($gallery_images as $image): ?>
-                        <a href="/<?php echo htmlspecialchars($image); ?>" target="_blank" class="block group">
-                            <img src="/<?php echo htmlspecialchars($image); ?>" alt="Galleria immagine" class="w-full h-40 object-cover rounded-lg group-hover:opacity-80 transition-opacity shadow-md">
+                        <a href="image-loader.php?path=<?php echo urlencode($image); ?>" data-fancybox="gallery" class="block group">
+                            <img src="image-loader.php?path=<?php echo urlencode($image); ?>" alt="Galleria immagine" class="w-full h-40 object-cover rounded-lg group-hover:opacity-80 transition-opacity shadow-md">
                         </a>
                         <?php endforeach; ?>
                     </div>
