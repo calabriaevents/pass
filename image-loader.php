@@ -1,45 +1,42 @@
 <?php
-// Percorso corretto alla cartella delle immagini protette.
-// Si assume che 'uploads_protected' si trovi nella stessa cartella di questo script.
+// Percorso canonico e corretto per le immagini protette.
 $base_dir = __DIR__ . '/uploads_protected/';
 
 $image_path = $_GET['path'] ?? '';
 
-// Sicurezza: Impedisce di risalire le cartelle (es. ../../) e pulisce il percorso.
-// Rimuove caratteri potenzialmente dannosi per la sicurezza.
+// Sicurezza: pulizia aggressiva per prevenire attacchi "Directory Traversal".
 $image_path = preg_replace('/[^a-zA-Z0-9\/._-]/', '', $image_path);
 if (strpos($image_path, '..') !== false) {
     http_response_code(400); // Bad Request
-    echo "Accesso non valido.";
-    exit;
+    exit("Percorso non valido.");
 }
 
-// Costruisce il percorso completo e sicuro del file
-$safe_path = realpath($base_dir . $image_path);
+$full_path = $base_dir . $image_path;
 
-// Controlla che il file esista e si trovi DENTRO la cartella base_dir
-if (!$safe_path || strpos($safe_path, realpath($base_dir)) !== 0 || !file_exists($safe_path)) {
+// Usa realpath() per risolvere simboli come '.' e '..' e ottenere il percorso canonico
+$safe_path = realpath($full_path);
+$safe_base_dir = realpath($base_dir);
+
+// Controlla che il file esista e che il suo percorso inizi con il percorso della cartella base.
+// Questa è la protezione di sicurezza più importante.
+if ($safe_path === false || strpos($safe_path, $safe_base_dir) !== 0) {
     http_response_code(404); // Not Found
-    // Puoi decommentare la riga sotto per il debug, ma non lasciarla in produzione
-    // echo "File non trovato o percorso non valido: " . htmlspecialchars($base_dir . $image_path);
     exit;
 }
 
-// Determina il tipo di file in modo sicuro
+// Determina il tipo di file in modo sicuro e servi l'immagine
 $finfo = new finfo(FILEINFO_MIME_TYPE);
 $mime_type = $finfo->file($safe_path);
 
 $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 if (in_array($mime_type, $allowed_mime_types)) {
-    // Imposta gli header e invia il contenuto del file
     header('Content-Type: ' . $mime_type);
     header('Content-Length: ' . filesize($safe_path));
-    header('Cache-Control: max-age=31536000'); // Imposta una cache di 1 anno
-
+    header('Cache-Control: public, max-age=31536000'); // Cache per 1 anno
+    header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
     readfile($safe_path);
     exit;
 } else {
     http_response_code(403); // Forbidden
-    echo "Tipo di file non consentito.";
-    exit;
+    exit("Tipo di file non consentito.");
 }

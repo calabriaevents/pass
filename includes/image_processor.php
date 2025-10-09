@@ -5,17 +5,25 @@ class ImageProcessor {
     private $last_error;
 
     public function __construct(string $base_dir = '') {
+        // Garantisce che il percorso base sia sempre la root del progetto
+        $project_root = dirname(__DIR__);
+
         if (empty($base_dir)) {
-            $this->upload_dir = realpath(__DIR__ . '/../uploads_protected/');
+            // Percorso canonico e corretto per le immagini protette
+            $this->upload_dir = $project_root . '/uploads_protected/';
         } else {
             $this->upload_dir = $base_dir;
         }
 
-        if (!is_writable($this->upload_dir)) {
+        // Controlla se la cartella esiste e se è scrivibile, altrimenti prova a crearla
+        if (!is_dir($this->upload_dir)) {
             if (!mkdir($this->upload_dir, 0755, true)) {
-                $this->last_error = "La cartella di upload non esiste e non può essere creata. Controlla i permessi.";
+                $this->last_error = "ERRORE CRITICO: La cartella '{$this->upload_dir}' non esiste e non può essere creata. Controlla i permessi della cartella principale.";
                 error_log($this->last_error);
             }
+        } elseif (!is_writable($this->upload_dir)) {
+            $this->last_error = "ERRORE CRITICO: La cartella '{$this->upload_dir}' non è scrivibile. Controlla i permessi.";
+            error_log($this->last_error);
         }
     }
 
@@ -31,8 +39,8 @@ class ImageProcessor {
             return null;
         }
 
-        $target_dir = $this->upload_dir . '/' . $subfolder . '/';
-        if (!file_exists($target_dir)) {
+        $target_dir = $this->upload_dir . $subfolder . '/';
+        if (!is_dir($target_dir)) {
             if (!mkdir($target_dir, 0755, true)) {
                 $this->last_error = "Impossibile creare la sottocartella '{$subfolder}'. Controlla i permessi.";
                 error_log($this->last_error);
@@ -51,7 +59,7 @@ class ImageProcessor {
 
         $image = $this->createImageFromFile($file['tmp_name']);
         if (!$image) {
-            return null; // getLastError() è già stato impostato in createImageFromFile
+            return null; // getLastError() è già stato impostato
         }
 
         $resized_image = $this->resizeImage($image, $max_width);
@@ -105,7 +113,6 @@ class ImageProcessor {
 
         $resized_image = imagecreatetruecolor($new_width, $new_height);
 
-        // Mantiene la trasparenza per PNG e GIF
         imagealphablending($resized_image, false);
         imagesavealpha($resized_image, true);
         $transparent = imagecolorallocatealpha($resized_image, 255, 255, 255, 127);
