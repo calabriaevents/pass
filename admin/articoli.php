@@ -192,7 +192,7 @@ if ($action === 'delete' && $id) {
                             <td class="py-3 px-2">
                                 <div class="flex items-center space-x-3">
                                     <?php if (!empty($article['logo'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo <?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
+                                    <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['logo'] ?? '')); ?>" alt="Logo <?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
                                     <?php else: ?>
                                     <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
                                         <i data-lucide="image-off" class="w-5 h-5 text-gray-400"></i>

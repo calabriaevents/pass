@@ -3,7 +3,7 @@
     <div class="flex items-center space-x-6">
         <?php if (isset($article) && !empty($article['logo'])): ?>
             <div class="flex-shrink-0">
-                <img src="../<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo attuale" class="h-16 w-16 object-contain rounded-lg border p-1">
+                <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['logo'] ?? '')); ?>" alt="Logo attuale" class="h-16 w-16 object-contain rounded-lg border p-1">
                 <p class="text-xs text-gray-500 mt-1 text-center">Logo attuale</p>
             </div>
         <?php endif; ?>

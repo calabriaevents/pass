@@ -112,7 +112,7 @@ if ($action === 'delete' && $id) {
                     <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                         <!-- Immagine -->
                         <div class="aspect-square bg-gray-100 relative">
-                            <img src="../<?php echo htmlspecialchars($upload['image_path']); ?>" 
+                            <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $upload['image_path'] ?? '')); ?>"
                                  alt="<?php echo htmlspecialchars($upload['description'] ?: 'Foto utente'); ?>"
                                  class="w-full h-full object-cover">
                             

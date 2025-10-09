@@ -172,7 +172,7 @@ $totalPages = ceil($totalResults / $limit);
                         <article class="article-card">
                             <div class="aspect-[4/3] bg-gray-200 relative overflow-hidden">
                                 <?php if ($article['featured_image']): ?>
-                                <img src="<?php echo htmlspecialchars($article['featured_image']); ?>"
+                                <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['featured_image'] ?? '')); ?>"
                                      alt="<?php echo htmlspecialchars($article['title']); ?>"
                                      class="w-full h-full object-cover">
                                 <?php else: ?>
