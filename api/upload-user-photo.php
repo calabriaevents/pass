@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php'; // Aggiunto Image Processor
 
 try {
     // Validazione input
@@ -46,42 +47,19 @@ try {
         throw new Exception('La foto è troppo grande. Massimo 5MB consentiti');
     }
     
-    if (!in_array($file['type'], $allowedTypes)) {
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime_type = $finfo->file($file['tmp_name']);
+
+    if (!in_array($mime_type, $allowedTypes)) {
         throw new Exception('Formato file non supportato. Usa JPG, PNG o WebP');
     }
-    
-    // Verifica se è realmente un'immagine
-    $imageInfo = getimagesize($file['tmp_name']);
-    if ($imageInfo === false) {
-        throw new Exception('Il file caricato non è una immagine valida');
-    }
-    
-    // Crea directory se non esiste
-    $uploadDir = '../uploads/user-experiences/';
-    if (!file_exists($uploadDir)) {
-        if (!mkdir($uploadDir, 0755, true)) {
-            throw new Exception('Impossibile creare la directory di upload');
-        }
-    }
-    
-    // Genera nome file unico
-    $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if (empty($fileExtension)) {
-        $fileExtension = 'jpg'; // default
-    }
-    
-    $fileName = uniqid('user_exp_', true) . '.' . $fileExtension;
-    $filePath = $uploadDir . $fileName;
-    $relativePath = 'uploads/user-experiences/' . $fileName;
-    
-    // Sposta il file
-    if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+
+    // --- NUOVA GESTIONE IMMAGINE CON IMAGEPROCESSOR ---
+    $imageProcessor = new ImageProcessor();
+    $relativePath = $imageProcessor->processUploadedImage($file, 'user-experiences');
+
+    if (!$relativePath) {
         throw new Exception('Errore nel salvataggio della foto');
-    }
-    
-    // Ridimensiona l'immagine se troppo grande
-    if ($imageInfo[0] > 1200 || $imageInfo[1] > 1200) {
-        resizeImage($filePath, $filePath, 1200, 1200);
     }
     
     // Salva nel database
@@ -111,7 +89,7 @@ try {
         $description
     ])) {
         // Rimuovi il file se il database fallisce
-        unlink($filePath);
+        $imageProcessor->deleteImage($relativePath);
         throw new Exception('Errore nel salvataggio dei dati');
     }
     
@@ -130,70 +108,5 @@ try {
         'success' => false,
         'error' => $e->getMessage()
     ]);
-}
-
-/**
- * Ridimensiona un'immagine mantenendo le proporzioni
- */
-function resizeImage($sourcePath, $destPath, $maxWidth, $maxHeight) {
-    $imageInfo = getimagesize($sourcePath);
-    $width = $imageInfo[0];
-    $height = $imageInfo[1];
-    $type = $imageInfo[2];
-    
-    // Calcola le nuove dimensioni
-    $ratio = min($maxWidth / $width, $maxHeight / $height);
-    $newWidth = intval($width * $ratio);
-    $newHeight = intval($height * $ratio);
-    
-    // Crea l'immagine source
-    switch ($type) {
-        case IMAGETYPE_JPEG:
-            $source = imagecreatefromjpeg($sourcePath);
-            break;
-        case IMAGETYPE_PNG:
-            $source = imagecreatefrompng($sourcePath);
-            break;
-        case IMAGETYPE_WEBP:
-            $source = imagecreatefromwebp($sourcePath);
-            break;
-        default:
-            return false;
-    }
-    
-    if (!$source) return false;
-    
-    // Crea l'immagine destinazione
-    $dest = imagecreatetruecolor($newWidth, $newHeight);
-    
-    // Preserva la trasparenza per PNG
-    if ($type == IMAGETYPE_PNG) {
-        imagealphablending($dest, false);
-        imagesavealpha($dest, true);
-        $transparent = imagecolorallocatealpha($dest, 255, 255, 255, 127);
-        imagefilledrectangle($dest, 0, 0, $newWidth, $newHeight, $transparent);
-    }
-    
-    // Ridimensiona
-    imagecopyresampled($dest, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-    
-    // Salva
-    $result = false;
-    switch ($type) {
-        case IMAGETYPE_JPEG:
-            $result = imagejpeg($dest, $destPath, 85);
-            break;
-        case IMAGETYPE_PNG:
-            $result = imagepng($dest, $destPath, 6);
-            break;
-        case IMAGETYPE_WEBP:
-            $result = imagewebp($dest, $destPath, 80);
-            break;
-    }
-    
-    imagedestroy($source);
-    imagedestroy($dest);
-    
-    return $result;
 }
 ?>
