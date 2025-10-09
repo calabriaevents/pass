@@ -274,7 +274,7 @@ foreach ($homeSections as $section) {
                                                 <!-- Article Image -->
                                                 <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
                                                     <?php if ($article['logo']): ?>
-                                                    <img src="<?php echo htmlspecialchars($article['logo']); ?>"
+                                                    <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['logo'] ?? '')); ?>"
                                                          alt="Logo <?php echo htmlspecialchars($article['title']); ?>"
                                                          class="w-full h-full object-contain group-hover/article:scale-105 transition-transform duration-300 p-1">
                                                     <?php else: ?>
