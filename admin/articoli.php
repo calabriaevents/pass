@@ -2,11 +2,13 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php'; // Includi la classe ImageProcessor
 
 // Controlla autenticazione (da implementare)
 // requireLogin();
 
 $db = new Database();
+$imageProcessor = new ImageProcessor(); // Istanzia ImageProcessor
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
@@ -23,36 +25,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $city_id = $_POST['city_id'] ?? null;
     $status = $_POST['status'] ?? 'draft';
     $author = $_POST['author'] ?? 'Admin';
-    $posted_json_data = $_POST['json_data'] ?? [];
+    $posted_json_data = isset($_POST['json_data']) ? json_decode($_POST['json_data'], true) : [];
 
     // --- File Upload Handling ---
-    $uploadDirArticles = '../uploads/articles/';
-    $uploadDirMenus = '../uploads/menus/';
-    if (!is_dir($uploadDirArticles)) mkdir($uploadDirArticles, 0755, true);
-    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
-
-    // Helper function for single file upload
-    function uploadSingleFile($file, $prefix, $uploadDir, $allowedExtensions) {
-        if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = $prefix . uniqid() . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    return str_replace('../', '', $uploadDir) . $fileName;
-                }
-            }
-        }
-        return null;
-    }
-
-    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    $featured_image = uploadSingleFile($_FILES['featured_image'] ?? null, 'featured_', $uploadDirArticles, $imageExtensions);
-    $hero_image = uploadSingleFile($_FILES['hero_image'] ?? null, 'hero_', $uploadDirArticles, $imageExtensions);
-    $logo = uploadSingleFile($_FILES['logo'] ?? null, 'logo_', $uploadDirArticles, $imageExtensions);
+    $featured_image = isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === UPLOAD_ERR_OK ? $imageProcessor->processUploadedImage($_FILES['featured_image'], 'articles/featured') : null;
+    $hero_image = isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK ? $imageProcessor->processUploadedImage($_FILES['hero_image'], 'articles/hero') : null;
+    $logo = isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK ? $imageProcessor->processUploadedImage($_FILES['logo'], 'articles/logo') : null;
 
     // Handle Menu PDF upload and add it to JSON data
-    $menu_pdf = uploadSingleFile($_FILES['menu_pdf'] ?? null, 'menu_', $uploadDirMenus, ['pdf']);
+    $uploadDirMenus = '../uploads/menus/';
+    if (!is_dir($uploadDirMenus)) {
+        mkdir($uploadDirMenus, 0755, true);
+    }
+    $menu_pdf = null;
+    if (isset($_FILES['menu_pdf']) && $_FILES['menu_pdf']['error'] === UPLOAD_ERR_OK) {
+        $fileExtension = strtolower(pathinfo($_FILES['menu_pdf']['name'], PATHINFO_EXTENSION));
+        if ($fileExtension === 'pdf') {
+            $fileName = 'menu_' . uniqid() . '.' . $fileExtension;
+            $targetPath = $uploadDirMenus . $fileName;
+            if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $targetPath)) {
+                $menu_pdf = 'uploads/menus/' . $fileName;
+            }
+        }
+    }
+
     if ($menu_pdf) {
         $posted_json_data['menu_pdf_path'] = $menu_pdf;
     }
@@ -63,13 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $galleryPaths = [];
         foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
             if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
-                $fileExtension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                if (in_array($fileExtension, $imageExtensions)) {
-                    $fileName = 'gallery_' . uniqid() . '.' . $fileExtension;
-                    $targetPath = $uploadDirArticles . $fileName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $galleryPaths[] = 'uploads/articles/' . $fileName;
-                    }
+                $file_for_processing = [
+                    'name' => $_FILES['gallery_images']['name'][$key],
+                    'type' => $_FILES['gallery_images']['type'][$key],
+                    'tmp_name' => $tmpName,
+                    'error' => $_FILES['gallery_images']['error'][$key],
+                    'size' => $_FILES['gallery_images']['size'][$key]
+                ];
+                $processed_path = $imageProcessor->processUploadedImage($file_for_processing, 'articles/gallery');
+                if ($processed_path) {
+                    $galleryPaths[] = $processed_path;
                 }
             }
         }
@@ -88,7 +87,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($featured_image === null) $featured_image = $existingArticle['featured_image'] ?? null;
         if ($hero_image === null) $hero_image = $existingArticle['hero_image'] ?? null;
         if ($logo === null) $logo = $existingArticle['logo'] ?? null;
-        if ($gallery_images === null) $gallery_images = $existingArticle['gallery_images'] ?? null;
+
+        $existing_gallery = json_decode($existingArticle['gallery_images'] ?? '[]', true);
+        if ($gallery_images !== null) {
+            $new_gallery = json_decode($gallery_images, true);
+            $gallery_images = json_encode(array_merge($existing_gallery, $new_gallery));
+        } else {
+            $gallery_images = $existingArticle['gallery_images'] ?? null;
+        }
+
 
         // Special handling for menu_pdf path in JSON
         $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
@@ -108,11 +115,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($action === 'delete' && $id) {
+    // Qui dovresti anche eliminare le immagini associate dal filesystem
+    $article = $db->getArticleById($id);
+    if ($article) {
+        if (!empty($article['featured_image'])) $imageProcessor->deleteImage($article['featured_image']);
+        if (!empty($article['hero_image'])) $imageProcessor->deleteImage($article['hero_image']);
+        if (!empty($article['logo'])) $imageProcessor->deleteImage($article['logo']);
+        if (!empty($article['gallery_images'])) {
+            $gallery = json_decode($article['gallery_images'], true);
+            if(is_array($gallery)) {
+                foreach ($gallery as $image_path) {
+                    $imageProcessor->deleteImage($image_path);
+                }
+            }
+        }
+    }
     $db->deleteArticle($id);
     header('Location: articoli.php');
     exit;
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -126,7 +147,6 @@ if ($action === 'delete' && $id) {
     <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body class="min-h-screen bg-gray-100 flex">
-    <!-- Sidebar -->
     <div class="bg-gray-900 text-white w-64 flex flex-col">
         <div class="p-4 border-b border-gray-700">
             <div class="flex items-center space-x-3">
@@ -145,7 +165,6 @@ if ($action === 'delete' && $id) {
         </div>
     </div>
 
-    <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
             <div class="flex justify-between items-center">
@@ -178,7 +197,7 @@ if ($action === 'delete' && $id) {
                             <td class="py-3 px-2">
                                 <div class="flex items-center space-x-3">
                                     <?php if (!empty($article['logo'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($article['logo']); ?>" alt="Logo <?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
+                                    <img src="../image-loader.php?path=<?php echo urlencode($article['logo']); ?>" alt="Logo <?php echo htmlspecialchars($article['title']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
                                     <?php else: ?>
                                     <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
                                         <i data-lucide="image-off" class="w-5 h-5 text-gray-400"></i>
