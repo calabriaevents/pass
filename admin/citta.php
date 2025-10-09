@@ -2,17 +2,18 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-
-// Controlla autenticazione (da implementare)
-// requireLogin();
+require_once '../includes/image_processor.php'; // Image Processor è già incluso
 
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
+$error_message = '';
+$success_message = '';
 
 // Gestione delle azioni POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_gallery_image'])) {
     $name = $_POST['city_name'] ?? '';
     $province_id = $_POST['city_province_id'] ?? '';
     $description = $_POST['city_description'] ?? '';
@@ -20,102 +21,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
     $google_maps_link = $_POST['city_google_maps_link'] ?? '';
 
-    $upload_error = '';
     $hero_image_path = null;
     $gallery_images_json = null;
-    
-    // Se è una modifica, recupera i dati esistenti
+
     if ($action === 'edit' && $id) {
         $existingCity = $db->getCityById($id);
         $hero_image_path = $existingCity['hero_image'] ?? null;
         $gallery_images_json = $existingCity['gallery_images'] ?? null;
     }
 
-    // Gestione upload immagine hero
-    if (!empty($_FILES['hero_image']['name'])) {
-        $upload_dir = '../uploads/cities/hero/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        $file_extension = strtolower(pathinfo($_FILES['hero_image']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            $upload_error = 'Formato file hero non supportato. Usa JPG, PNG, GIF o WebP.';
-        } elseif ($_FILES['hero_image']['size'] > 5 * 1024 * 1024) {
-            $upload_error = 'File hero troppo grande. Massimo 5MB.';
-        } else {
-            $filename = 'hero_' . uniqid() . '_' . time() . '.' . $file_extension;
-            $upload_path = $upload_dir . $filename;
-            
-            if (move_uploaded_file($_FILES['hero_image']['tmp_name'], $upload_path)) {
-                $hero_image_path = 'uploads/cities/hero/' . $filename;
-                // Elimina vecchia immagine se esiste
-                if ($existingCity && $existingCity['hero_image'] && file_exists('../' . $existingCity['hero_image'])) {
-                    unlink('../' . $existingCity['hero_image']);
+    try {
+        // --- NUOVA GESTIONE UPLOAD CON CONTROLLO ERRORI ---
+        if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
+            $new_hero_path = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'cities/hero');
+            if ($new_hero_path) {
+                if ($hero_image_path) {
+                    $imageProcessor->deleteImage($hero_image_path);
                 }
+                $hero_image_path = $new_hero_path;
             } else {
-                $upload_error = 'Errore nel caricamento dell\'immagine hero.';
+                throw new Exception("Errore nel caricamento dell'immagine hero: " . $imageProcessor->getLastError());
             }
         }
-    }
 
-    // Gestione upload galleria
-    if (!empty($_FILES['gallery_images']['name'][0])) {
-        $upload_dir = '../uploads/cities/gallery/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        $gallery_images = [];
-        if ($gallery_images_json) {
-            $gallery_images = json_decode($gallery_images_json, true) ?: [];
-        }
-        
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmp_name) {
-            if (!empty($tmp_name)) {
-                $file_extension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                
-                if (!in_array($file_extension, $allowed_extensions)) {
-                    $upload_error = 'Formato file galleria non supportato: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
-                } elseif ($_FILES['gallery_images']['size'][$key] > 5 * 1024 * 1024) {
-                    $upload_error = 'File galleria troppo grande: ' . $_FILES['gallery_images']['name'][$key];
-                    break;
-                } else {
-                    $filename = 'gallery_' . uniqid() . '_' . time() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $filename;
-                    
-                    if (move_uploaded_file($tmp_name, $upload_path)) {
-                        $gallery_images[] = 'uploads/cities/gallery/' . $filename;
+        if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
+            $gallery_images = $gallery_images_json ? json_decode($gallery_images_json, true) : [];
+            $files = $_FILES['gallery_images'];
+
+            foreach ($files['tmp_name'] as $key => $tmpName) {
+                if ($files['error'][$key] === UPLOAD_ERR_OK) {
+                    $file_info = [
+                        'name' => $files['name'][$key],
+                        'type' => $files['type'][$key],
+                        'tmp_name' => $tmpName,
+                        'error' => $files['error'][$key],
+                        'size' => $files['size'][$key]
+                    ];
+                    $gallery_path = $imageProcessor->processUploadedImage($file_info, 'cities/gallery');
+                    if ($gallery_path) {
+                        $gallery_images[] = $gallery_path;
                     } else {
-                        $upload_error = 'Errore nel caricamento di: ' . $_FILES['gallery_images']['name'][$key];
-                        break;
+                        throw new Exception("Errore caricando un'immagine della galleria: " . $imageProcessor->getLastError());
                     }
                 }
             }
+            $gallery_images_json = json_encode(array_values($gallery_images));
         }
-        
-        if (empty($upload_error)) {
-            $gallery_images_json = json_encode($gallery_images);
-        }
-    }
 
-    // Salvataggio nel database solo se non ci sono errori
-    if (empty($upload_error)) {
+        // Salvataggio nel database
         if ($action === 'edit' && $id) {
             $db->updateCityExtended($id, $name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            $success_message = "Città aggiornata con successo!";
+            // Non impostare $success_message qui per evitare che venga mostrato dopo l'header
         } else {
             $db->createCityExtended($name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            $success_message = "Città creata con successo!";
         }
         
-        header('Location: citta.php?' . http_build_query($_GET));
+        header('Location: citta.php?success=1'); // Invia un parametro di successo
         exit;
+
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
     }
 }
 
@@ -174,6 +139,10 @@ if ($action === 'delete' && $id) {
     exit;
 }
 
+// Aggiungi questo in cima alla sezione HTML per mostrare i messaggi
+if (isset($_GET['success'])) {
+    $success_message = "Operazione completata con successo!";
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -241,42 +210,15 @@ if ($action === 'delete' && $id) {
         </header>
 
         <main class="flex-1 overflow-auto p-6">
-            <?php if (isset($success_message)): ?>
-            <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i data-lucide="check-circle" class="h-5 w-5 text-green-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-green-700"><?php echo $success_message; ?></p>
-                    </div>
-                </div>
+            <?php if (!empty($success_message)): ?>
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <span class="block sm:inline"><?php echo htmlspecialchars($success_message); ?></span>
             </div>
             <?php endif; ?>
-
-            <?php if (isset($error_message)): ?>
-            <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-red-700"><?php echo $error_message; ?></p>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <?php if (isset($upload_error) && !empty($upload_error)): ?>
-            <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-red-700"><?php echo $upload_error; ?></p>
-                    </div>
-                </div>
+            <?php if (!empty($error_message)): ?>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <strong class="font-bold">Errore!</strong>
+                <span class="block sm:inline"><?php echo htmlspecialchars($error_message); ?></span>
             </div>
             <?php endif; ?>
 

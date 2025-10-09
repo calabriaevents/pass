@@ -2,68 +2,66 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-
-// Controlla autenticazione (da implementare)
-// requireLogin();
+require_once '../includes/image_processor.php';
 
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 $entity = $_GET['entity'] ?? 'provinces';
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
+$error_message = '';
+$success_message = '';
 
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($entity === 'provinces') {
-        $name = $_POST['name'] ?? '';
-        $description = $_POST['description'] ?? '';
-        $image_path = $_POST['existing_image_path'] ?? null;
+    try {
+        if ($entity === 'provinces') {
+            $name = $_POST['name'] ?? '';
+            $description = $_POST['description'] ?? '';
+            $image_path = $_POST['existing_image_path'] ?? null;
 
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = '../uploads/provinces/';
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $new_image_path = $imageProcessor->processUploadedImage($_FILES['image'], 'provinces');
+                if ($new_image_path) {
+                    if ($image_path) {
+                        $imageProcessor->deleteImage($image_path);
+                    }
+                    $image_path = $new_image_path;
+                } else {
+                    throw new Exception("Errore nel caricamento dell'immagine: " . $imageProcessor->getLastError());
+                }
             }
-            $filename = uniqid() . '-' . basename($_FILES['image']['name']);
-            $target_file = $upload_dir . $filename;
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
-                $image_path = 'uploads/provinces/' . $filename;
+
+            if ($action === 'edit' && $id) {
+                $db->updateProvince($id, $name, $description, $image_path);
+            } else {
+                $db->createProvince($name, $description, $image_path);
             }
         }
-
-        if ($action === 'edit' && $id) {
-            $db->updateProvince($id, $name, $description, $image_path);
-            $success_message = "Provincia aggiornata con successo!";
-        } else {
-            $db->createProvince($name, $description, $image_path);
-            $success_message = "Provincia creata con successo!";
-        }
-    }
-    
-    // Gestione upload immagini galleria
-    if ($entity === 'gallery' && isset($_POST['province_id'])) {
-        $province_id = (int)$_POST['province_id'];
-        $title = $_POST['title'] ?? '';
-        $description = $_POST['description'] ?? '';
         
-        if (isset($_FILES['gallery_image']) && $_FILES['gallery_image']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = '../uploads/galleries/';
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
-            $filename = uniqid() . '-' . basename($_FILES['gallery_image']['name']);
-            $target_file = $upload_dir . $filename;
-            if (move_uploaded_file($_FILES['gallery_image']['tmp_name'], $target_file)) {
-                $image_path = 'uploads/galleries/' . $filename;
-                $db->addProvinceGalleryImage($province_id, $image_path, $title, $description);
-                $success_message = "Immagine aggiunta alla galleria con successo!";
+        if ($entity === 'gallery' && isset($_POST['province_id'])) {
+            $province_id = (int)$_POST['province_id'];
+            $title = $_POST['title'] ?? '';
+            $description = $_POST['description'] ?? '';
+
+            if (isset($_FILES['gallery_image']) && $_FILES['gallery_image']['error'] === UPLOAD_ERR_OK) {
+                $image_path = $imageProcessor->processUploadedImage($_FILES['gallery_image'], 'galleries');
+                if ($image_path) {
+                    $db->addProvinceGalleryImage($province_id, $image_path, $title, $description);
+                } else {
+                    throw new Exception("Errore nel caricamento dell'immagine della galleria: " . $imageProcessor->getLastError());
+                }
+            } else if (isset($_FILES['gallery_image']) && $_FILES['gallery_image']['error'] !== UPLOAD_ERR_NO_FILE) {
+                 throw new Exception("Errore nel file caricato per la galleria. Codice: " . $_FILES['gallery_image']['error']);
             }
         }
-    }
-    
-    if (empty($upload_error)) {
-        header('Location: province.php?' . http_build_query($_GET));
+
+        header('Location: province.php?success=1&' . http_build_query(array_filter(['entity' => $entity, 'action' => 'list'])));
         exit;
+
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
     }
 }
 
@@ -79,6 +77,9 @@ if ($action === 'delete' && $id) {
     exit;
 }
 
+if (isset($_GET['success'])) {
+    $success_message = "Operazione completata con successo!";
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -146,29 +147,15 @@ if ($action === 'delete' && $id) {
         </header>
 
         <main class="flex-1 overflow-auto p-6">
-            <?php if (isset($success_message)): ?>
-            <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i data-lucide="check-circle" class="h-5 w-5 text-green-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-green-700"><?php echo $success_message; ?></p>
-                    </div>
-                </div>
+            <?php if (!empty($success_message)): ?>
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <span class="block sm:inline"><?php echo htmlspecialchars($success_message); ?></span>
             </div>
             <?php endif; ?>
-
-            <?php if (isset($error_message)): ?>
-            <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-red-700"><?php echo $error_message; ?></p>
-                    </div>
-                </div>
+            <?php if (!empty($error_message)): ?>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <strong class="font-bold">Errore!</strong>
+                <span class="block sm:inline"><?php echo htmlspecialchars($error_message); ?></span>
             </div>
             <?php endif; ?>
 

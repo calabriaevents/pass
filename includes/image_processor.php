@@ -2,32 +2,56 @@
 
 class ImageProcessor {
     private $upload_dir;
+    private $last_error;
 
-    public function __construct(string $base_dir = __DIR__ . '/../uploads_protected/') {
-        $this->upload_dir = $base_dir;
-        if (!file_exists($this->upload_dir)) {
-            mkdir($this->upload_dir, 0755, true);
+    public function __construct(string $base_dir = '') {
+        if (empty($base_dir)) {
+            $this->upload_dir = realpath(__DIR__ . '/../uploads_protected/');
+        } else {
+            $this->upload_dir = $base_dir;
+        }
+
+        if (!is_writable($this->upload_dir)) {
+            if (!mkdir($this->upload_dir, 0755, true)) {
+                $this->last_error = "La cartella di upload non esiste e non può essere creata. Controlla i permessi.";
+                error_log($this->last_error);
+            }
         }
     }
 
+    public function getLastError(): ?string {
+        return $this->last_error;
+    }
+
     public function processUploadedImage(array $file, string $subfolder, int $max_width = 1200): ?string {
+        $this->last_error = null;
+
         if ($file['error'] !== UPLOAD_ERR_OK) {
+            $this->last_error = "Errore durante il caricamento del file. Codice: " . $file['error'];
             return null;
         }
 
-        $target_dir = $this->upload_dir . $subfolder . '/';
+        $target_dir = $this->upload_dir . '/' . $subfolder . '/';
         if (!file_exists($target_dir)) {
-            mkdir($target_dir, 0755, true);
+            if (!mkdir($target_dir, 0755, true)) {
+                $this->last_error = "Impossibile creare la sottocartella '{$subfolder}'. Controlla i permessi.";
+                error_log($this->last_error);
+                return null;
+            }
         }
 
-        $original_name = pathinfo($file['name'], PATHINFO_FILENAME);
-        $sanitized_name = preg_replace('/[^a-zA-Z0-9_-]/', '', $original_name);
+        if (!is_writable($target_dir)) {
+            $this->last_error = "La cartella '{$target_dir}' non è scrivibile.";
+            error_log($this->last_error);
+            return null;
+        }
+
         $new_filename = 'img_' . uniqid() . '_' . time() . '.webp';
         $upload_path = $target_dir . $new_filename;
 
         $image = $this->createImageFromFile($file['tmp_name']);
         if (!$image) {
-            return null;
+            return null; // getLastError() è già stato impostato in createImageFromFile
         }
 
         $resized_image = $this->resizeImage($image, $max_width);
@@ -39,11 +63,17 @@ class ImageProcessor {
         }
 
         imagedestroy($resized_image);
+        $this->last_error = "Impossibile salvare l'immagine convertita in WebP.";
+        error_log($this->last_error . " Percorso: " . $upload_path);
         return null;
     }
 
     private function createImageFromFile(string $filepath): GdImage|bool {
         $image_info = getimagesize($filepath);
+        if ($image_info === false) {
+            $this->last_error = "Il file fornito non è un'immagine valida.";
+            return false;
+        }
         $mime_type = $image_info['mime'];
 
         switch ($mime_type) {
@@ -56,6 +86,7 @@ class ImageProcessor {
             case 'image/webp':
                  return imagecreatefromwebp($filepath);
             default:
+                $this->last_error = "Tipo di immagine non supportato: {$mime_type}.";
                 return false;
         }
     }
@@ -74,10 +105,11 @@ class ImageProcessor {
 
         $resized_image = imagecreatetruecolor($new_width, $new_height);
 
+        // Mantiene la trasparenza per PNG e GIF
         imagealphablending($resized_image, false);
         imagesavealpha($resized_image, true);
         $transparent = imagecolorallocatealpha($resized_image, 255, 255, 255, 127);
-        imagefilledrectangle($resized_image, 0, 0, $new_width, $new_height, $transparent);
+        imagefill($resized_image, 0, 0, $transparent);
 
         imagecopyresampled($resized_image, $image, 0, 0, 0, 0, $new_width, $new_height, $original_width, $original_height);
 
@@ -85,7 +117,9 @@ class ImageProcessor {
     }
 
     public function deleteImage(string $relative_path): bool {
-        $full_path = $this->upload_dir . $relative_path;
+        if (empty($relative_path)) return false;
+
+        $full_path = $this->upload_dir . '/' . $relative_path;
         if (file_exists($full_path) && is_writable($full_path)) {
             return unlink($full_path);
         }

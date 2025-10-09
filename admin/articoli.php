@@ -2,18 +2,17 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-
-// Controlla autenticazione (da implementare)
-// requireLogin();
+require_once '../includes/image_processor.php';
 
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 $action = $_GET['action'] ?? 'list';
 $id = $_GET['id'] ?? null;
+$error_message = ''; // Variabile per gli errori
 
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Standard fields
     $title = $_POST['title'] ?? '';
     $slug = $_POST['slug'] ?? '';
     $content = $_POST['content'] ?? '';
@@ -23,88 +22,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $city_id = $_POST['city_id'] ?? null;
     $status = $_POST['status'] ?? 'draft';
     $author = $_POST['author'] ?? 'Admin';
-    $posted_json_data = $_POST['json_data'] ?? [];
+    $posted_json_data = isset($_POST['json_data']) && is_array($_POST['json_data']) ? $_POST['json_data'] : [];
 
-    // --- File Upload Handling ---
-    $uploadDirArticles = '../uploads/articles/';
-    $uploadDirMenus = '../uploads/menus/';
-    if (!is_dir($uploadDirArticles)) mkdir($uploadDirArticles, 0755, true);
-    if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+    // --- GESTIONE UPLOAD SICURA CON CONTROLLO ERRORI ---
+    $featured_image = null;
+    $hero_image = null;
+    $logo = null;
+    $menu_pdf = null;
+    $gallery_images = null;
 
-    // Helper function for single file upload
-    function uploadSingleFile($file, $prefix, $uploadDir, $allowedExtensions) {
-        if (isset($file) && $file['error'] === UPLOAD_ERR_OK) {
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = $prefix . uniqid() . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    return str_replace('../', '', $uploadDir) . $fileName;
-                }
+    try {
+        if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === UPLOAD_ERR_OK) {
+            $featured_image = $imageProcessor->processUploadedImage($_FILES['featured_image'], 'articles/featured');
+            if (!$featured_image) throw new Exception("Errore nel caricamento dell'immagine in evidenza: " . $imageProcessor->getLastError());
+        }
+
+        if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
+            $hero_image = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'articles/hero');
+            if (!$hero_image) throw new Exception("Errore nel caricamento dell'immagine hero: " . $imageProcessor->getLastError());
+        }
+
+        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+            $logo = $imageProcessor->processUploadedImage($_FILES['logo'], 'articles/logos');
+            if (!$logo) throw new Exception("Errore nel caricamento del logo: " . $imageProcessor->getLastError());
+        }
+
+        // Gestione Menu PDF
+        if (isset($_FILES['menu_pdf']) && $_FILES['menu_pdf']['error'] === UPLOAD_ERR_OK) {
+            $uploadDirMenus = '../uploads/menus/';
+            if (!is_dir($uploadDirMenus)) mkdir($uploadDirMenus, 0755, true);
+            $fileName = 'menu_' . uniqid() . '.pdf';
+            $targetPath = $uploadDirMenus . $fileName;
+            if (move_uploaded_file($_FILES['menu_pdf']['tmp_name'], $targetPath)) {
+                $menu_pdf = str_replace('../', '', $uploadDirMenus) . $fileName;
+                $posted_json_data['menu_pdf_path'] = $menu_pdf;
             }
         }
-        return null;
-    }
 
-    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    $featured_image = uploadSingleFile($_FILES['featured_image'] ?? null, 'featured_', $uploadDirArticles, $imageExtensions);
-    $hero_image = uploadSingleFile($_FILES['hero_image'] ?? null, 'hero_', $uploadDirArticles, $imageExtensions);
-    $logo = uploadSingleFile($_FILES['logo'] ?? null, 'logo_', $uploadDirArticles, $imageExtensions);
-
-    // Handle Menu PDF upload and add it to JSON data
-    $menu_pdf = uploadSingleFile($_FILES['menu_pdf'] ?? null, 'menu_', $uploadDirMenus, ['pdf']);
-    if ($menu_pdf) {
-        $posted_json_data['menu_pdf_path'] = $menu_pdf;
-    }
-
-    // Handle gallery images upload
-    $gallery_images = null;
-    if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
-        $galleryPaths = [];
-        foreach ($_FILES['gallery_images']['tmp_name'] as $key => $tmpName) {
-            if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
-                $fileExtension = strtolower(pathinfo($_FILES['gallery_images']['name'][$key], PATHINFO_EXTENSION));
-                if (in_array($fileExtension, $imageExtensions)) {
-                    $fileName = 'gallery_' . uniqid() . '.' . $fileExtension;
-                    $targetPath = $uploadDirArticles . $fileName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $galleryPaths[] = 'uploads/articles/' . $fileName;
+        // Gestione galleria immagini
+        if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
+            $galleryPaths = [];
+            $files = $_FILES['gallery_images'];
+            foreach ($files['tmp_name'] as $key => $tmpName) {
+                if ($files['error'][$key] === UPLOAD_ERR_OK) {
+                    $file_info = [
+                        'name' => $files['name'][$key],
+                        'type' => $files['type'][$key],
+                        'tmp_name' => $tmpName,
+                        'error' => $files['error'][$key],
+                        'size' => $files['size'][$key]
+                    ];
+                    $gallery_path = $imageProcessor->processUploadedImage($file_info, 'articles/gallery');
+                    if ($gallery_path) {
+                        $galleryPaths[] = $gallery_path;
+                    } else {
+                        throw new Exception("Errore nel caricamento di un'immagine della galleria: " . $imageProcessor->getLastError());
                     }
                 }
             }
+            if (!empty($galleryPaths)) {
+                $gallery_images = json_encode($galleryPaths);
+            }
         }
-        if (!empty($galleryPaths)) {
-            $gallery_images = json_encode($galleryPaths);
+
+        $json_data = json_encode($posted_json_data);
+
+        // --- OPERAZIONI SUL DATABASE ---
+        if ($action === 'edit' && $id) {
+            $existingArticle = $db->getArticleById($id);
+            if ($featured_image === null) $featured_image = $existingArticle['featured_image'] ?? null;
+            if ($hero_image === null) $hero_image = $existingArticle['hero_image'] ?? null;
+            if ($logo === null) $logo = $existingArticle['logo'] ?? null;
+            if ($gallery_images === null) $gallery_images = $existingArticle['gallery_images'] ?? null;
+
+            $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
+            if ($menu_pdf === null && isset($existing_json['menu_pdf_path'])) {
+                 $decoded_json = json_decode($json_data, true);
+                 $decoded_json['menu_pdf_path'] = $existing_json['menu_pdf_path'];
+                 $json_data = json_encode($decoded_json);
+            }
+            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
+        } else {
+            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
         }
+
+        header('Location: articoli.php');
+        exit;
+
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
     }
-    
-    // Encode the final JSON data
-    $json_data = json_encode($posted_json_data);
-
-    // --- Database Operation ---
-    if ($action === 'edit' && $id) {
-        $existingArticle = $db->getArticleById($id);
-
-        if ($featured_image === null) $featured_image = $existingArticle['featured_image'] ?? null;
-        if ($hero_image === null) $hero_image = $existingArticle['hero_image'] ?? null;
-        if ($logo === null) $logo = $existingArticle['logo'] ?? null;
-        if ($gallery_images === null) $gallery_images = $existingArticle['gallery_images'] ?? null;
-
-        // Special handling for menu_pdf path in JSON
-        $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
-        if ($menu_pdf === null && isset($existing_json['menu_pdf_path'])) {
-             $decoded_json = json_decode($json_data, true);
-             $decoded_json['menu_pdf_path'] = $existing_json['menu_pdf_path'];
-             $json_data = json_encode($decoded_json);
-        }
-
-        $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
-    } else {
-        $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
-    }
-
-    header('Location: articoli.php');
-    exit;
 }
 
 if ($action === 'delete' && $id) {
@@ -156,6 +163,13 @@ if ($action === 'delete' && $id) {
             </div>
         </header>
         <main class="flex-1 overflow-auto p-6">
+            <?php if (!empty($error_message)): ?>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <strong class="font-bold">Errore!</strong>
+                <span class="block sm:inline"><?php echo htmlspecialchars($error_message); ?></span>
+            </div>
+            <?php endif; ?>
+
             <?php if ($action === 'list'): ?>
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <h2 class="text-lg font-semibold mb-4">Elenco Articoli</h2>
