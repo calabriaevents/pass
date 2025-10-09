@@ -40,7 +40,7 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
         <div class="absolute inset-0 flex flex-col justify-center items-center text-center p-8">
             <?php if($logo): ?>
-                <img src="/<?php echo htmlspecialchars($logo); ?>" alt="Logo di <?php echo $activity_name; ?>" class="w-24 h-24 mb-4 object-contain rounded-full bg-white/20 p-2 border-2 border-white/50 shadow-lg">
+                <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $logo ?? '')); ?>" alt="Logo di <?php echo $activity_name; ?>" class="w-24 h-24 mb-4 object-contain rounded-full bg-white/20 p-2 border-2 border-white/50 shadow-lg">
             <?php endif; ?>
             <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight text-shadow-lg"><?php echo $activity_name; ?></h1>
             <?php if ($article['city_id'] && $article['city_name']): ?>
