@@ -28,6 +28,9 @@ $articlesWithCoordinates = $db->getArticlesWithCoordinatesByProvince($provinceId
 
 // Carica città della provincia
 $cities = $db->getCitiesByProvince($provinceId);
+
+// Carica galleria della provincia
+$galleryImages = $db->getProvinceGalleryImages($provinceId);
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -138,7 +141,7 @@ $cities = $db->getCitiesByProvince($provinceId);
                         <!-- Article Image -->
                         <div class="aspect-[4/3] bg-gradient-to-br from-blue-500 to-teal-600 relative overflow-hidden">
                             <?php if ($article['featured_image']): ?>
-                            <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" 
+                            <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['featured_image'] ?? '')); ?>"
                                  alt="<?php echo htmlspecialchars($article['title']); ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                             <?php else: ?>
@@ -245,17 +248,7 @@ $cities = $db->getCitiesByProvince($provinceId);
             </div>
             
             <!-- Province Gallery Section -->
-            <?php 
-            // Per ora usiamo immagini placeholder, in seguito aggiungeremo il sistema di upload
-            $galleryImages = [
-                ['url' => 'https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400', 'title' => 'Panorama di ' . $province['name']],
-                ['url' => 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400', 'title' => 'Costa calabrese'],
-                ['url' => 'https://images.unsplash.com/photo-1539650116574-75c0c6d73c6e?w=400', 'title' => 'Centro storico'],
-                ['url' => 'https://images.unsplash.com/photo-1571104508999-893933ded431?w=400', 'title' => 'Montagne calabresi'],
-                ['url' => 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400', 'title' => 'Tradizioni locali'],
-                ['url' => 'https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=400', 'title' => 'Gastronomia tipica']
-            ];
-            ?>
+            <?php if (!empty($galleryImages)): ?>
             <div class="mb-16">
                 <h2 class="text-3xl font-bold text-gray-900 mb-8 text-center">
                     <span>Galleria di</span> <?php echo htmlspecialchars($province['name']); ?>
@@ -263,22 +256,24 @@ $cities = $db->getCitiesByProvince($provinceId);
                 <p class="text-gray-600 text-center mb-8">
                     Le foto più belle condivise dalla nostra community
                 </p>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <?php foreach ($galleryImages as $index => $image): ?>
-                    <div class="group cursor-pointer" onclick="openGalleryModal('<?php echo $image['url']; ?>', '<?php echo htmlspecialchars($image['title']); ?>')">
+                    <?php foreach ($galleryImages as $image): ?>
+                    <div class="group cursor-pointer" onclick="openGalleryModal('image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $image['image_path'])); ?>', '<?php echo htmlspecialchars($image['title']); ?>')">
                         <div class="aspect-[4/3] bg-gray-200 rounded-lg overflow-hidden shadow-lg">
-                            <img src="<?php echo $image['url']; ?>" 
+                            <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $image['image_path'])); ?>"
                                  alt="<?php echo htmlspecialchars($image['title']); ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         </div>
                         <div class="mt-3">
                             <h3 class="font-semibold text-gray-900"><?php echo htmlspecialchars($image['title']); ?></h3>
-                            <p class="text-sm text-gray-500">Condivisa dalla community</p>
+                            <p class="text-sm text-gray-500"><?php echo htmlspecialchars($image['description']); ?></p>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
+            </div>
+            <?php endif; ?>
                 
                 <!-- Call to Action per condividere foto -->
                 <div class="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl p-8 mt-12 text-center">
@@ -433,8 +428,8 @@ $cities = $db->getCitiesByProvince($provinceId);
                     const popupContent = `
                         <div class="p-3 min-w-64">
                             <div class="flex items-start space-x-3">
-                                ${article.featured_image ? 
-                                    `<img src="${article.featured_image}" alt="${article.title}" class="w-16 h-12 object-cover rounded">` : 
+                                ${article.featured_image ?
+                                    `<img src="image-loader.php?path=${encodeURIComponent(article.featured_image.replace('uploads_protected/', ''))}" alt="${article.title}" class="w-16 h-12 object-cover rounded">` :
                                     `<div class="w-16 h-12 bg-gray-200 rounded flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></div>`
                                 }
                                 <div class="flex-1">

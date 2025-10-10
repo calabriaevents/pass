@@ -1,8 +1,10 @@
 <?php
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
+require_once 'includes/image_processor.php';
 
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 // Verifica se l'ID città è fornito
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
@@ -24,46 +26,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $user_name = trim($_POST['user_name'] ?? '');
     $user_email = trim($_POST['user_email'] ?? '');
     $description = trim($_POST['description'] ?? '');
-    
+
     $upload_error = '';
     $success_message = '';
-    
-    if (empty($user_name) || empty($user_email)) {
-        $upload_error = 'Nome e email sono obbligatori.';
-    } elseif (!filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-        $upload_error = 'Email non valida.';
-    } elseif (empty($_FILES['photo']['name'])) {
-        $upload_error = 'Seleziona una foto da caricare.';
-    } else {
-        // Gestione upload file
-        $upload_dir = 'uploads/user_photos/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
+
+    try {
+        if (empty($user_name) || empty($user_email)) {
+            throw new Exception('Nome e email sono obbligatori.');
         }
-        
-        $file_extension = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            $upload_error = 'Formato file non supportato. Usa JPG, PNG, GIF o WebP.';
-        } elseif ($_FILES['photo']['size'] > 5 * 1024 * 1024) {
-            $upload_error = 'File troppo grande. Massimo 5MB.';
-        } else {
-            $filename = uniqid() . '_' . time() . '.' . $file_extension;
-            $upload_path = $upload_dir . $filename;
-            
-            if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
-                // Salva nel database
-                if ($db->createCityPhotoUpload($cityId, $user_name, $user_email, $upload_path, $_FILES['photo']['name'], $description)) {
-                    $success_message = 'Foto caricata con successo! Verrà pubblicata dopo la moderazione.';
-                } else {
-                    $upload_error = 'Errore nel salvare la foto nel database.';
-                    unlink($upload_path); // Rimuovi file se DB fallisce
-                }
+        if (!filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception('Email non valida.');
+        }
+        if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception('Seleziona una foto valida da caricare.');
+        }
+
+        // Usa ImageProcessor per gestire l'upload
+        $upload_path = $imageProcessor->processUploadedImage($_FILES['photo'], 'user_photos');
+
+        if ($upload_path) {
+            // Salva nel database
+            if ($db->createCityPhotoUpload($cityId, $user_name, $user_email, $upload_path, $_FILES['photo']['name'], $description)) {
+                $success_message = 'Foto caricata con successo! Verrà pubblicata dopo la moderazione.';
             } else {
-                $upload_error = 'Errore nel caricamento del file.';
+                // Se il DB fallisce, cancella l'immagine appena caricata
+                $imageProcessor->deleteImage($upload_path);
+                throw new Exception('Errore nel salvare le informazioni della foto nel database.');
             }
+        } else {
+            throw new Exception('Errore nel caricamento del file: ' . $imageProcessor->getLastError());
         }
+    } catch (Exception $e) {
+        $upload_error = $e->getMessage();
     }
 }
 

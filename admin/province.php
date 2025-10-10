@@ -39,23 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->createProvince($name, $description, $image_path);
             }
         }
-        
-        if ($entity === 'gallery' && isset($_POST['province_id'])) {
-            $province_id = (int)$_POST['province_id'];
-            $title = $_POST['title'] ?? '';
-            $description = $_POST['description'] ?? '';
-
-            if (isset($_FILES['gallery_image']) && $_FILES['gallery_image']['error'] === UPLOAD_ERR_OK) {
-                $image_path = $imageProcessor->processUploadedImage($_FILES['gallery_image'], 'galleries');
-                if ($image_path) {
-                    $db->addProvinceGalleryImage($province_id, $image_path, $title, $description);
-                } else {
-                    throw new Exception("Errore nel caricamento dell'immagine della galleria: " . $imageProcessor->getLastError());
-                }
-            } else if (isset($_FILES['gallery_image']) && $_FILES['gallery_image']['error'] !== UPLOAD_ERR_NO_FILE) {
-                 throw new Exception("Errore nel file caricato per la galleria. Codice: " . $_FILES['gallery_image']['error']);
-            }
-        }
 
         header('Location: province.php?success=1&' . http_build_query(array_filter(['entity' => $entity, 'action' => 'list'])));
         exit;
@@ -69,9 +52,6 @@ if ($action === 'delete' && $id) {
     if ($entity === 'provinces') {
         $db->deleteProvince($id);
         $success_message = "Provincia eliminata con successo!";
-    } elseif ($entity === 'gallery') {
-        $db->deleteProvinceGalleryImage($id);
-        $success_message = "Immagine eliminata dalla galleria con successo!";
     }
     header('Location: province.php?' . http_build_query(array_filter(['entity' => $_GET['entity'] ?? 'provinces', 'action' => $_GET['back_action'] ?? 'list', 'id' => $_GET['province_id'] ?? null])));
     exit;
@@ -238,8 +218,9 @@ if (isset($_GET['success'])) {
                                                 <i data-lucide="edit" class="w-4 h-4"></i>
                                                 <span>Modifica</span>
                                             </a>
-                                            <a href="?entity=gallery&action=manage&province_id=<?php echo $province['id']; ?>" 
-                                               class="text-green-600 hover:text-green-700 font-medium text-sm flex items-center space-x-1 transition-colors">
+                                            <a href="#" onclick="return false;"
+                                               class="text-gray-400 cursor-not-allowed font-medium text-sm flex items-center space-x-1 transition-colors"
+                                               title="Funzionalità in sviluppo">
                                                 <i data-lucide="images" class="w-4 h-4"></i>
                                                 <span>Galleria</span>
                                             </a>
@@ -377,164 +358,6 @@ if (isset($_GET['success'])) {
                     </div>
                     <?php endif; ?>
 
-                <?php elseif ($entity === 'gallery'): ?>
-                    <?php 
-                    $province_id = $_GET['province_id'] ?? null;
-                    if ($province_id) {
-                        $province = $db->getProvinceById($province_id);
-                        $gallery_images = $db->getProvinceGalleryImages($province_id);
-                    }
-                    ?>
-                    <?php if ($action === 'manage' && $province_id): ?>
-                    <!-- Gestione Galleria -->
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <a href="?entity=provinces" class="text-gray-400 hover:text-gray-600 transition-colors">
-                                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                                </a>
-                                <div class="bg-green-100 p-2 rounded-lg">
-                                    <i data-lucide="images" class="w-6 h-6 text-green-600"></i>
-                                </div>
-                                <div>
-                                    <h2 class="text-lg font-semibold text-gray-900">Galleria: <?php echo htmlspecialchars($province['name']); ?></h2>
-                                    <p class="text-sm text-gray-500">Gestisci le immagini della galleria per questa provincia</p>
-                                </div>
-                            </div>
-                            <a href="?entity=gallery&action=add&province_id=<?php echo $province_id; ?>" 
-                               class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors">
-                                <i data-lucide="plus" class="w-5 h-5"></i>
-                                <span>Aggiungi Immagine</span>
-                            </a>
-                        </div>
-                    </div>
-                    
-                    <?php if (empty($gallery_images)): ?>
-                    <div class="text-center py-12">
-                        <i data-lucide="image-off" class="w-16 h-16 text-gray-400 mx-auto mb-4"></i>
-                        <h3 class="text-xl font-semibold text-gray-700 mb-2">Nessuna immagine in galleria</h3>
-                        <p class="text-gray-500 mb-6">Aggiungi la prima immagine per iniziare a costruire la galleria di <?php echo htmlspecialchars($province['name']); ?></p>
-                        <a href="?entity=gallery&action=add&province_id=<?php echo $province_id; ?>" 
-                           class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg inline-flex items-center space-x-2 transition-colors">
-                            <i data-lucide="plus" class="w-5 h-5"></i>
-                            <span>Aggiungi Prima Immagine</span>
-                        </a>
-                    </div>
-                    <?php else: ?>
-                    <div class="p-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            <?php foreach ($gallery_images as $image): ?>
-                            <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
-                                <div class="aspect-[4/3] bg-gray-100">
-                                    <img src="../<?php echo htmlspecialchars($image['image_path']); ?>" 
-                                         alt="<?php echo htmlspecialchars($image['title']); ?>" 
-                                         class="w-full h-full object-cover">
-                                </div>
-                                <div class="p-4">
-                                    <h3 class="font-semibold text-gray-900 mb-1"><?php echo htmlspecialchars($image['title']); ?></h3>
-                                    <p class="text-sm text-gray-600 mb-3"><?php echo htmlspecialchars($image['description']); ?></p>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-xs text-gray-500">
-                                            <?php echo date('d/m/Y', strtotime($image['created_at'])); ?>
-                                        </span>
-                                        <a href="?entity=gallery&action=delete&id=<?php echo $image['id']; ?>&province_id=<?php echo $province_id; ?>&back_action=manage" 
-                                           class="text-red-600 hover:text-red-700 font-semibold text-sm flex items-center space-x-1 transition-colors" 
-                                           onclick="return confirm('Sei sicuro di voler eliminare questa immagine?');">
-                                            <i data-lucide="trash-2" class="w-3 h-3"></i>
-                                            <span>Elimina</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php elseif ($action === 'add' && $province_id): ?>
-                    <!-- Form Aggiungi Immagine -->
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <div class="flex items-center space-x-3">
-                            <a href="?entity=gallery&action=manage&province_id=<?php echo $province_id; ?>" class="text-gray-400 hover:text-gray-600 transition-colors">
-                                <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                            </a>
-                            <div class="bg-green-100 p-2 rounded-lg">
-                                <i data-lucide="plus" class="w-6 h-6 text-green-600"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-lg font-semibold text-gray-900">Aggiungi Immagine alla Galleria</h2>
-                                <p class="text-sm text-gray-500"><?php echo htmlspecialchars($province['name']); ?></p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="p-6">
-                        <div class="max-w-2xl mx-auto">
-                            <form action="?entity=gallery&action=add&province_id=<?php echo $province_id; ?>" method="POST" enctype="multipart/form-data" class="space-y-6">
-                                <input type="hidden" name="province_id" value="<?php echo $province_id; ?>">
-                                
-                                <!-- Immagine -->
-                                <div>
-                                    <label for="gallery_image" class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Immagine *
-                                    </label>
-                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors" id="upload-area">
-                                        <input type="file" name="gallery_image" id="gallery_image" accept="image/*" class="hidden" onchange="previewGalleryImage(this)" required>
-                                        <div id="upload-prompt">
-                                            <i data-lucide="upload" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                                            <p class="text-gray-600 mb-2">Clicca per selezionare un'immagine o trascinala qui</p>
-                                            <p class="text-sm text-gray-500">PNG, JPG, WebP fino a 5MB</p>
-                                            <button type="button" onclick="document.getElementById('gallery_image').click()" 
-                                                    class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                                                Seleziona Immagine
-                                            </button>
-                                        </div>
-                                        <div id="image-preview" class="hidden">
-                                            <img id="preview-img" src="" alt="Anteprima" class="max-w-full max-h-64 mx-auto rounded-lg shadow-sm">
-                                            <div class="mt-4">
-                                                <button type="button" onclick="removeGalleryPreview()" class="text-red-600 hover:text-red-700 font-semibold">
-                                                    Rimuovi Immagine
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Titolo -->
-                                <div>
-                                    <label for="title" class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Titolo *
-                                    </label>
-                                    <input type="text" name="title" id="title" required 
-                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" 
-                                           placeholder="Es: Panorama di <?php echo htmlspecialchars($province['name']); ?>">
-                                </div>
-                                
-                                <!-- Descrizione -->
-                                <div>
-                                    <label for="description" class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Descrizione
-                                    </label>
-                                    <textarea name="description" id="description" rows="3" 
-                                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" 
-                                              placeholder="Descrizione opzionale dell'immagine..."></textarea>
-                                </div>
-                                
-                                <!-- Pulsanti -->
-                                <div class="flex items-center justify-end space-x-4 pt-6">
-                                    <a href="?entity=gallery&action=manage&province_id=<?php echo $province_id; ?>" 
-                                       class="px-6 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">
-                                        Annulla
-                                    </a>
-                                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center space-x-2 transition-colors">
-                                        <i data-lucide="plus" class="w-4 h-4"></i>
-                                        <span>Aggiungi Immagine</span>
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </main>

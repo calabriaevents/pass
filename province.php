@@ -25,7 +25,7 @@ $provinces = $db->getProvinces();
             <?php foreach ($provinces as $province): ?>
                 <a href="provincia.php?id=<?php echo $province['id']; ?>" class="block bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
                     <?php if ($province['image_path']): ?>
-                    <img src="<?php echo htmlspecialchars($province['image_path']); ?>" alt="<?php echo htmlspecialchars($province['name']); ?>" class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300">
+                    <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $province['image_path'] ?? '')); ?>" alt="<?php echo htmlspecialchars($province['name']); ?>" class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300">
                     <?php endif; ?>
                     <div class="p-6">
                         <h2 class="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors"><?php echo htmlspecialchars($province['name']); ?></h2>
