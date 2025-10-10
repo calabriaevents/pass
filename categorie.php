@@ -52,7 +52,6 @@ foreach ($categories as &$category) {
 <body class="bg-gray-50">
     <?php include 'includes/header.php'; ?>
 
-    <!-- Breadcrumb -->
     <div class="bg-white border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <nav class="breadcrumb">
@@ -62,10 +61,8 @@ foreach ($categories as &$category) {
         </div>
     </div>
 
-    <!-- Main Content -->
     <main class="py-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Page Header -->
             <div class="text-center mb-16">
                 <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
                     Esplora le <span class="text-calabria-gradient">Categorie</span>
@@ -76,7 +73,6 @@ foreach ($categories as &$category) {
                 </p>
             </div>
 
-            <!-- CTA Section (moved to top) -->
             <div class="mb-16 bg-gradient-to-r from-blue-600 via-teal-500 to-yellow-500 rounded-2xl p-12 text-center text-white">
                 <h2 class="text-3xl font-bold mb-4">Non Trovi Quello Che Cerchi?</h2>
                 <p class="text-xl mb-8 opacity-90">
@@ -89,7 +85,6 @@ foreach ($categories as &$category) {
                 </div>
             </div>
 
-            <!-- Stats -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
                 <div class="bg-white rounded-xl shadow-lg p-6 text-center">
                     <div class="text-3xl font-bold text-blue-600 mb-2"><?php echo count($categories); ?></div>
@@ -117,11 +112,9 @@ foreach ($categories as &$category) {
                 </div>
             </div>
 
-            <!-- Categories Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <?php foreach ($categories as $category): ?>
                 <div class="category-card group">
-                    <!-- Category Header -->
                     <div class="aspect-[4/3] bg-gradient-to-br from-blue-500 to-teal-600 relative overflow-hidden">
                         <div class="absolute inset-0 bg-black/20"></div>
                         <div class="absolute top-6 left-6">
@@ -135,13 +128,11 @@ foreach ($categories as &$category) {
                         </div>
                     </div>
 
-                    <!-- Category Content -->
                     <div class="p-6">
                         <p class="text-gray-600 mb-6 leading-relaxed">
                             <?php echo htmlspecialchars($category['description']); ?>
                         </p>
 
-                        <!-- Recent Articles Preview -->
                         <?php if (!empty($category['recent_articles'])): ?>
                         <div class="mb-6">
                             <h3 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wider">Articoli Recenti</h3>
@@ -151,9 +142,11 @@ foreach ($categories as &$category) {
                                     <div class="flex items-start space-x-3">
                                         <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
                                             <?php if ($article['featured_image']): ?>
+
                                             <img src="image-loader.php?path=<?php echo urlencode(str_replace(['uploads_protected/', 'uploads/'], '', $article['featured_image'])); ?>"
                                                  alt="<?php echo htmlspecialchars($article['title']); ?>"
                                                  class="w-full h-full object-cover">
+
                                             <?php else: ?>
                                             <div class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400"></div>
                                             <?php endif; ?>
@@ -173,7 +166,6 @@ foreach ($categories as &$category) {
                         </div>
                         <?php endif; ?>
 
-                        <!-- Action Button -->
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-500 flex items-center">
                                 <i data-lucide="file-text" class="w-4 h-4 mr-1"></i>
@@ -193,10 +185,8 @@ foreach ($categories as &$category) {
         </div>
     </main>
 
-    <!-- Footer -->
     <?php include 'includes/footer.php'; ?>
 
-    <!-- JavaScript -->
     <script src="assets/js/main.js"></script>
     <script>
         // Inizializza Lucide icons
