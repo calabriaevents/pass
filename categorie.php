@@ -141,14 +141,16 @@ foreach ($categories as &$category) {
                                 <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block group/article">
                                     <div class="flex items-start space-x-3">
                                         <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
-                                            <?php if ($article['featured_image']): ?>
+                                            <?php if (!empty($article['featured_image'])): ?>
 
-                                            <img src="image-loader.php?path=<?php echo urlencode(str_replace(['uploads_protected/', 'uploads/'], '', $article['featured_image'])); ?>"
-                                                 alt="<?php echo htmlspecialchars($article['title']); ?>"
-                                                 class="w-full h-full object-cover">
+                                                <img src="image-loader.php?path=<?php echo urlencode(str_replace(['uploads_protected/', 'uploads/'], '', $article['featured_image'])); ?>"
+                                                     alt="<?php echo htmlspecialchars($article['title']); ?>"
+                                                     class="w-full h-full object-cover">
 
                                             <?php else: ?>
-                                            <div class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400"></div>
+                                                <div class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-xl">
+                                                    <?php echo $category['icon']; ?>
+                                                </div>
                                             <?php endif; ?>
                                         </div>
                                         <div class="flex-1 min-w-0">
@@ -191,34 +193,6 @@ foreach ($categories as &$category) {
     <script>
         // Inizializza Lucide icons
         lucide.createIcons();
-
-        // Aggiungi effetti hover alle card
-        document.querySelectorAll('.category-card').forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.classList.add('animate-fade-in-up');
-            });
-        });
-
-        // Lazy loading per le immagini
-        if ('IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        if (img.dataset.src) {
-                            img.src = img.dataset.src;
-                            img.classList.remove('opacity-0');
-                            img.classList.add('opacity-100');
-                            imageObserver.unobserve(img);
-                        }
-                    }
-                });
-            });
-
-            document.querySelectorAll('img[data-src]').forEach(img => {
-                imageObserver.observe(img);
-            });
-        }
     </script>
 </body>
 </html>
