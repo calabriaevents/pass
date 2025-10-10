@@ -29,8 +29,8 @@ $articlesWithCoordinates = $db->getArticlesWithCoordinatesByProvince($provinceId
 // Carica città della provincia
 $cities = $db->getCitiesByProvince($provinceId);
 
-// Carica galleria della provincia
-$galleryImages = $db->getProvinceGalleryImages($provinceId);
+// Carica galleria della provincia (funzionalità disabilitata)
+$galleryImages = [];
 ?>
 <!DOCTYPE html>
 <html lang="it">
