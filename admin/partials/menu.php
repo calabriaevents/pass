@@ -13,6 +13,7 @@ $menuItems = [
     ['file' => 'comuni.php', 'icon' => 'building', 'label' => 'Comuni'],
     ['file' => 'commenti.php', 'icon' => 'message-square', 'label' => 'Commenti'],
     ['file' => 'foto-utenti.php', 'icon' => 'image', 'label' => 'Foto Utenti'],
+    ['file' => 'gestione-foto.php', 'icon' => 'camera', 'label' => 'Gestione Foto'],
     ['file' => 'suggerimenti-luoghi.php', 'icon' => 'map-pin', 'label' => 'Suggerimenti Luoghi'],
     ['file' => 'suggerimenti-eventi.php', 'icon' => 'calendar-plus', 'label' => 'Suggerimenti Eventi'],
     ['file' => 'business.php', 'icon' => 'building-2', 'label' => 'Business'],

@@ -1182,6 +1182,178 @@ public function getArticleBySlug($slug) {
         return $stmt->fetchAll();
     }
 
+public function getAllImagesWithDetails($province_id = null, $city_id = null, $category_id = null, $search_term = '') {
+    if (!$this->checkConnection()) return [];
+
+    $images = [];
+
+    // --- Part 1: Fetch single images using UNION ALL for efficiency ---
+    $sql_union = "
+        (SELECT 'User Upload' AS source, uu.id AS source_id, uu.image_path, uu.description, c.name AS city_name, NULL AS article_title, p.name AS province_name, NULL AS category_name, c.province_id, uu.city_id, NULL as category_id
+         FROM user_uploads uu
+         JOIN cities c ON uu.city_id = c.id
+         JOIN provinces p ON c.province_id = p.id
+         WHERE uu.image_path IS NOT NULL AND uu.image_path != '')
+        UNION ALL
+        (SELECT 'Article Featured' AS source, a.id AS source_id, a.featured_image AS image_path, a.title AS description, c.name AS city_name, a.title AS article_title, p.name AS province_name, cat.name AS category_name, a.province_id, a.city_id, a.category_id
+         FROM articles a
+         LEFT JOIN cities c ON a.city_id = c.id
+         LEFT JOIN provinces p ON a.province_id = p.id
+         LEFT JOIN categories cat ON a.category_id = cat.id
+         WHERE a.featured_image IS NOT NULL AND a.featured_image != '')
+        UNION ALL
+        (SELECT 'City Hero' AS source, c.id AS source_id, c.hero_image AS image_path, c.name AS description, c.name AS city_name, NULL AS article_title, p.name AS province_name, NULL AS category_name, c.province_id, c.id as city_id, NULL as category_id
+         FROM cities c
+         JOIN provinces p ON c.province_id = p.id
+         WHERE c.hero_image IS NOT NULL AND c.hero_image != '')
+    ";
+
+    $sql_outer = "SELECT * FROM ({$sql_union}) AS all_images";
+    $params = [];
+    $where_clauses = [];
+
+    if ($province_id) {
+        $where_clauses[] = "province_id = ?";
+        $params[] = $province_id;
+    }
+    if ($city_id) {
+        $where_clauses[] = "city_id = ?";
+        $params[] = $city_id;
+    }
+    if ($category_id) {
+        $where_clauses[] = "category_id = ?";
+        $params[] = $category_id;
+    }
+    if (!empty($search_term)) {
+        $search_like = "%{$search_term}%";
+        $where_clauses[] = "(image_path LIKE ? OR description LIKE ?)";
+        $params[] = $search_like;
+        $params[] = $search_like;
+    }
+
+    if (!empty($where_clauses)) {
+        $sql_outer .= " WHERE " . implode(" AND ", $where_clauses);
+    }
+
+    $stmt = $this->pdo->prepare($sql_outer);
+    $stmt->execute($params);
+    $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // --- Part 2: Fetch and filter JSON gallery images ---
+    $article_gallery_sql = "SELECT a.id, a.gallery_images, a.title, a.city_id, a.province_id, a.category_id FROM articles a WHERE a.gallery_images IS NOT NULL AND JSON_VALID(a.gallery_images) AND JSON_LENGTH(a.gallery_images) > 0";
+    $articles_with_gallery = $this->pdo->query($article_gallery_sql)->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($articles_with_gallery as $article) {
+        if (($province_id && $article['province_id'] != $province_id) ||
+            ($city_id && $article['city_id'] != $city_id) ||
+            ($category_id && $article['category_id'] != $category_id)) {
+            continue;
+        }
+
+        $gallery = json_decode($article['gallery_images'], true);
+        if (is_array($gallery)) {
+            foreach ($gallery as $img_path) {
+                if (!empty($search_term) && stripos($img_path, $search_term) === false && stripos($article['title'], $search_term) === false) {
+                    continue;
+                }
+                $images[] = [
+                    'source' => 'Article Gallery', 'source_id' => $article['id'], 'image_path' => $img_path,
+                    'description' => $article['title'] . ' (Galleria)', 'article_title' => $article['title'],
+                    'city_name' => $this->getCityNameById($article['city_id']), 'province_name' => null, 'category_name' => null,
+                ];
+            }
+        }
+    }
+
+    $city_gallery_sql = "SELECT c.id, c.gallery_images, c.name, c.province_id FROM cities c WHERE c.gallery_images IS NOT NULL AND JSON_VALID(c.gallery_images) AND JSON_LENGTH(c.gallery_images) > 0";
+    $cities_with_gallery = $this->pdo->query($city_gallery_sql)->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($cities_with_gallery as $city) {
+        if (($province_id && $city['province_id'] != $province_id) || ($city_id && $city['id'] != $city_id)) {
+            continue;
+        }
+
+        $gallery = json_decode($city['gallery_images'], true);
+        if (is_array($gallery)) {
+            foreach ($gallery as $img_path) {
+                if (!empty($search_term) && (stripos($img_path, $search_term) === false && stripos($city['name'], $search_term) === false)) {
+                    continue;
+                }
+                $images[] = [
+                    'source' => 'City Gallery', 'source_id' => $city['id'], 'image_path' => $img_path,
+                    'description' => $city['name'] . ' (Galleria)', 'article_title' => null,
+                    'city_name' => $city['name'], 'province_name' => null, 'category_name' => null,
+                ];
+            }
+        }
+    }
+
+    return $images;
+}
+
+public function deleteImageReference($source, $source_id, $image_path) {
+    if (!$this->checkConnection()) return false;
+
+    if ($source === 'Article Gallery' || $source === 'City Gallery') {
+        try {
+            $this->pdo->beginTransaction();
+
+            $table = ($source === 'Article Gallery') ? 'articles' : 'cities';
+            $stmt = $this->pdo->prepare("SELECT gallery_images FROM {$table} WHERE id = ? FOR UPDATE");
+            $stmt->execute([$source_id]);
+            $record = $stmt->fetch();
+
+            if (!$record) {
+                $this->pdo->rollBack();
+                return false;
+            }
+
+            $gallery = json_decode($record['gallery_images'], true);
+
+            if (is_array($gallery) && ($key = array_search($image_path, $gallery)) !== false) {
+                unset($gallery[$key]);
+                $new_gallery = json_encode(array_values($gallery));
+
+                $update_stmt = $this->pdo->prepare("UPDATE {$table} SET gallery_images = ? WHERE id = ?");
+                $update_stmt->execute([$new_gallery, $source_id]);
+
+                $this->pdo->commit();
+                return $update_stmt->rowCount() > 0;
+            } else {
+                $this->pdo->rollBack();
+                return false;
+            }
+
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            error_log("Error deleting image from gallery: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    switch ($source) {
+        case 'User Upload':
+            $stmt = $this->pdo->prepare("DELETE FROM user_uploads WHERE id = ?");
+            $stmt->execute([$source_id]);
+            return $stmt->rowCount() > 0;
+        case 'Article Featured':
+            $stmt = $this->pdo->prepare("UPDATE articles SET featured_image = NULL WHERE id = ?");
+            $stmt->execute([$source_id]);
+            return $stmt->rowCount() > 0;
+         case 'City Hero':
+            $stmt = $this->pdo->prepare("UPDATE cities SET hero_image = NULL WHERE id = ?");
+            $stmt->execute([$source_id]);
+            return $stmt->rowCount() > 0;
+    }
+    return false;
+}
+
+public function getCityNameById($cityId) {
+    if (!$cityId || !$this->checkConnection()) return null;
+    $stmt = $this->pdo->prepare("SELECT name FROM cities WHERE id = ?");
+    $stmt->execute([$cityId]);
+    return $stmt->fetchColumn();
+}
     public function __destruct() {
         $this->pdo = null;
     }

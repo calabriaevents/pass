@@ -99,10 +99,17 @@ foreach ($articles as $article) {
     $articlesByCategory[$article['category_id']][] = $article;
 }
 
-// Determina l'immagine hero per la città
-$heroImage = $city['hero_image'] ?: 'assets/images/default-city-hero.jpg';
-if (empty($city['hero_image']) && !empty($articles)) {
-    $heroImage = $articles[0]['featured_image'] ?? $heroImage;
+// Determina l'immagine hero per la città in modo più robusto
+$heroImage = $city['hero_image'];
+
+// Se la città non ha una hero image, prova a prenderla dal primo articolo
+if (empty($heroImage) && !empty($articles)) {
+    $heroImage = $articles[0]['featured_image'] ?? null;
+}
+
+// Se ancora non c'è un'immagine, usa quella di default
+if (empty($heroImage)) {
+    $heroImage = 'assets/images/default-city-hero.jpg';
 }
 
 // Carica foto utenti approvate per la città
@@ -202,8 +209,16 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo (strpos($heroImage, 'uploads_protected/') === 0) ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
-                 class="w-full h-full object-cover">
+<img src="<?php
+    if ($heroImage === 'assets/images/default-city-hero.jpg' || strpos($heroImage, 'http') === 0) {
+        // Se è l'immagine di default o un URL esterno, usalo direttamente
+        echo htmlspecialchars($heroImage);
+    } else {
+        // Altrimenti, usa l'image-loader per gestire percorsi protetti e vecchi
+        $clean_path = str_replace(['uploads_protected/', 'uploads/'], '', $heroImage);
+        echo 'image-loader.php?path=' . urlencode($clean_path);
+    }
+?>" alt="<?php echo htmlspecialchars($city['name']); ?>" class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
         
