@@ -202,7 +202,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo (strpos($heroImage, 'uploads_protected/') === 0) ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
+        <img src="<?php echo (strpos($heroImage, 'assets/') === 0) ? htmlspecialchars($heroImage) : 'image-loader.php?path=' . urlencode(str_replace(['uploads_protected/', 'uploads/'], '', $heroImage)); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
