@@ -151,7 +151,7 @@ foreach ($categories as &$category) {
                                     <div class="flex items-start space-x-3">
                                         <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
                                             <?php if ($article['featured_image']): ?>
-                                            <img src="<?php echo htmlspecialchars($article['featured_image']); ?>"
+                                            <img src="image-loader.php?path=<?php echo urlencode(str_replace(['uploads_protected/', 'uploads/'], '', $article['featured_image'])); ?>"
                                                  alt="<?php echo htmlspecialchars($article['title']); ?>"
                                                  class="w-full h-full object-cover">
                                             <?php else: ?>
