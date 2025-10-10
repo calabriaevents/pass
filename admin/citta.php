@@ -291,7 +291,7 @@ if (isset($_GET['success'])) {
                                     </td>
                                     <td class="py-4 px-6">
                                         <?php if ($city['hero_image']): ?>
-                                        <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $city['hero_image'] ?? '')); ?>" alt="Hero" class="w-12 h-8 object-cover rounded">
+                                        <img src="../image-loader.php?path=<?php echo urlencode($city['hero_image'] ?? ''); ?>" alt="Hero" class="w-12 h-8 object-cover rounded">
                                         <?php else: ?>
                                         <span class="text-gray-400 text-sm">Nessuna</span>
                                         <?php endif; ?>
@@ -441,7 +441,7 @@ if (isset($_GET['success'])) {
                                     <?php if ($cityData && $cityData['hero_image']): ?>
                                     <div class="mb-4">
                                         <p class="text-sm text-gray-600 mb-2">Immagine hero attuale:</p>
-                                        <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $cityData['hero_image'] ?? '')); ?>" alt="Hero attuale" class="w-32 h-20 object-cover rounded-lg border">
+                                        <img src="../image-loader.php?path=<?php echo urlencode($cityData['hero_image'] ?? ''); ?>" alt="Hero attuale" class="w-32 h-20 object-cover rounded-lg border">
                                     </div>
                                     <?php endif; ?>
                                     
@@ -468,7 +468,7 @@ if (isset($_GET['success'])) {
                                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             <?php foreach ($gallery_images as $image): ?>
                                             <div class="relative group">
-                                                <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $image ?? '')); ?>" alt="Galleria" class="w-full h-24 object-cover rounded-lg border">
+                                                <img src="../image-loader.php?path=<?php echo urlencode($image ?? ''); ?>" alt="Galleria" class="w-full h-24 object-cover rounded-lg border">
                                                 <button type="button" onclick="deleteGalleryImage('<?php echo htmlspecialchars($image); ?>')" 
                                                         class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <i data-lucide="x" class="w-3 h-3"></i>
