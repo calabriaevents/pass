@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_gallery_image
     $description = $_POST['city_description'] ?? '';
     $latitude = !empty($_POST['city_latitude']) ? (float)$_POST['city_latitude'] : null;
     $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
-    $google_maps_link = $_POST['city_google_maps_link'] ?? '';
+    $google_maps_link = $_POST['city_Maps_link'] ?? '';
 
     $hero_image_path = null;
     $gallery_images_json = null;
@@ -96,10 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_gallery_image'
             return $img !== $image_to_delete;
         });
         
-        // Elimina il file fisico
-        if (file_exists('../' . $image_to_delete)) {
-            unlink('../' . $image_to_delete);
-        }
+        // Elimina il file fisico usando ImageProcessor
+        $imageProcessor->deleteImage($image_to_delete);
         
         // Aggiorna il database
         $gallery_images_json = json_encode(array_values($gallery_images));
@@ -499,11 +497,11 @@ if (isset($_GET['success'])) {
                                     </h3>
                                     
                                     <div class="mb-6">
-                                        <label for="city_google_maps_link" class="block text-sm font-semibold text-gray-700 mb-2">
+                                        <label for="city_Maps_link" class="block text-sm font-semibold text-gray-700 mb-2">
                                             Link Google Maps Personalizzato
                                         </label>
-                                        <input type="url" name="city_google_maps_link" id="city_google_maps_link"
-                                               value="<?php echo htmlspecialchars($cityData['google_maps_link'] ?? ''); ?>"
+                                        <input type="url" name="city_Maps_link" id="city_Maps_link"
+                                               value="<?php echo htmlspecialchars($cityData['Maps_link'] ?? ''); ?>"
                                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
                                                placeholder="https://maps.google.com/...">
                                         <p class="text-sm text-gray-500 mt-1">Link personalizzato per Google Maps. Se vuoto, verrà generato automaticamente dalle coordinate.</p>
