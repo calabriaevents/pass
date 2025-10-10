@@ -30,84 +30,12 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
                 <img src="/<?php echo htmlspecialchars($hero_image); ?>" alt="Hero image for <?php echo $activity_name; ?>" class="absolute inset-0 w-full h-full object-cover">
             <?php endif; ?>
         </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
         <div class="absolute inset-0 flex flex-col justify-center items-center text-center p-8">
             <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight text-shadow-lg"><?php echo $activity_name; ?></h1>
             <p class="text-xl mt-2 text-white/90">Un percorso indimenticabile in Calabria</p>
         </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
     </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -120,25 +48,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="prose max-w-none text-gray-600">
                         <?php echo $description; ?>
                     </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
                 </section>
+
+                <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">Dettagli Itinerario</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <?php if (!empty($json_data['starting_point'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Punto di Partenza</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['starting_point']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['length_km'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Lunghezza</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['length_km']); ?> km</p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['duration_hours'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Durata Stimata</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['duration_hours']); ?> ore</p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['difficulty'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Difficoltà</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['difficulty']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['maps_link'])): ?>
+                            <div class="md:col-span-2">
+                                <h4 class="font-semibold text-gray-700">Mappa del Percorso</h4>
+                                <a href="<?php echo htmlspecialchars($json_data['maps_link']); ?>" target="_blank" class="text-blue-600 hover:underline">Visualizza il percorso su Google Maps</a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
 
                 <!-- Stops -->
                 <?php if ($stops): ?>
@@ -147,24 +97,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="prose max-w-none text-gray-600">
                         <?php echo $stops; ?>
                     </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
                 </section>
                 <?php endif; ?>
 
@@ -179,24 +111,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         </a>
                         <?php endforeach; ?>
                     </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
                 </section>
                 <?php endif; ?>
 
@@ -209,50 +123,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <i data-lucide="camera" class="inline w-4 h-4 mr-2"></i>Condividi la tua esperienza
                         </button>
                     </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
                 </section>
             </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
 
             <!-- Sidebar / Info column -->
             <aside class="lg:col-span-1 sticky top-8">
                 <div class="bg-gray-50 p-6 rounded-lg shadow-sm">
                     <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Dettagli</h2>
-
                     <div class="space-y-4">
                         <?php if (!empty($all_services)): ?>
                         <div class="flex items-start">
@@ -265,82 +142,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <?php endforeach; ?>
                                 </ul>
                             </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
                         </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
                         <?php endif; ?>
                     </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
                 </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
 
                 <!-- Include User Experiences Section -->
                 <?php
@@ -352,24 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <?php include __DIR__ . '/../partials/reviews.php'; ?>
             </aside>
         </div>
-
-<!-- Include User Upload Modal -->
-<?php include __DIR__ . '/../partials/user-upload-modal.php'; ?>
-
-<!-- Initialize UserUploadModal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize upload modal
-    if (typeof UserUploadModal !== 'undefined') {
-        UserUploadModal.init();
-    }
-
-    // Create Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-});
-</script>
     </main>
 </div>
 

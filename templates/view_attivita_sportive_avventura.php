@@ -65,6 +65,79 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
                     </div>
                 </section>
 
+                <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">Dettagli Attività</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <?php if (!empty($json_data['address'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Luogo</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['address']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['activity_type'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Tipo di Attività</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['activity_type']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['difficulty'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Difficoltà</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['difficulty']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['duration'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Durata</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['duration']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['price_range'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Fascia di Prezzo</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['price_range']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['opening_hours'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Orari/Periodo Consigliato</h4>
+                                <p class="text-gray-600 whitespace-pre-line"><?php echo htmlspecialchars($json_data['opening_hours']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['contact_details']['phone']) || !empty($json_data['contact_details']['email'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Contatti</h4>
+                                <?php if (!empty($json_data['contact_details']['phone'])): ?>
+                                    <p class="text-gray-600"><strong>Telefono:</strong> <?php echo htmlspecialchars($json_data['contact_details']['phone']); ?></p>
+                                <?php endif; ?>
+                                <?php if (!empty($json_data['contact_details']['email'])): ?>
+                                    <p class="text-gray-600"><strong>Email:</strong> <?php echo htmlspecialchars($json_data['contact_details']['email']); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['booking_link'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Prenotazioni</h4>
+                                <a href="<?php echo htmlspecialchars($json_data['booking_link']); ?>" target="_blank" class="text-blue-600 hover:underline">Prenota l'attività</a>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['maps_link'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Mappa</h4>
+                                <a href="<?php echo htmlspecialchars($json_data['maps_link']); ?>" target="_blank" class="text-blue-600 hover:underline">Vedi su Google Maps</a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <!-- Activity Types -->
                 <?php if(!empty($activity_types_raw)): ?>
                 <section>

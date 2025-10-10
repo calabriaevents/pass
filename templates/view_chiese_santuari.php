@@ -53,6 +53,65 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
                     </div>
                 </section>
 
+                <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">Informazioni Storiche e Visita</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <?php if (!empty($json_data['address'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Indirizzo</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['address']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['opening_hours'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Orari di Visita</h4>
+                                <p class="text-gray-600 whitespace-pre-line"><?php echo htmlspecialchars($json_data['opening_hours']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (isset($json_data['entry_fee']) && $json_data['entry_fee'] !== ''): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Ingresso</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['entry_fee']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['architectural_style'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Stile Architettonico</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['architectural_style']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['historical_period'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Epoca</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['historical_period']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['contact_details']['phone']) || !empty($json_data['contact_details']['email'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Contatti</h4>
+                                <?php if (!empty($json_data['contact_details']['phone'])): ?>
+                                    <p class="text-gray-600"><strong>Telefono:</strong> <?php echo htmlspecialchars($json_data['contact_details']['phone']); ?></p>
+                                <?php endif; ?>
+                                <?php if (!empty($json_data['contact_details']['email'])): ?>
+                                    <p class="text-gray-600"><strong>Email:</strong> <?php echo htmlspecialchars($json_data['contact_details']['email']); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['maps_link'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Mappa</h4>
+                                <a href="<?php echo htmlspecialchars($json_data['maps_link']); ?>" target="_blank" class="text-blue-600 hover:underline">Vedi su Google Maps</a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <!-- Gallery -->
                 <?php if (!empty($gallery_images)): ?>
                 <section>

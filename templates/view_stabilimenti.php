@@ -79,6 +79,69 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
                     </div>
                 </section>
 
+                <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">Info Spiaggia</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <?php if (!empty($json_data['address'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Località</h4>
+                                <p class="text-gray-600"><?php echo htmlspecialchars($json_data['address']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['opening_hours'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Orari di Apertura</h4>
+                                <p class="text-gray-600 whitespace-pre-line"><?php echo htmlspecialchars($json_data['opening_hours']); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php
+                        $services = $json_data['services']['predefined'] ?? [];
+                        if (!empty($json_data['services']['custom'])) {
+                            $custom_services = array_map('trim', explode(',', $json_data['services']['custom']));
+                            $services = array_merge($services, $custom_services);
+                        }
+                        ?>
+                        <?php if (!empty($services)): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Servizi Disponibili</h4>
+                                <ul class="list-disc list-inside text-gray-600">
+                                    <?php foreach ($services as $service): ?>
+                                        <li><?php echo htmlspecialchars($service); ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['contact_details']['phone']) || !empty($json_data['contact_details']['email'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Contatti</h4>
+                                <?php if (!empty($json_data['contact_details']['phone'])): ?>
+                                    <p class="text-gray-600"><strong>Telefono:</strong> <?php echo htmlspecialchars($json_data['contact_details']['phone']); ?></p>
+                                <?php endif; ?>
+                                <?php if (!empty($json_data['contact_details']['email'])): ?>
+                                    <p class="text-gray-600"><strong>Email:</strong> <?php echo htmlspecialchars($json_data['contact_details']['email']); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['booking_link'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Prenotazioni</h4>
+                                 <a href="<?php echo htmlspecialchars($json_data['booking_link']); ?>" target="_blank" class="text-blue-600 hover:underline">Prenota il tuo posto</a>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($json_data['maps_link'])): ?>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">Mappa</h4>
+                                <a href="<?php echo htmlspecialchars($json_data['maps_link']); ?>" target="_blank" class="text-blue-600 hover:underline">Vedi su Google Maps</a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <!-- Services -->
                 <?php if (!empty($all_services)): ?>
                 <section>
