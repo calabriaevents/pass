@@ -883,6 +883,146 @@ public function getArticleBySlug($slug) {
         $stmt->execute([$key, $value, $type]);
     }
 
+    // --- INIZIO NUOVI METODI DATABASE ---
+
+    public function getAllImages($searchTerm = '', $sourceType = '') {
+        $images = [];
+
+        // 1. Immagini degli Articoli (featured e gallery)
+        $sqlArticles = "SELECT id, title, featured_image, gallery_images, created_at FROM articles WHERE (featured_image IS NOT NULL AND featured_image != '') OR (gallery_images IS NOT NULL AND gallery_images != '[]')";
+        $stmt = $this->pdo->query($sqlArticles);
+        $articles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($articles as $article) {
+            if (!empty($article['featured_image'])) {
+                $images[] = [
+                    'path' => $article['featured_image'],
+                    'source_type' => 'Articolo (Hero)',
+                    'source_id' => $article['id'],
+                    'source_name' => $article['title'],
+                    'upload_date' => $article['created_at']
+                ];
+            }
+            if (!empty($article['gallery_images'])) {
+                $gallery = json_decode($article['gallery_images'], true);
+                foreach ($gallery as $imgPath) {
+                    $images[] = [
+                        'path' => $imgPath,
+                        'source_type' => 'Articolo (Galleria)',
+                        'source_id' => $article['id'],
+                        'source_name' => $article['title'],
+                        'upload_date' => $article['created_at']
+                    ];
+                }
+            }
+        }
+
+        // 2. Immagini delle Città (hero e gallery)
+        $sqlCities = "SELECT id, name, hero_image, gallery_images FROM cities WHERE (hero_image IS NOT NULL AND hero_image != '') OR (gallery_images IS NOT NULL AND gallery_images != '[]')";
+        $stmt = $this->pdo->query($sqlCities);
+        $cities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($cities as $city) {
+            if (!empty($city['hero_image'])) {
+                $images[] = [
+                    'path' => $city['hero_image'],
+                    'source_type' => 'Città (Hero)',
+                    'source_id' => $city['id'],
+                    'source_name' => $city['name'],
+                    'upload_date' => null // Le città non hanno una data di creazione nel DB
+                ];
+            }
+            if (!empty($city['gallery_images'])) {
+                $gallery = json_decode($city['gallery_images'], true);
+                foreach ($gallery as $imgPath) {
+                    $images[] = [
+                        'path' => $imgPath,
+                        'source_type' => 'Città (Galleria)',
+                        'source_id' => $city['id'],
+                        'source_name' => $city['name'],
+                        'upload_date' => null
+                    ];
+                }
+            }
+        }
+
+        // 3. Foto caricate dagli utenti
+        $sqlUserPhotos = "SELECT p.id, p.image_path, p.created_at, p.user_name, c.name as city_name FROM city_photo_uploads p JOIN cities c ON p.city_id = c.id";
+        $stmt = $this->pdo->query($sqlUserPhotos);
+        $userPhotos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($userPhotos as $photo) {
+            $images[] = [
+                'path' => $photo['image_path'],
+                'source_type' => 'Utente',
+                'source_id' => $photo['id'],
+                'source_name' => 'Caricata da: ' . $photo['user_name'] . ' per ' . $photo['city_name'],
+                'upload_date' => $photo['created_at']
+            ];
+        }
+
+        // Applica filtri
+        if (!empty($searchTerm)) {
+            $images = array_filter($images, function($img) use ($searchTerm) {
+                return stripos($img['path'], $searchTerm) !== false || stripos($img['source_name'], $searchTerm) !== false;
+            });
+        }
+        if (!empty($sourceType)) {
+             $images = array_filter($images, function($img) use ($sourceType) {
+                return strpos($img['source_type'], $sourceType) !== false;
+            });
+        }
+
+        return $images;
+    }
+
+    public function deleteImageReference($path, $sourceType, $sourceId) {
+        $path = trim($path);
+
+        try {
+            if ($sourceType === 'Utente') {
+                $stmt = $this->pdo->prepare("DELETE FROM city_photo_uploads WHERE id = ? AND image_path = ?");
+                return $stmt->execute([$sourceId, $path]);
+            }
+            elseif ($sourceType === 'Città (Hero)') {
+                $stmt = $this->pdo->prepare("UPDATE cities SET hero_image = NULL WHERE id = ? AND hero_image = ?");
+                return $stmt->execute([$sourceId, $path]);
+            }
+            elseif ($sourceType === 'Articolo (Hero)') {
+                $stmt = $this->pdo->prepare("UPDATE articles SET featured_image = NULL WHERE id = ? AND featured_image = ?");
+                return $stmt->execute([$sourceId, $path]);
+            }
+            elseif ($sourceType === 'Città (Galleria)') {
+                $stmt = $this->pdo->prepare("SELECT gallery_images FROM cities WHERE id = ?");
+                $stmt->execute([$sourceId]);
+                $city = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($city && !empty($city['gallery_images'])) {
+                    $gallery = json_decode($city['gallery_images'], true);
+                    $gallery = array_filter($gallery, function($img) use ($path) { return $img !== $path; });
+                    $stmt = $this->pdo->prepare("UPDATE cities SET gallery_images = ? WHERE id = ?");
+                    return $stmt->execute([json_encode(array_values($gallery)), $sourceId]);
+                }
+            }
+            elseif ($sourceType === 'Articolo (Galleria)') {
+                $stmt = $this->pdo->prepare("SELECT gallery_images FROM articles WHERE id = ?");
+                $stmt->execute([$sourceId]);
+                $article = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($article && !empty($article['gallery_images'])) {
+                    $gallery = json_decode($article['gallery_images'], true);
+                    $gallery = array_filter($gallery, function($img) use ($path) { return $img !== $path; });
+                    $stmt = $this->pdo->prepare("UPDATE articles SET gallery_images = ? WHERE id = ?");
+                    return $stmt->execute([json_encode(array_values($gallery)), $sourceId]);
+                }
+            }
+            return false;
+        } catch (PDOException $e) {
+            // Log dell'errore
+            error_log("Errore eliminazione riferimento immagine: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // --- FINE NUOVI METODI DATABASE ---
+
     // Metodi per Suggerimenti
     public function createPlaceSuggestion($name, $description, $location, $suggested_by_name, $suggested_by_email, $images_json = null) {
         if (!$this->isConnected()) { return false; }

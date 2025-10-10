@@ -99,11 +99,19 @@ foreach ($articles as $article) {
     $articlesByCategory[$article['category_id']][] = $article;
 }
 
+// --- INIZIO CODICE CORRETTO ---
 // Determina l'immagine hero per la città
-$heroImage = $city['hero_image'] ?: 'assets/images/default-city-hero.jpg';
-if (empty($city['hero_image']) && !empty($articles)) {
-    $heroImage = $articles[0]['featured_image'] ?? $heroImage;
+$heroImage = 'assets/images/default-city-hero.jpg'; // Imposta un default
+$isProtectedImage = false;
+
+if (!empty($city['hero_image'])) {
+    $heroImage = $city['hero_image'];
+    $isProtectedImage = true;
+} elseif (!empty($articles) && !empty($articles[0]['featured_image'])) {
+    $heroImage = $articles[0]['featured_image'];
+    $isProtectedImage = true;
 }
+// --- FINE CODICE CORRETTO ---
 
 // Carica foto utenti approvate per la città
 $userPhotos = $db->getApprovedCityPhotos($cityId);
@@ -179,7 +187,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo (strpos($heroImage, 'uploads_protected/') === 0) ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
+            <img src="<?php echo $isProtectedImage ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>

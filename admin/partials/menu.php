@@ -10,6 +10,7 @@ $menuItems = [
     ['file' => 'categorie.php', 'icon' => 'tags', 'label' => 'Categorie'],
     ['file' => 'province.php', 'icon' => 'map', 'label' => 'Province'],
     ['file' => 'citta.php', 'icon' => 'map-pin', 'label' => 'Città'],
+    ['file' => 'gestione-immagini.php', 'icon' => 'image', 'label' => 'Gestione Immagini'],
     ['file' => 'comuni.php', 'icon' => 'building', 'label' => 'Comuni'],
     ['file' => 'commenti.php', 'icon' => 'message-square', 'label' => 'Commenti'],
     ['file' => 'foto-utenti.php', 'icon' => 'image', 'label' => 'Foto Utenti'],
