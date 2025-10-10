@@ -108,6 +108,29 @@ if (empty($city['hero_image']) && !empty($articles)) {
 // Carica foto utenti approvate per la città
 $userPhotos = $db->getApprovedCityPhotos($cityId);
 
+// --- INIZIO UNIFICA GALLERIE ---
+$adminGalleryImages = !empty($city['gallery_images']) ? json_decode($city['gallery_images'], true) : [];
+$allGalleryImages = [];
+
+// Aggiungi le immagini dell'admin
+foreach ($adminGalleryImages as $imagePath) {
+    $allGalleryImages[] = [
+        'image_path' => $imagePath,
+        'user_name' => 'Passione Calabria', // Etichetta per le foto caricate dallo staff
+        'description' => ''
+    ];
+}
+
+// Aggiungi le foto degli utenti
+foreach ($userPhotos as $photo) {
+    $allGalleryImages[] = [
+        'image_path' => $photo['image_path'],
+        'user_name' => $photo['user_name'],
+        'description' => $photo['description']
+    ];
+}
+// --- FINE UNIFICA GALLERIE ---
+
 // Carica commenti approvati per la città
 $cityComments = $db->getApprovedCommentsByCityId($cityId);
 
@@ -179,7 +202,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo (strpos($heroImage, 'assets/') === false) ? 'image-loader.php?path=' . urlencode($heroImage) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
+            <img src="<?php echo (strpos($heroImage, 'uploads_protected/') === 0) ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
@@ -261,61 +284,58 @@ foreach ($settings as $setting) {
                     </section>
                     <?php endif; ?>
 
-                    <!-- Galleria Foto Utenti -->
-                    <section>
-                        <div class="flex items-center justify-between mb-12">
-                            <div>
-                                <h2 class="text-4xl font-bold text-slate-900 mb-2">
-                                    Foto della Community
-                                </h2>
-                                <p class="text-xl text-slate-600">
-                                    Scopri <?php echo htmlspecialchars($city['name']); ?> attraverso gli occhi dei visitatori
-                                </p>
-                            </div>
-                            <button onclick="openPhotoUploadModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-full font-semibold transition-colors flex items-center">
-                                <i data-lucide="camera" class="w-5 h-5 mr-2"></i>
-                                Carica la tua foto
-                            </button>
-                        </div>
+                    <!-- Galleria Unificata -->
+<section>
+    <div class="flex items-center justify-between mb-12">
+        <div>
+            <h2 class="text-4xl font-bold text-slate-900 mb-2">
+                Galleria di <?php echo htmlspecialchars($city['name']); ?>
+            </h2>
+            <p class="text-xl text-slate-600">
+                Scopri <?php echo htmlspecialchars($city['name']); ?> attraverso gli occhi dello staff e della community
+            </p>
+        </div>
+        <button onclick="openPhotoUploadModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-full font-semibold transition-colors flex items-center">
+            <i data-lucide="camera" class="w-5 h-5 mr-2"></i>
+            Carica la tua foto
+        </button>
+    </div>
 
-                        <?php if (!empty($userPhotos)): ?>
-                        <!-- Bento Grid Layout per le foto -->
-                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-                            <?php foreach (array_slice($userPhotos, 0, 12) as $index => $photo): ?>
-                            <div class="<?php echo ($index === 0) ? 'col-span-2 row-span-2' : ''; ?> group relative overflow-hidden rounded-2xl aspect-square">
-                                <img src="image-loader.php?path=<?php echo urlencode($photo['image_path'] ?? ''); ?>"
-                                     alt="<?php echo htmlspecialchars($photo['description'] ?: $city['name']); ?>" 
-                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300"></div>
-                                <div class="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <p class="text-sm font-medium"><?php echo htmlspecialchars($photo['user_name']); ?></p>
-                                    <?php if ($photo['description']): ?>
-                                    <p class="text-xs opacity-80"><?php echo htmlspecialchars($photo['description']); ?></p>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                        
-                        <?php if (count($userPhotos) > 12): ?>
-                        <div class="text-center">
-                            <button class="text-slate-600 hover:text-slate-900 font-medium">
-                                Mostra tutte le <?php echo count($userPhotos); ?> foto
-                            </button>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <?php else: ?>
-                        <div class="bg-slate-100 rounded-3xl p-12 text-center">
-                            <i data-lucide="camera" class="w-16 h-16 text-slate-400 mx-auto mb-4"></i>
-                            <h3 class="text-2xl font-semibold text-slate-700 mb-2">Nessuna foto ancora</h3>
-                            <p class="text-slate-600 mb-6">Sii il primo a condividere una foto di <?php echo htmlspecialchars($city['name']); ?>!</p>
-                            <button onclick="openPhotoUploadModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-full font-semibold">
-                                Carica la prima foto
-                            </button>
-                        </div>
-                        <?php endif; ?>
-                    </section>
+    <?php if (!empty($allGalleryImages)): ?>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+        <?php foreach ($allGalleryImages as $index => $photo):
+            $clean_path = $photo['image_path'] ?? '';
+            // GESTIONE BACKWARD-COMPATIBILITY PER VECCHI PERCORSI
+            if (strpos($clean_path, 'uploads/') === 0) {
+                $clean_path = substr($clean_path, strlen('uploads/'));
+            }
+        ?>
+        <div class="<?php echo ($index === 0) ? 'col-span-2 row-span-2' : ''; ?> group relative overflow-hidden rounded-2xl aspect-square">
+            <img src="image-loader.php?path=<?php echo urlencode($clean_path); ?>"
+                 alt="<?php echo htmlspecialchars($photo['description'] ?: $city['name']); ?>"
+                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300"></div>
+            <div class="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                <p class="text-sm font-medium"><?php echo htmlspecialchars($photo['user_name']); ?></p>
+                <?php if ($photo['description']): ?>
+                <p class="text-xs opacity-80"><?php echo htmlspecialchars($photo['description']); ?></p>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <?php else: ?>
+    <div class="bg-slate-100 rounded-3xl p-12 text-center">
+        <i data-lucide="camera" class="w-16 h-16 text-slate-400 mx-auto mb-4"></i>
+        <h3 class="text-2xl font-semibold text-slate-700 mb-2">Nessuna foto ancora</h3>
+        <p class="text-slate-600 mb-6">Sii il primo a condividere una foto di <?php echo htmlspecialchars($city['name']); ?>!</p>
+        <button onclick="openPhotoUploadModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-full font-semibold">
+            Carica la prima foto
+        </button>
+    </div>
+    <?php endif; ?>
+</section>
 
                     <!-- Cosa Fare - Categorie per Città -->
                     <section>
@@ -348,7 +368,7 @@ foreach ($settings as $setting) {
                                             <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block">
                                                 <div class="aspect-[16/9] bg-slate-200 overflow-hidden">
                                                     <?php if ($article['featured_image']): ?>
-                                                    <img src="image-loader.php?path=<?php echo urlencode($article['featured_image'] ?? ''); ?>"
+                                                    <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['featured_image'] ?? '')); ?>"
                                                          alt="<?php echo htmlspecialchars($article['title']); ?>" 
                                                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                                     <?php else: ?>
