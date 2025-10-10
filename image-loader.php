@@ -1,6 +1,6 @@
 <?php
 // Percorso canonico e corretto per le immagini protette.
-$base_dir = __DIR__ . '/uploads_protected/';
+$base_dir = dirname(__DIR__) . '/uploads_protected/'; // Modifica questa linea
 
 $image_path = $_GET['path'] ?? '';
 
@@ -10,6 +10,12 @@ if (strpos($image_path, '..') !== false) {
     http_response_code(400); // Bad Request
     exit("Percorso non valido.");
 }
+
+// Rimuovi 'uploads_protected/' dal percorso se presente, per evitare duplicazioni.
+if (strpos($image_path, 'uploads_protected/') === 0) {
+    $image_path = substr($image_path, strlen('uploads_protected/'));
+}
+
 
 $full_path = $base_dir . $image_path;
 
