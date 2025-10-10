@@ -202,7 +202,15 @@ class Database {
 
     public function getCityById($id) {
         if (!$this->isConnected()) { return null; }
-        $stmt = $this->pdo->prepare('SELECT c.*, p.name as province_name, p.id as province_id FROM cities c LEFT JOIN provinces p ON c.province_id = p.id WHERE c.id = ?');
+        $stmt = $this->pdo->prepare('
+            SELECT
+                c.id, c.name, c.province_id, c.description, c.latitude, c.longitude,
+                c.hero_image, c.google_maps_link, c.gallery_images, c.created_at, c.updated_at,
+                p.name as province_name
+            FROM cities c
+            LEFT JOIN provinces p ON c.province_id = p.id
+            WHERE c.id = ?
+        ');
         $stmt->execute([$id]);
         return $stmt->fetch();
     }

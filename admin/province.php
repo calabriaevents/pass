@@ -220,8 +220,8 @@ if (isset($_GET['success'])) {
                                     </td>
                                     <td class="py-4 px-6">
                                         <?php if ($province['image_path']): ?>
-                                        <div class="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
-                                            <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $province['image_path'])); ?>"
+                                        <div class="w-16 h-16 rounded-lg overflow-hidden">
+                                            <img src="../<?php echo htmlspecialchars($province['image_path']); ?>"
                                                  alt="<?php echo htmlspecialchars($province['name']); ?>" 
                                                  class="w-full h-full object-cover">
                                         </div>
@@ -329,7 +329,7 @@ if (isset($_GET['success'])) {
                                         
                                         <?php if (isset($province['image_path']) && $province['image_path']): ?>
                                         <div id="existing-image">
-                                            <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $province['image_path'])); ?>"
+                                            <img src="../<?php echo htmlspecialchars($province['image_path']); ?>"
                                                  alt="Immagine attuale" 
                                                  class="max-w-full max-h-64 mx-auto rounded-lg shadow-sm mb-4">
                                             <p class="text-sm text-gray-600 mb-2">Immagine attuale</p>
@@ -426,7 +426,7 @@ if (isset($_GET['success'])) {
                             <?php foreach ($gallery_images as $image): ?>
                             <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
                                 <div class="aspect-[4/3] bg-gray-100">
-                                    <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $image['image_path'])); ?>"
+                                    <img src="../<?php echo htmlspecialchars($image['image_path']); ?>"
                                          alt="<?php echo htmlspecialchars($image['title']); ?>"
                                          class="w-full h-full object-cover">
                                 </div>

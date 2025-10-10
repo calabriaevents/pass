@@ -138,7 +138,7 @@ $cities = $db->getCitiesByProvince($provinceId);
                         <!-- Article Image -->
                         <div class="aspect-[4/3] bg-gradient-to-br from-blue-500 to-teal-600 relative overflow-hidden">
                             <?php if ($article['featured_image']): ?>
-                            <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['featured_image'])); ?>"
+                            <img src="<?php echo htmlspecialchars($article['featured_image']); ?>"
                                  alt="<?php echo htmlspecialchars($article['title']); ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                             <?php else: ?>
