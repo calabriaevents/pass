@@ -185,15 +185,8 @@ $cityCount = count($cities);
                 ?>
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 group">
                     <div class="aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-blue-500 to-teal-600">
-                        <?php if (!empty($city['hero_image'])): ?>
-                            <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $city['hero_image'])); ?>"
-                                 alt="Immagine di <?php echo htmlspecialchars($city['name']); ?>"
-                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                            <div class="absolute inset-0 bg-black/20"></div>
-                        <?php else: ?>
-                            <!-- City Image Placeholder -->
-                            <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-teal-600"></div>
-                        <?php endif; ?>
+                        <!-- City Image Placeholder -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-teal-600"></div>
                         
                         <!-- Province Badge -->
                         <div class="absolute top-4 left-4">

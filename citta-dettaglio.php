@@ -30,34 +30,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $upload_error = '';
     $success_message = '';
 
-    try {
-        if (empty($user_name) || empty($user_email)) {
-            throw new Exception('Nome e email sono obbligatori.');
-        }
-        if (!filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-            throw new Exception('Email non valida.');
-        }
-        if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
-            throw new Exception('Seleziona una foto valida da caricare.');
-        }
+    if (empty($user_name) || empty($user_email)) {
+        $upload_error = 'Nome e email sono obbligatori.';
+    } elseif (!filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+        $upload_error = 'Email non valida.';
+    } elseif (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+        $upload_error = 'Seleziona una foto valida da caricare.';
+    } else {
+        try {
+            $upload_path = $imageProcessor->processUploadedImage($_FILES['photo'], 'cities/user_uploads');
 
-        // Usa ImageProcessor per gestire l'upload
-        $upload_path = $imageProcessor->processUploadedImage($_FILES['photo'], 'user_photos');
-
-        if ($upload_path) {
-            // Salva nel database
-            if ($db->createCityPhotoUpload($cityId, $user_name, $user_email, $upload_path, $_FILES['photo']['name'], $description)) {
-                $success_message = 'Foto caricata con successo! Verrà pubblicata dopo la moderazione.';
+            if ($upload_path) {
+                // Salva nel database
+                if ($db->createCityPhotoUpload($cityId, $user_name, $user_email, $upload_path, $_FILES['photo']['name'], $description)) {
+                    $success_message = 'Foto caricata con successo! Verrà pubblicata dopo la moderazione.';
+                } else {
+                    $upload_error = 'Errore nel salvare la foto nel database.';
+                    $imageProcessor->deleteImage($upload_path);
+                }
             } else {
-                // Se il DB fallisce, cancella l'immagine appena caricata
-                $imageProcessor->deleteImage($upload_path);
-                throw new Exception('Errore nel salvare le informazioni della foto nel database.');
+                throw new Exception($imageProcessor->getLastError() ?: 'Errore sconosciuto durante il processamento dell\'immagine.');
             }
-        } else {
-            throw new Exception('Errore nel caricamento del file: ' . $imageProcessor->getLastError());
+        } catch (Exception $e) {
+            $upload_error = 'Errore nel caricamento del file: ' . $e->getMessage();
         }
-    } catch (Exception $e) {
-        $upload_error = $e->getMessage();
     }
 }
 
@@ -107,6 +103,12 @@ if (empty($city['hero_image']) && !empty($articles)) {
 
 // Carica foto utenti approvate per la città
 $userPhotos = $db->getApprovedCityPhotos($cityId);
+
+// Carica la galleria ufficiale della città
+$cityGalleryImages = [];
+if (!empty($city['gallery_images'])) {
+    $cityGalleryImages = json_decode($city['gallery_images'], true);
+}
 
 // Carica commenti approvati per la città
 $cityComments = $db->getApprovedCommentsByCityId($cityId);
@@ -257,6 +259,31 @@ foreach ($settings as $setting) {
                                 </a>
                                 <?php endif; ?>
                             </div>
+                        </div>
+                    </section>
+                    <?php endif; ?>
+
+                    <!-- Galleria Ufficiale -->
+                    <?php if (!empty($cityGalleryImages)): ?>
+                    <section>
+                        <div class="mb-12">
+                            <h2 class="text-4xl font-bold text-slate-900 mb-2">
+                                Galleria Ufficiale
+                            </h2>
+                            <p class="text-xl text-slate-600">
+                                Le immagini ufficiali di <?php echo htmlspecialchars($city['name']); ?>
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                            <?php foreach ($cityGalleryImages as $imagePath): ?>
+                            <div class="group relative overflow-hidden rounded-2xl aspect-square">
+                                <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $imagePath ?? '')); ?>"
+                                     alt="Galleria di <?php echo htmlspecialchars($city['name']); ?>"
+                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300"></div>
+                            </div>
+                            <?php endforeach; ?>
                         </div>
                     </section>
                     <?php endif; ?>
