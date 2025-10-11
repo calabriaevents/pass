@@ -41,6 +41,7 @@ if (isset($_GET['page']) && isset($editable_pages[$_GET['page']])) {
 
 include 'partials/header.php';
 ?>
+<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
 
 <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">Gestione Pagine Statiche</h1>
@@ -74,7 +75,7 @@ include 'partials/header.php';
                 <input type="hidden" name="page_to_edit" value="<?php echo $selected_page; ?>">
                 <div class="mb-4">
                     <label for="page-content" class="block text-sm font-medium text-gray-700">Contenuto della pagina</label>
-                    <textarea id="page-content" name="page_content" rows="20" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"><?php echo htmlspecialchars($page_content); ?></textarea>
+                    <textarea id="page-content" name="page_content" rows="20" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"><?php echo $page_content; ?></textarea>
                 </div>
                 <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-md">Salva Modifiche</button>
             </form>
@@ -83,3 +84,10 @@ include 'partials/header.php';
 </div>
 
 <?php include 'partials/footer.php'; ?>
+<script>
+    tinymce.init({
+        selector: 'textarea#page-content',
+        plugins: 'code table lists image link',
+        toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | indent outdent | bullist numlist | code | table | image | link'
+    });
+</script>
