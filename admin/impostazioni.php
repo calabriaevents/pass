@@ -16,7 +16,8 @@ if ($db->getSetting('tinymce_api_key') === null) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $settings = $_POST['settings'] ?? [];
     foreach ($settings as $key => $value) {
-        $db->setSetting($key, $value);
+        // Trim the value before saving
+        $db->setSetting($key, trim($value));
     }
     header('Location: impostazioni.php?success=true');
     exit;

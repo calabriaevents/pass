@@ -7,7 +7,7 @@ include 'auth_check.php';
 
 $db = new Database();
 
-$tinymce_api_key = $db->getSetting('tinymce_api_key');
+$tinymce_api_key = trim($db->getSetting('tinymce_api_key'));
 if(empty($tinymce_api_key)) {
     $tinymce_api_key = 'no-api-key';
 }
