@@ -19,24 +19,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($entity === 'provinces') {
             $name = $_POST['name'] ?? '';
             $description = $_POST['description'] ?? '';
-            $image_path = $_POST['existing_image_path'] ?? null;
 
+            // Inizializza il percorso dell'immagine
+            $image_path_to_save = null;
+            if ($action === 'edit' && $id) {
+                $existing_province = $db->getProvinceById($id);
+                if (!$existing_province) {
+                    throw new Exception("Provincia non trovata.");
+                }
+                $image_path_to_save = $existing_province['image_path'];
+            }
+
+            // Controlla se è stata caricata una nuova immagine
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                 $new_image_path = $imageProcessor->processUploadedImage($_FILES['image'], 'provinces');
                 if ($new_image_path) {
-                    if ($image_path) {
-                        $imageProcessor->deleteImage($image_path);
+                    // Se c'era una vecchia immagine, eliminala
+                    if ($image_path_to_save) {
+                        $imageProcessor->deleteImage($image_path_to_save);
                     }
-                    $image_path = $new_image_path;
+                    // Imposta il percorso della nuova immagine per il salvataggio
+                    $image_path_to_save = $new_image_path;
                 } else {
-                    throw new Exception("Errore nel caricamento dell'immagine: " . $imageProcessor->getLastError());
+                    throw new Exception("Errore nel caricamento della nuova immagine: " . $imageProcessor->getLastError());
                 }
             }
 
+            // Esegui l'operazione sul database
             if ($action === 'edit' && $id) {
-                $db->updateProvince($id, $name, $description, $image_path);
+                $db->updateProvince($id, $name, $description, $image_path_to_save);
             } else {
-                $db->createProvince($name, $description, $image_path);
+                $db->createProvince($name, $description, $image_path_to_save);
             }
         }
 
