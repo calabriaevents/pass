@@ -6,6 +6,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 $menuItems = [
     ['file' => 'index.php', 'icon' => 'home', 'label' => 'Dashboard'],
     ['file' => 'gestione-home.php', 'icon' => 'layout', 'label' => 'Gestione Home'],
+    ['file' => 'pagine-statiche.php', 'icon' => 'file', 'label' => 'Pagine Statiche'],
     ['file' => 'articoli.php', 'icon' => 'file-text', 'label' => 'Articoli'],
     ['file' => 'categorie.php', 'icon' => 'tags', 'label' => 'Categorie'],
     ['file' => 'province.php', 'icon' => 'map', 'label' => 'Province'],
