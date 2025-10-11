@@ -7,6 +7,11 @@ include 'auth_check.php';
 
 $db = new Database();
 
+$tinymce_api_key = $db->getSetting('tinymce_api_key');
+if(empty($tinymce_api_key)) {
+    $tinymce_api_key = 'no-api-key';
+}
+
 // List of editable static pages
 $editable_pages = [
     'chi-siamo.php' => 'Chi Siamo',
@@ -41,7 +46,7 @@ if (isset($_GET['page']) && isset($editable_pages[$_GET['page']])) {
 
 include 'partials/header.php';
 ?>
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="https://cdn.tiny.cloud/1/<?php echo $tinymce_api_key; ?>/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
 
 <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">Gestione Pagine Statiche</h1>

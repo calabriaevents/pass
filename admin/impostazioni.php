@@ -8,6 +8,11 @@ require_once '../includes/database_mysql.php';
 
 $db = new Database();
 
+// Ensure tinymce_api_key setting exists
+if ($db->getSetting('tinymce_api_key') === null) {
+    $db->setSetting('tinymce_api_key', '');
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $settings = $_POST['settings'] ?? [];
     foreach ($settings as $key => $value) {
@@ -63,7 +68,7 @@ foreach ($settings as $setting) {
         $settingsGroups['apps']['settings'][] = $setting;
     } elseif (strpos($key, 'google_analytics') === 0) {
         $settingsGroups['analytics']['settings'][] = $setting;
-    } elseif (strpos($key, '_key') !== false || strpos($key, 'secret') !== false) {
+    } elseif (strpos($key, '_key') !== false || strpos($key, 'secret') !== false || strpos($key, 'tinymce_') !== false) {
         $settingsGroups['security']['settings'][] = $setting;
     } else {
         $settingsGroups['other']['settings'][] = $setting;
@@ -90,6 +95,7 @@ function getNiceFieldName($key) {
         'google_recaptcha_v3_secret_key' => 'reCAPTCHA v3 - Secret Key',
         'stripe_publishable_key' => 'Stripe - Publishable Key',
         'stripe_secret_key' => 'Stripe - Secret Key',
+        'tinymce_api_key' => 'TinyMCE API Key',
         'contact_phone' => 'Numero di Telefono Contatti',
         'contact_text' => 'Testo Personalizzabile Contatti',
         'contact_hours' => 'Orario di Apertura Contatti'
@@ -117,6 +123,7 @@ function getFieldDescription($key) {
         'google_recaptcha_v3_secret_key' => 'Chiave privata per reCAPTCHA v3',
         'stripe_publishable_key' => 'Chiave pubblica Stripe per pagamenti',
         'stripe_secret_key' => 'Chiave privata Stripe (mantenere segreta!)',
+        'tinymce_api_key' => 'La tua chiave API per TinyMCE, per abilitare l\'editor di testo ricco.',
         'contact_phone' => 'Numero di telefono mostrato nella dashboard utenti e nelle pagine di contatto',
         'contact_text' => 'Testo personalizzabile mostrato nella sezione contatti della dashboard utenti',
         'contact_hours' => 'Orario di disponibilità per l\'assistenza (es: Disponibili dal Lunedì al Venerdì, 9:00-18:00)'
