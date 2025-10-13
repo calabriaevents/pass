@@ -2,6 +2,25 @@
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 
+// Aggiungi la funzione helper per coerenza.
+if (!function_exists('get_image_url')) {
+    function get_image_url($path, $default_image = 'assets/images/default-placeholder.jpg') {
+        if (empty($path)) {
+            return $default_image;
+        }
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return htmlspecialchars($path);
+        }
+        $clean_path = $path;
+        if (strpos($clean_path, 'uploads_protected/') === 0) {
+            $clean_path = substr($clean_path, strlen('uploads_protected/'));
+        } elseif (strpos($clean_path, 'uploads/') === 0) {
+            $clean_path = substr($clean_path, strlen('uploads/'));
+        }
+        return 'image-loader.php?path=' . urlencode($clean_path);
+    }
+}
+
 // Inizializza database se necessario
 $db = new Database();
 
@@ -381,7 +400,7 @@ foreach ($homeSections as $section) {
                     <div class="aspect-[4/3] relative overflow-hidden">
                         <?php if (!empty($province['image_path'])): ?>
                         <!-- Province Image from Admin -->
-                        <img src="<?php echo htmlspecialchars($province['image_path']); ?>" 
+                        <img src="<?php echo get_image_url($province['image_path']); ?>"
                              alt="<?php echo htmlspecialchars($province['name']); ?>" 
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10"></div>
