@@ -150,14 +150,12 @@ foreach ($categories as &$category) {
                                 <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block group/article">
                                     <div class="flex items-start space-x-3">
                                         <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
-                                            <?php if (!empty($article['logo'])): ?>
-                                            <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['logo'])); ?>"
-                                                 alt="Logo <?php echo htmlspecialchars($article['title']); ?>"
-                                                 class="w-full h-full object-contain p-1">
+                                            <?php if ($article['featured_image']): ?>
+                                            <img src="<?php echo htmlspecialchars($article['featured_image']); ?>"
+                                                 alt="<?php echo htmlspecialchars($article['title']); ?>"
+                                                 class="w-full h-full object-cover">
                                             <?php else: ?>
-                                            <div class="w-full h-full bg-gradient-to-br from-blue-200 to-teal-300 flex items-center justify-center">
-                                                <i data-lucide="image" class="w-4 h-4 text-gray-500"></i>
-                                            </div>
+                                            <div class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400"></div>
                                             <?php endif; ?>
                                         </div>
                                         <div class="flex-1 min-w-0">
