@@ -381,8 +381,8 @@ foreach ($homeSections as $section) {
                     <div class="aspect-[4/3] relative overflow-hidden">
                         <?php if (!empty($province['image_path'])): ?>
                         <!-- Province Image from Admin -->
-                        <img src="<?php echo htmlspecialchars($province['image_path']); ?>" 
-                             alt="<?php echo htmlspecialchars($province['name']); ?>" 
+                        <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $province['image_path'] ?? '')); ?>"
+                             alt="<?php echo htmlspecialchars($province['name']); ?>"
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10"></div>
                         <?php else: ?>
