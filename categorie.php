@@ -169,8 +169,15 @@ foreach ($categories as &$category) {
                                 <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block group/article">
                                     <div class="flex items-start space-x-3">
                                         <div class="w-16 h-12 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
-                                            <?php if ($article['featured_image']): ?>
-                                            <img src="<?php echo get_image_url($article['featured_image']); ?>"
+                                            <?php
+                                            if ($article['featured_image']):
+                                                // Normalizza il percorso dell'immagine se è solo un nome di file
+                                                $image_path = $article['featured_image'];
+                                                if (strpos($image_path, '/') === false) {
+                                                    $image_path = 'articles/' . $image_path;
+                                                }
+                                            ?>
+                                            <img src="<?php echo get_image_url($image_path); ?>"
                                                  alt="<?php echo htmlspecialchars($article['title']); ?>"
                                                  class="w-full h-full object-cover">
                                             <?php else: ?>
