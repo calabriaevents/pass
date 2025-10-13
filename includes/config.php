@@ -23,6 +23,9 @@ define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
 define('ADMIN_PASSWORD_HASH', '$2y$10$example'); // Cambiare con hash reale
 define('SESSION_LIFETIME', 3600); // 1 ora
 
+// Includi helper functions
+require_once __DIR__ . '/helpers.php';
+
 // Timezone
 date_default_timezone_set('Europe/Rome');
 
