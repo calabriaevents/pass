@@ -3,6 +3,28 @@ require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 require_once 'includes/image_processor.php';
 
+// Aggiungi una funzione helper per la gestione centralizzata degli URL delle immagini.
+// Puoi spostarla in un file 'helpers.php' se preferisci.
+if (!function_exists('get_image_url')) {
+    function get_image_url($path, $default_image = 'assets/images/default-placeholder.jpg') {
+        if (empty($path)) {
+            return $default_image;
+        }
+        // Se è già un URL completo, restituiscilo.
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return htmlspecialchars($path);
+        }
+        // Pulisci il percorso per retrocompatibilità.
+        $clean_path = $path;
+        if (strpos($clean_path, 'uploads_protected/') === 0) {
+            $clean_path = substr($clean_path, strlen('uploads_protected/'));
+        } elseif (strpos($clean_path, 'uploads/') === 0) {
+            $clean_path = substr($clean_path, strlen('uploads/'));
+        }
+        return 'image-loader.php?path=' . urlencode($clean_path);
+    }
+}
+
 $db = new Database();
 $imageProcessor = new ImageProcessor();
 
@@ -104,6 +126,7 @@ $heroImage = $city['hero_image'] ?: 'assets/images/default-city-hero.jpg';
 if (empty($city['hero_image']) && !empty($articles)) {
     $heroImage = $articles[0]['featured_image'] ?? $heroImage;
 }
+$heroImageUrl = get_image_url($heroImage); // <-- UTILIZZO DELL'HELPER
 
 // Carica foto utenti approvate per la città
 $userPhotos = $db->getApprovedCityPhotos($cityId);
@@ -202,7 +225,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo (strpos($heroImage, 'uploads_protected/') === 0) ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
+            <img src="<?php echo $heroImageUrl; ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
@@ -303,15 +326,9 @@ foreach ($settings as $setting) {
 
     <?php if (!empty($allGalleryImages)): ?>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-        <?php foreach ($allGalleryImages as $index => $photo):
-            $clean_path = $photo['image_path'] ?? '';
-            // GESTIONE BACKWARD-COMPATIBILITY PER VECCHI PERCORSI
-            if (strpos($clean_path, 'uploads/') === 0) {
-                $clean_path = substr($clean_path, strlen('uploads/'));
-            }
-        ?>
+        <?php foreach ($allGalleryImages as $index => $photo): ?>
         <div class="<?php echo ($index === 0) ? 'col-span-2 row-span-2' : ''; ?> group relative overflow-hidden rounded-2xl aspect-square">
-            <img src="image-loader.php?path=<?php echo urlencode($clean_path); ?>"
+            <img src="<?php echo get_image_url($photo['image_path']); ?>"
                  alt="<?php echo htmlspecialchars($photo['description'] ?: $city['name']); ?>"
                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300"></div>
@@ -368,7 +385,7 @@ foreach ($settings as $setting) {
                                             <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="block">
                                                 <div class="aspect-[16/9] bg-slate-200 overflow-hidden">
                                                     <?php if ($article['featured_image']): ?>
-                                                    <img src="image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $article['featured_image'] ?? '')); ?>"
+                                                    <img src="<?php echo get_image_url($article['featured_image']); ?>"
                                                          alt="<?php echo htmlspecialchars($article['title']); ?>" 
                                                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                                     <?php else: ?>

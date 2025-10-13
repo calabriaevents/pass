@@ -1,42 +1,63 @@
 <?php
-// Percorso canonico e corretto per le immagini protette.
-$base_dir = __DIR__ . '/uploads_protected/';
+// Percorso alla directory protetta dove risiedono le immagini caricate.
+// Modifica questo percorso se la tua struttura di cartelle è diversa.
+define('PROTECTED_UPLOADS_PATH', __DIR__ . '/uploads_protected/');
 
-$image_path = $_GET['path'] ?? '';
+// Immagine segnaposto da mostrare se quella richiesta non viene trovata.
+define('PLACEHOLDER_IMAGE_PATH', __DIR__ . '/assets/images/placeholder.jpg');
 
-// Sicurezza: pulizia aggressiva per prevenire attacchi "Directory Traversal".
-$image_path = preg_replace('/[^a-zA-Z0-9\/._-]/', '', $image_path);
-if (strpos($image_path, '..') !== false) {
-    http_response_code(400); // Bad Request
-    exit("Percorso non valido.");
-}
-
-$full_path = $base_dir . $image_path;
-
-// Usa realpath() per risolvere simboli come '.' e '..' e ottenere il percorso canonico
-$safe_path = realpath($full_path);
-$safe_base_dir = realpath($base_dir);
-
-// Controlla che il file esista e che il suo percorso inizi con il percorso della cartella base.
-// Questa è la protezione di sicurezza più importante.
-if ($safe_path === false || strpos($safe_path, $safe_base_dir) !== 0) {
-    http_response_code(404); // Not Found
+// Funzione per terminare in modo sicuro e mostrare un'immagine segnaposto o un errore.
+function serve_placeholder_or_exit($status = 404) {
+    http_response_code($status);
+    if (file_exists(PLACEHOLDER_IMAGE_PATH)) {
+        $placeholder_info = getimagesize(PLACEHOLDER_IMAGE_PATH);
+        header('Content-Type: ' . $placeholder_info['mime']);
+        readfile(PLACEHOLDER_IMAGE_PATH);
+    }
     exit;
 }
 
-// Determina il tipo di file in modo sicuro e servi l'immagine
-$finfo = new finfo(FILEINFO_MIME_TYPE);
-$mime_type = $finfo->file($safe_path);
-
-$allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-if (in_array($mime_type, $allowed_mime_types)) {
-    header('Content-Type: ' . $mime_type);
-    header('Content-Length: ' . filesize($safe_path));
-    header('Cache-Control: public, max-age=31536000'); // Cache per 1 anno
-    header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
-    readfile($safe_path);
-    exit;
-} else {
-    http_response_code(403); // Forbidden
-    exit("Tipo di file non consentito.");
+// 1. Validazione del parametro 'path'
+if (!isset($_GET['path']) || empty(trim($_GET['path']))) {
+    // Se il parametro 'path' è mancante o vuoto, termina.
+    serve_placeholder_or_exit(400); // Bad Request
 }
+
+$requested_path = trim($_GET['path']);
+
+// 2. Prevenzione di attacchi "Directory Traversal"
+// Assicurati che il percorso non contenga '..' per evitare di risalire le cartelle.
+if (strpos($requested_path, '..') !== false) {
+    // Tentativo di accesso non autorizzato.
+    serve_placeholder_or_exit(403); // Forbidden
+}
+
+// 3. Costruzione del percorso completo e sicuro del file
+$file_path = PROTECTED_UPLOADS_PATH . ltrim($requested_path, '/');
+
+// 4. Normalizzazione del percorso per risolvere eventuali ambiguità (es. / o \).
+$real_file_path = realpath($file_path);
+
+// 5. Verifica di sicurezza finale
+// Controlla che il percorso reale esista, sia un file e si trovi all'interno della cartella protetta.
+if (!$real_file_path || !is_file($real_file_path) || strpos($real_file_path, PROTECTED_UPLOADS_PATH) !== 0) {
+    // File non trovato o tentativo di accesso a file esterni alla cartella uploads.
+    serve_placeholder_or_exit(404); // Not Found
+}
+
+// 6. Servizio dell'immagine
+// Ottieni il tipo MIME del file per inviare l'header corretto al browser.
+$mime_type = mime_content_type($real_file_path);
+if ($mime_type === false) {
+    // Impossibile determinare il tipo di file.
+    serve_placeholder_or_exit(500); // Internal Server Error
+}
+
+header('Content-Type: ' . $mime_type);
+header('Content-Length: ' . filesize($real_file_path));
+header('Cache-Control: max-age=31536000, public'); // Aggiungi cache per migliorare le performance
+header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+
+// Leggi il file e invialo al browser.
+readfile($real_file_path);
+exit;
