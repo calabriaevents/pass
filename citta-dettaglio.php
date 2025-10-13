@@ -105,16 +105,6 @@ if (empty($city['hero_image']) && !empty($articles)) {
     $heroImage = $articles[0]['featured_image'] ?? $heroImage;
 }
 
-// Logica definitiva per l'immagine hero
-$heroImageSrc = '';
-if ($heroImage === 'assets/images/default-city-hero.jpg') {
-    $heroImageSrc = htmlspecialchars($heroImage);
-} else {
-    // Rimuove il prefisso solo se esiste, gestendo entrambi i casi (da `cities` e da `articles`)
-    $cleanPath = str_replace('uploads_protected/', '', $heroImage);
-    $heroImageSrc = 'image-loader.php?path=' . urlencode($cleanPath);
-}
-
 // Carica foto utenti approvate per la città
 $userPhotos = $db->getApprovedCityPhotos($cityId);
 
@@ -212,7 +202,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo $heroImageSrc; ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
+            <img src="<?php echo (strpos($heroImage, 'uploads_protected/') === 0) ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>
