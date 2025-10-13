@@ -100,18 +100,9 @@ foreach ($articles as $article) {
 }
 
 // Determina l'immagine hero per la città
-$heroImagePath = $city['hero_image'] ?? null;
-if (empty($heroImagePath) && !empty($articles) && !empty($articles[0]['featured_image'])) {
-    $heroImagePath = $articles[0]['featured_image'];
-}
-
-// Prepara il src per il tag <img>
-if (!empty($heroImagePath)) {
-    // È un'immagine dinamica, usa il loader
-    $heroImageSrc = 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImagePath));
-} else {
-    // È l'immagine di default
-    $heroImageSrc = 'assets/images/default-city-hero.jpg';
+$heroImage = $city['hero_image'] ?: 'assets/images/default-city-hero.jpg';
+if (empty($city['hero_image']) && !empty($articles)) {
+    $heroImage = $articles[0]['featured_image'] ?? $heroImage;
 }
 
 // Carica foto utenti approvate per la città
@@ -211,7 +202,7 @@ foreach ($settings as $setting) {
     <section class="relative h-[70vh] overflow-hidden">
         <!-- Immagine Background -->
         <div class="absolute inset-0">
-            <img src="<?php echo htmlspecialchars($heroImageSrc); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
+            <img src="<?php echo (strpos($heroImage, 'uploads_protected/') === 0) ? 'image-loader.php?path=' . urlencode(str_replace('uploads_protected/', '', $heroImage)) : htmlspecialchars($heroImage); ?>" alt="<?php echo htmlspecialchars($city['name']); ?>"
                  class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         </div>

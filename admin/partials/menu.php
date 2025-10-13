@@ -22,7 +22,6 @@ $menuItems = [
     ['file' => 'utenti.php', 'icon' => 'users', 'label' => 'Utenti'],
     ['file' => 'database.php', 'icon' => 'database', 'label' => 'Monitoraggio DB'],
     ['file' => 'manutenzione.php', 'icon' => 'wrench', 'label' => 'Modalità Manutenzione'],
-    ['file' => 'pagine-statiche.php', 'icon' => 'file-cog', 'label' => 'Pagine Statiche'],
     ['file' => 'impostazioni.php', 'icon' => 'settings', 'label' => 'Impostazioni'],
 ];
 
