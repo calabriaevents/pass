@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 
@@ -34,7 +35,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include 'includes/header.php'; ?>
 
     <main class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">Contatti</h1>
+        <?php
+        $content_path = 'partials/static_content/contatti.html';
+        if (file_exists($content_path)) {
+            include $content_path;
+        }
+        ?>
         <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
             <?php if ($form_submitted): ?>
                 <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4" role="alert">
@@ -42,7 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p>Il tuo messaggio è stato inviato con successo. Ti risponderemo al più presto.</p>
                 </div>
             <?php else: ?>
-                <p class="text-gray-600 mb-6">Hai domande, suggerimenti o vuoi semplicemente salutarci? Utilizza il modulo sottostante per metterti in contatto con noi.</p>
                 <?php if ($form_error): ?>
                     <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
                         <p>Per favore, compila tutti i campi correttamente.</p>

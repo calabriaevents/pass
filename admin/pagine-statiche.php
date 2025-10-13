@@ -1,135 +1,156 @@
 <?php
 require_once '../includes/config.php';
 require_once 'auth_check.php';
-require_once '../includes/database_mysql.php';
-
-$db = new Database();
 
 // Definisci le pagine statiche che possono essere modificate
 $staticPages = [
     'chi-siamo.php' => [
         'label' => 'Chi Siamo',
-        'description' => 'Modifica il contenuto della pagina "Chi Siamo".'
+        'description' => 'Modifica il contenuto della pagina "Chi Siamo".',
+        'content_file' => 'chi-siamo.html'
     ],
     'contatti.php' => [
         'label' => 'Contatti',
-        'description' => 'Modifica le informazioni di contatto e la mappa.'
+        'description' => 'Modifica il testo introduttivo della pagina contatti.',
+        'content_file' => 'contatti.html'
     ],
     'privacy-policy.php' => [
         'label' => 'Privacy Policy',
-        'description' => 'Aggiorna il testo della Privacy Policy.'
+        'description' => 'Aggiorna il testo della Privacy Policy.',
+        'content_file' => 'privacy-policy.html'
     ],
     'termini-servizio.php' => [
         'label' => 'Termini di Servizio',
-        'description' => 'Aggiorna i termini e le condizioni del servizio.'
+        'description' => 'Aggiorna i termini e le condizioni del servizio.',
+        'content_file' => 'termini-servizio.html'
     ],
 ];
 
 $success_message = '';
 $error_message = '';
-$selected_page = $_GET['page'] ?? null;
+$selected_page_key = $_GET['page'] ?? null;
 $content = '';
+$content_dir = dirname(__DIR__) . '/partials/static_content/';
 
-// Se una pagina è stata selezionata, leggi il suo contenuto
-if ($selected_page && isset($staticPages[$selected_page])) {
-    $filePath = dirname(__DIR__) . '/' . $selected_page;
-    if (file_exists($filePath)) {
-        $content = file_get_contents($filePath);
+// Se una pagina è stata selezionata, leggi il suo contenuto dal file .html
+if ($selected_page_key && isset($staticPages[$selected_page_key])) {
+    $content_file_path = $content_dir . $staticPages[$selected_page_key]['content_file'];
+    if (file_exists($content_file_path)) {
+        $content = file_get_contents($content_file_path);
     } else {
-        $error_message = "File non trovato: {$selected_page}";
+        $error_message = "File di contenuto non trovato: " . htmlspecialchars($staticPages[$selected_page_key]['content_file']);
     }
 }
 
 // Gestione del salvataggio
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['content']) && isset($_POST['page_filename'])) {
-    $page_filename = $_POST['page_filename'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['content']) && isset($_POST['page_key'])) {
+    $page_key = $_POST['page_key'];
     $new_content = $_POST['content'];
 
-    if (isset($staticPages[$page_filename])) {
-        $filePath = dirname(__DIR__) . '/' . $page_filename;
-        if (file_put_contents($filePath, $new_content) !== false) {
-            $success_message = "Pagina '{$staticPages[$page_filename]['label']}' aggiornata con successo!";
+    if (isset($staticPages[$page_key])) {
+        $content_file_path = $content_dir . $staticPages[$page_key]['content_file'];
+        if (file_put_contents($content_file_path, $new_content) !== false) {
+            $success_message = "Contenuto per '{$staticPages[$page_key]['label']}' aggiornato con successo!";
             // Ricarica il contenuto per visualizzarlo aggiornato nell'editor
             $content = $new_content;
-            $selected_page = $page_filename;
+            $selected_page_key = $page_key;
         } else {
-            $error_message = "Errore durante il salvataggio del file.";
+            $error_message = "Errore durante il salvataggio del file di contenuto.";
         }
     } else {
         $error_message = "Pagina non valida.";
     }
 }
 
+$page_title = 'Gestione Pagine Statiche';
 include 'partials/header.php';
 ?>
 
-<div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Gestione Pagine Statiche</h1>
-    </div>
-
-    <?php if ($success_message): ?>
-    <div class="alert alert-success"><?php echo $success_message; ?></div>
-    <?php endif; ?>
-    <?php if ($error_message): ?>
-    <div class="alert alert-danger"><?php echo $error_message; ?></div>
-    <?php endif; ?>
-
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Seleziona una Pagina</h6>
-                </div>
-                <div class="card-body">
-                    <p>Seleziona una pagina dall'elenco per modificarne il contenuto.</p>
-                    <ul class="list-group">
-                        <?php foreach ($staticPages as $filename => $details): ?>
-                            <a href="?page=<?php echo $filename; ?>" class="list-group-item list-group-item-action <?php echo ($selected_page === $filename) ? 'active' : ''; ?>">
-                                <?php echo htmlspecialchars($details['label']); ?>
-                                <small class="d-block text-muted"><?php echo htmlspecialchars($details['description']); ?></small>
-                            </a>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            </div>
+<main class="flex-1 p-8 overflow-y-auto">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Gestione Pagine Statiche</h1>
+            <p class="text-gray-600 mt-1">Modifica il contenuto testuale delle pagine principali del sito.</p>
         </div>
 
-        <div class="col-md-8">
-            <?php if ($selected_page && isset($staticPages[$selected_page])): ?>
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Modifica Contenuto: <?php echo htmlspecialchars($staticPages[$selected_page]['label']); ?></h6>
-                </div>
-                <div class="card-body">
-                    <form method="POST">
-                        <input type="hidden" name="page_filename" value="<?php echo $selected_page; ?>">
-                        <div class="form-group">
-                            <textarea name="content" id="editor"><?php echo htmlspecialchars($content); ?></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Salva Modifiche</button>
-                    </form>
+        <?php if ($success_message): ?>
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md" role="alert">
+            <p><?php echo $success_message; ?></p>
+        </div>
+        <?php endif; ?>
+        <?php if ($error_message): ?>
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md" role="alert">
+            <p><?php echo $error_message; ?></p>
+        </div>
+        <?php endif; ?>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Colonna di selezione -->
+            <div class="md:col-span-1">
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="p-6 border-b">
+                        <h2 class="text-lg font-semibold text-gray-800">Seleziona una Pagina</h2>
+                    </div>
+                    <div class="p-4">
+                        <nav class="space-y-1">
+                            <?php foreach ($staticPages as $key => $details): ?>
+                                <a href="?page=<?php echo $key; ?>"
+                                   class="block px-4 py-3 rounded-md transition-colors <?php echo ($selected_page_key === $key) ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'; ?>">
+                                    <span class="block text-md"><?php echo htmlspecialchars($details['label']); ?></span>
+                                    <small class="block text-sm text-gray-500"><?php echo htmlspecialchars($details['description']); ?></small>
+                                </a>
+                            <?php endforeach; ?>
+                        </nav>
+                    </div>
                 </div>
             </div>
-            <?php else: ?>
-            <div class="card shadow mb-4">
-                <div class="card-body">
-                    <p class="text-center">Seleziona una pagina dalla lista a sinistra per iniziare a modificare.</p>
+
+            <!-- Colonna di modifica -->
+            <div class="md:col-span-2">
+                <?php if ($selected_page_key && isset($staticPages[$selected_page_key])): ?>
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="p-6 border-b">
+                        <h2 class="text-lg font-semibold text-gray-800">Modifica: <?php echo htmlspecialchars($staticPages[$selected_page_key]['label']); ?></h2>
+                    </div>
+                    <div class="p-6">
+                        <form method="POST">
+                            <input type="hidden" name="page_key" value="<?php echo $selected_page_key; ?>">
+                            <div class="mb-6">
+                                <label for="editor" class="block text-sm font-medium text-gray-700 mb-2">Contenuto</label>
+                                <textarea name="content" id="editor" class="w-full h-96 border border-gray-300 rounded-md"><?php echo htmlspecialchars($content); ?></textarea>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                    Salva Modifiche
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
+                <?php else: ?>
+                <div class="bg-white rounded-lg shadow-md p-12 flex flex-col items-center justify-center h-full">
+                    <i data-lucide="mouse-pointer-click" class="w-16 h-16 text-gray-400 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-700">Nessuna pagina selezionata</h3>
+                    <p class="text-gray-500 mt-2">Seleziona una pagina dalla lista a sinistra per iniziare.</p>
+                </div>
+                <?php endif; ?>
             </div>
-            <?php endif; ?>
         </div>
     </div>
-</div>
+</main>
 
 <!-- CKEditor 5 -->
 <script src="https://cdn.ckeditor.com/ckeditor5/35.4.0/classic/ckeditor.js"></script>
 <script>
-    ClassicEditor
-        .create(document.querySelector('#editor'))
-        .catch(error => {
-            console.error(error);
-        });
+    const editorElement = document.querySelector('#editor');
+    if (editorElement) {
+        ClassicEditor
+            .create(editorElement)
+            .catch(error => {
+                console.error('Errore durante l\'inizializzazione di CKEditor:', error);
+            });
+    }
+    lucide.createIcons();
 </script>
 
 <?php include 'partials/footer.php'; ?>
