@@ -46,10 +46,9 @@ require_once __DIR__ . '/maintenance_check.php';
                 <div class="hidden lg:flex items-center justify-center flex-1">
                     <div class="flex items-center space-x-8">
                         <a href="index.php" class="hover:text-yellow-300 transition-colors font-medium">Home</a>
-                        <a href="categorie.php" class="hover:text-yellow-300 transition-colors font-medium">Categorie</a>
-                        <a href="province.php" class="hover:text-yellow-300 transition-colors font-medium">Province</a>
                         <a href="citta.php" class="hover:text-yellow-300 transition-colors font-medium">Città</a>
                         <a href="mappa.php" class="hover:text-yellow-300 transition-colors font-medium">Mappa</a>
+                        <a href="contatti.php" class="hover:text-yellow-300 transition-colors font-medium">Contatti</a>
                         <a href="iscrizione-attivita.php" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-full transition-colors font-medium">Iscrivi la tua attività</a>
                     </div>
                 </div>
