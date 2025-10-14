@@ -325,7 +325,18 @@ public function updateArticle($id, $title, $slug, $content, $excerpt, $category_
 
     public function getArticlesByProvince($provinceId, $limit = null) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author, a.featured_image, a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id WHERE a.province_id = ? AND a.status = ? ORDER BY a.created_at DESC';
+        $sql = 'SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.category_id, a.province_id, a.city_id, a.status, a.author,
+                       CASE
+                           WHEN a.featured_image IS NULL OR a.featured_image = \'\' THEN NULL
+                           WHEN a.featured_image LIKE \'%/%\' THEN a.featured_image
+                           ELSE CONCAT(\'articles/\', a.featured_image)
+                       END as featured_image,
+                       a.gallery_images, a.created_at, a.updated_at, a.views, a.featured, c.name as category_name, p.name as province_name
+                FROM articles a
+                LEFT JOIN categories c ON a.category_id = c.id
+                LEFT JOIN provinces p ON a.province_id = p.id
+                WHERE a.province_id = ? AND a.status = ?
+                ORDER BY a.created_at DESC';
         if ($limit) {
             $sql .= ' LIMIT ' . (int)$limit;
         }
