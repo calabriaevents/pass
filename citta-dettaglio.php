@@ -157,11 +157,18 @@ foreach ($userPhotos as $photo) {
 // Carica commenti approvati per la città
 $cityComments = $db->getApprovedCommentsByCityId($cityId);
 
-// Costruisci il link di Google Maps
-$googleMapsLink = $city['google_maps_link'] ?: '';
-if (empty($googleMapsLink) && $city['latitude'] && $city['longitude']) {
-    $googleMapsLink = 'https://www.google.com/maps/dir/?api=1&destination=' . $city['latitude'] . ',' . $city['longitude'];
+// Costruisci il link di Google Maps e gestisci l'iframe
+$iframeCode = $city['Maps_link'] ?: '';
+$googleMapsLink = '';
+
+// Estrai l'URL di navigazione dall'attributo 'src' dell'iframe
+if (preg_match('/src="([^"]+)"/', $iframeCode, $matches)) {
+    // Trovato l'URL src, lo usiamo per il pulsante "Ottieni Indicazioni"
+    $googleMapsLink = $matches[1];
 }
+
+// Rimuovi la generazione automatica dalle vecchie coordinate. Non serve più
+// if (empty($googleMapsLink) && $city['latitude'] && $city['longitude']) { ... }
 
 // Carica impostazioni per la sezione App
 $settings = $db->getSettings();
@@ -531,23 +538,33 @@ foreach ($settings as $setting) {
 
                 <!-- Sidebar -->
                 <aside class="lg:col-span-1 space-y-8">
-                    <!-- Mappa -->
-                    <?php if ($googleMapsLink): ?>
-                    <div class="bg-white rounded-3xl shadow-lg p-8">
-                        <h3 class="text-2xl font-semibold text-slate-900 mb-6 flex items-center">
-                            <i data-lucide="map" class="w-6 h-6 mr-3"></i>
-                            Come arrivare
-                        </h3>
-                        
-                        <div id="sidebar-map" class="w-full h-64 bg-slate-200 rounded-2xl overflow-hidden mb-6"></div>
-                        
-                        <a href="<?php echo htmlspecialchars($googleMapsLink); ?>" target="_blank" 
-                           class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center transition-colors">
-                            <i data-lucide="navigation" class="w-5 h-5 mr-2"></i>
-                            Ottieni Indicazioni
-                        </a>
-                    </div>
-                    <?php endif; ?>
+<?php if (!empty($iframeCode)): ?>
+<div class="bg-white rounded-3xl shadow-lg p-8">
+    <h3 class="text-2xl font-semibold text-slate-900 mb-6 flex items-center">
+        <i data-lucide="map" class="w-6 h-6 mr-3"></i>
+        Come arrivare
+    </h3>
+
+    <div id="sidebar-map-iframe" class="w-full h-64 bg-slate-200 rounded-2xl overflow-hidden mb-6">
+        <?php
+        // Modifica l'iframe per adattarlo alla larghezza e altezza del div contenitore
+        $styledIframe = str_replace('<iframe', '<iframe class="w-full h-full" ', $iframeCode);
+        $styledIframe = preg_replace('/width="[0-9%]*"/i', 'width="100%"', $styledIframe);
+        $styledIframe = preg_replace('/height="[0-9%]*"/i', 'height="100%"', $styledIframe);
+
+        echo $styledIframe;
+        ?>
+    </div>
+
+    <?php if (!empty($googleMapsLink)): ?>
+    <a href="<?php echo htmlspecialchars($googleMapsLink); ?>" target="_blank"
+       class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center transition-colors">
+        <i data-lucide="navigation" class="w-5 h-5 mr-2"></i>
+        Ottieni Indicazioni
+    </a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
                     <!-- Info Utili -->
                     <div class="bg-white rounded-3xl shadow-lg p-8">
@@ -660,23 +677,9 @@ foreach ($settings as $setting) {
 
     <?php include 'includes/footer.php'; ?>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="assets/js/main.js"></script>
     <script>
         lucide.createIcons();
-
-        // Inizializza mappa sidebar
-        <?php if ($city['latitude'] && $city['longitude']): ?>
-        document.addEventListener('DOMContentLoaded', function() {
-            const map = L.map('sidebar-map').setView([<?php echo $city['latitude']; ?>, <?php echo $city['longitude']; ?>], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-            L.marker([<?php echo $city['latitude']; ?>, <?php echo $city['longitude']; ?>]).addTo(map)
-                .bindPopup('<?php echo htmlspecialchars($city['name']); ?>')
-                .openPopup();
-        });
-        <?php endif; ?>
 
         // Gestione rating stelle
         document.addEventListener('DOMContentLoaded', function() {

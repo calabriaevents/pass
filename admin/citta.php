@@ -17,9 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_gallery_image
     $name = $_POST['city_name'] ?? '';
     $province_id = $_POST['city_province_id'] ?? '';
     $description = $_POST['city_description'] ?? '';
-    $latitude = !empty($_POST['city_latitude']) ? (float)$_POST['city_latitude'] : null;
-    $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
-    $google_maps_link = $_POST['city_Maps_link'] ?? '';
+
+    // NUOVA GESTIONE MAPPA IFRAME
+    $latitude = null; // Forza a NULL per disabilitare la vecchia mappa Leaflet
+    $longitude = null; // Forza a NULL
+    $google_maps_link = $_POST['google_maps_iframe'] ?? ''; // Salva l'iframe completo nel campo esistente 'google_maps_link'
 
     $hero_image_path = null;
     $gallery_images_json = null;
@@ -489,51 +491,22 @@ if (isset($_GET['success'])) {
                                     </div>
                                 </div>
 
-                                <!-- Sezione Mappa -->
-                                <div class="bg-green-50 rounded-2xl p-6">
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                        <i data-lucide="map" class="w-5 h-5 mr-2"></i>
-                                        Posizione e Mappa
-                                    </h3>
-                                    
-                                    <div class="mb-6">
-                                        <label for="city_Maps_link" class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Link Google Maps Personalizzato
-                                        </label>
-                                        <input type="url" name="city_Maps_link" id="city_Maps_link"
-                                               value="<?php echo htmlspecialchars($cityData['Maps_link'] ?? ''); ?>"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
-                                               placeholder="https://maps.google.com/...">
-                                        <p class="text-sm text-gray-500 mt-1">Link personalizzato per Google Maps. Se vuoto, verrà generato automaticamente dalle coordinate.</p>
-                                    </div>
-                                    
-                                    <div>
-                                        <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                                            <i data-lucide="compass" class="w-4 h-4 mr-2"></i>
-                                            Coordinate GPS
-                                        </h4>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label for="city_latitude" class="block text-sm font-medium text-gray-600 mb-1">
-                                                    Latitudine
-                                                </label>
-                                                <input type="number" name="city_latitude" id="city_latitude" step="any" 
-                                                       value="<?php echo $cityData['latitude'] ?? ''; ?>"
-                                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors" 
-                                                       placeholder="39.0847">
-                                            </div>
-                                            <div>
-                                                <label for="city_longitude" class="block text-sm font-medium text-gray-600 mb-1">
-                                                    Longitudine
-                                                </label>
-                                                <input type="number" name="city_longitude" id="city_longitude" step="any" 
-                                                       value="<?php echo $cityData['longitude'] ?? ''; ?>"
-                                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors" 
-                                                       placeholder="17.1252">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+<div class="bg-green-50 rounded-2xl p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <i data-lucide="map" class="w-5 h-5 mr-2"></i>
+        Mappa Google Maps (Iframe)
+    </h3>
+
+    <div class="mb-6">
+        <label for="google_maps_iframe" class="block text-sm font-semibold text-gray-700 mb-2">
+            Codice Iframe Google Maps *
+        </label>
+        <textarea name="google_maps_iframe" id="google_maps_iframe" rows="6" required
+               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+               placeholder="Copia e incolla qui l'intero codice iframe che trovi su Google Maps (Condividi > Incorpora Mappa)..."><?php echo htmlspecialchars($cityData['google_maps_link'] ?? ''); ?></textarea>
+        <p class="text-sm text-gray-500 mt-1">L'iframe verrà utilizzato per la visualizzazione della mappa e per generare il link "Ottieni Indicazioni".</p>
+    </div>
+</div>
                                 
                                 <!-- Info Box -->
                                 <div class="bg-blue-50 border border-blue-200 rounded-2xl p-6">
