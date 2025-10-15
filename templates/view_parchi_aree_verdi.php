@@ -438,7 +438,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?php if (!empty($article['google_maps_iframe'])): ?>
                     <div class="mt-6">
                         <h3 class="text-lg font-semibold text-gray-800 mb-2">Mappa</h3>
-                        <?php echo $article['google_maps_iframe']; ?>
+                        <div class="h-64 w-full overflow-hidden rounded-lg shadow-md">
+                            <?php echo $article['google_maps_iframe']; ?>
+                        </div>
                     </div>
                     <?php elseif ($maps_link): ?>
                     <div class="mt-6">
