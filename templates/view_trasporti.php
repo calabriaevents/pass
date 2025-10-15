@@ -195,15 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </section>
                 <?php endif; ?>
 
-                <?php if (!empty($article['google_maps_iframe'])): ?>
-                <section>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Mappa</h2>
-                    <div class="w-full">
-                        <?php echo $article['google_maps_iframe']; ?>
-                    </div>
-                </section>
-                <?php endif; ?>
-
                 <!-- Gallery -->
                 <?php if (!empty($gallery_images)): ?>
                 <section>
@@ -446,6 +437,13 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
                 <!-- Include User Experiences Section -->
+                <?php if (!empty($article['google_maps_iframe'])): ?>
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Mappa</h3>
+                    <?php echo $article['google_maps_iframe']; ?>
+                </div>
+                <?php endif; ?>
+
                 <?php
                 $article_id = $article['id'];
                 $province_id = $article['province_id'] ?? null;

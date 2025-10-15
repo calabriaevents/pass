@@ -173,15 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </section>
                 <?php endif; ?>
 
-                <?php if (!empty($article['google_maps_iframe'])): ?>
-                <section>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Mappa</h2>
-                    <div class="w-full">
-                        <?php echo $article['google_maps_iframe']; ?>
-                    </div>
-                </section>
-                <?php endif; ?>
-
                 <!-- Gallery -->
                 <?php if (!empty($gallery_images)): ?>
                 <section>
@@ -402,7 +393,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-                    <?php if($maps_link): ?>
+                    <?php if (!empty($article['google_maps_iframe'])): ?>
+                    <div class="mt-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Mappa</h3>
+                        <?php echo $article['google_maps_iframe']; ?>
+                    </div>
+                    <?php elseif ($maps_link): ?>
                     <div class="mt-6">
                          <a href="<?php echo $maps_link; ?>" target="_blank" class="w-full bg-blue-600 text-white flex items-center justify-center px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">
                             <i data-lucide="map" class="w-5 h-5 mr-2"></i>
