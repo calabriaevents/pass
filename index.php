@@ -614,23 +614,28 @@ foreach ($homeSections as $section) {
                         var marker = L.marker([parseFloat(article.latitude), parseFloat(article.longitude)]).addTo(homepageMap);
                         var popupContent = '<div class="p-3 min-w-64">' +
                             '<div class="flex items-start space-x-3">' +
-                            (article.featured_image ? 
-                                '<img src="' + article.featured_image + '" alt="' + article.title + '" class="w-16 h-12 object-cover rounded">' : 
-                                '<div class="w-16 h-12 bg-gray-200 rounded flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></div>'
-                            ) +
-                            '<div class="flex-1">' +
-                                '<h4 class="font-bold text-gray-900 text-sm mb-1">' + article.title + '</h4>' +
-                                (article.excerpt ? '<p class="text-gray-600 text-xs mb-2 line-clamp-2">' + article.excerpt.substring(0, 80) + '...</p>' : '') +
-                                '<div class="flex items-center justify-between">' +
-                                    '<div class="flex items-center text-xs text-gray-500">' +
-                                        (article.category_icon ? '<span class="mr-1">' + article.category_icon + '</span>' : '') +
-                                        '<span>' + (article.category_name || 'Articolo') + '</span>' +
+                                (article.logo ?
+                                    '<img src="image-loader.php?path=' + article.logo.replace('uploads_protected/', '') + '" alt="' + article.title + '" class="w-16 h-12 object-contain rounded">' :
+                                    '<div class="w-16 h-12 bg-gray-200 rounded flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></div>'
+                                ) +
+                                '<div class="flex-1">' +
+                                    '<h4 class="font-bold text-gray-900 text-sm mb-1">' + article.title + '</h4>' +
+                                    (article.excerpt ? '<p class="text-gray-600 text-xs mb-2 line-clamp-2">' + article.excerpt.substring(0, 80) + '...</p>' : '') +
+                                    '<div class="flex items-center justify-between">' +
+                                        '<div class="flex items-center text-xs text-gray-500">' +
+                                            (article.category_icon ? '<span class="mr-1">' + article.category_icon + '</span>' : '') +
+                                            '<span>' + (article.category_name || 'Articolo') + '</span>' +
+                                        '</div>' +
+                                        '<a href="articolo.php?slug=' + article.slug + '" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Leggi</a>' +
                                     '</div>' +
-                                    '<a href="articolo.php?slug=' + article.slug + '" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Leggi</a>' +
                                 '</div>' +
-                            '</div>' +
-                            '</div>' +
-                        '</div>';
+                            '</div>';
+
+                        if (article.google_maps_iframe) {
+                            popupContent += '<div class="mt-2">' + article.google_maps_iframe + '</div>';
+                        }
+
+                        popupContent += '</div>';
                         marker.bindPopup(popupContent, {maxWidth: 300});
                     }
                 });

@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $slug = $_POST['slug'] ?? '';
     $content = $_POST['content'] ?? '';
     $excerpt = $_POST['excerpt'] ?? '';
+    $google_maps_iframe = $_POST['google_maps_iframe'] ?? '';
     $category_id = $_POST['category_id'] ?? null;
     $province_id = $_POST['province_id'] ?? null;
     $city_id = $_POST['city_id'] ?? null;
@@ -101,9 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  $decoded_json['menu_pdf_path'] = $existing_json['menu_pdf_path'];
                  $json_data = json_encode($decoded_json);
             }
-            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
+            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe);
         } else {
-            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data);
+            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe);
         }
 
         header('Location: articoli.php');

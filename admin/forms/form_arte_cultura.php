@@ -99,6 +99,11 @@ if (!is_array($json_data)) $json_data = [];
     </div>
 </div>
 
+<div class="mb-4">
+    <label for="google_maps_iframe" class="block text-gray-700 font-bold mb-2">Google Maps Iframe</label>
+    <textarea name="google_maps_iframe" id="google_maps_iframe" rows="4" class="w-full px-3 py-2 border rounded-lg"><?php echo htmlspecialchars($article['google_maps_iframe'] ?? ''); ?></textarea>
+</div>
+
 <?php include __DIR__ . '/partials/seo_section.php'; ?>
 
 <!-- Settings -->
