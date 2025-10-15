@@ -74,6 +74,15 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
                 </section>
                 <?php endif; ?>
 
+                <?php if (!empty($article['google_maps_iframe'])): ?>
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Mappa</h2>
+                    <div class="w-full">
+                        <?php echo $article['google_maps_iframe']; ?>
+                    </div>
+                </section>
+                <?php endif; ?>
+
                 <!-- Services -->
                 <?php if (!empty($all_services)): ?>
                 <section>
