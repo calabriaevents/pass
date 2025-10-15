@@ -282,20 +282,32 @@ class Database {
         return $result ? $result['count'] : 0;
     }
 
-public function createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author = 'Admin', $featured_image = null, $gallery_images = null, $hero_image = null, $logo = null, $json_data = null, $google_maps_iframe = null) {
-    if (!$this->isConnected()) { return false; }
-    $sql = "INSERT INTO articles (title, slug, content, excerpt, category_id, province_id, city_id, status, author, featured_image, gallery_images, hero_image, logo, json_data, google_maps_iframe, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
-    $stmt = $this->pdo->prepare($sql);
-    $stmt->execute([$title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe]);
-    return $this->pdo->lastInsertId();
+public function createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author = 'Admin', $featured_image = null, $gallery_images = null, $hero_image = null, $logo = null, $json_data = null, $google_maps_iframe = null, $latitude = null, $longitude = null) {
+
+if (!$this->isConnected()) { return false; }
+
+$sql = "INSERT INTO articles (title, slug, content, excerpt, category_id, province_id, city_id, status, author, featured_image, gallery_images, hero_image, logo, json_data, google_maps_iframe, latitude, longitude, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+
+$stmt = $this->pdo->prepare($sql);
+
+$stmt->execute([$title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe, $latitude, $longitude]);
+
+return $this->pdo->lastInsertId();
+
 }
 
-public function updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image = null, $gallery_images = null, $hero_image = null, $logo = null, $json_data = null, $google_maps_iframe = null) {
-    if (!$this->isConnected()) { return 0; }
-    $sql = "UPDATE articles SET title = ?, slug = ?, content = ?, excerpt = ?, category_id = ?, province_id = ?, city_id = ?, status = ?, featured_image = ?, gallery_images = ?, hero_image = ?, logo = ?, json_data = ?, google_maps_iframe = ?, updated_at = NOW() WHERE id = ?";
-    $stmt = $this->pdo->prepare($sql);
-    $stmt->execute([$title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe, $id]);
-    return $stmt->rowCount();
+public function updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image = null, $gallery_images = null, $hero_image = null, $logo = null, $json_data = null, $google_maps_iframe = null, $latitude = null, $longitude = null) {
+
+if (!$this->isConnected()) { return 0; }
+
+$sql = "UPDATE articles SET title = ?, slug = ?, content = ?, excerpt = ?, category_id = ?, province_id = ?, city_id = ?, status = ?, featured_image = ?, gallery_images = ?, hero_image = ?, logo = ?, json_data = ?, google_maps_iframe = ?, latitude = ?, longitude = ?, updated_at = NOW() WHERE id = ?";
+
+$stmt = $this->pdo->prepare($sql);
+
+$stmt->execute([$title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe, $latitude, $longitude, $id]);
+
+return $stmt->rowCount();
+
 }
 
     public function deleteArticle($id) {

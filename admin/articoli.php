@@ -18,6 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $content = $_POST['content'] ?? '';
     $excerpt = $_POST['excerpt'] ?? '';
     $google_maps_iframe = $_POST['google_maps_iframe'] ?? '';
+    $latitude = null;
+    $longitude = null;
+    if (preg_match('/src="([^"]+)"/', $google_maps_iframe, $matches_src)) {
+        $src_url = $matches_src[1];
+        if (preg_match('/(?:@|q=)([0-9.-]+)%2C\+?([0-9.-]+)/', $src_url, $matches_coords)) {
+            if (isset($matches_coords[1]) && isset($matches_coords[2])) {
+                $latitude = (float)$matches_coords[1];
+                $longitude = (float)$matches_coords[2];
+            }
+        }
+    }
     $category_id = $_POST['category_id'] ?? null;
     $province_id = $_POST['province_id'] ?? null;
     $city_id = $_POST['city_id'] ?? null;
@@ -102,9 +113,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  $decoded_json['menu_pdf_path'] = $existing_json['menu_pdf_path'];
                  $json_data = json_encode($decoded_json);
             }
-            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe);
+            if ($latitude === null && $existingArticle['latitude']) {
+                $latitude = $existingArticle['latitude'];
+            }
+            if ($longitude === null && $existingArticle['longitude']) {
+                $longitude = $existingArticle['longitude'];
+            }
+            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe, $latitude, $longitude);
         } else {
-            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe);
+            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe, $latitude, $longitude);
         }
 
         header('Location: articoli.php');
