@@ -602,4 +602,13 @@ body {
     }
 }
 
+/* Custom style to resize Google Maps iframe in the sidebar */
+.map-embed-container iframe {
+    /* Imposta la larghezza al 100% per adattarsi alla colonna */
+    width: 100% !important;
+    /* Imposta un'altezza fissa per allinearsi con gli altri elementi della sidebar */
+    height: 300px;
+    /* Assicura che qualsiasi stile in linea per l'altezza sia sovrascritto se necessario */
+    max-height: 300px;
+}
 

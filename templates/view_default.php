@@ -113,7 +113,7 @@ $gallery_images = json_decode($article['gallery_images'] ?? '[]', true);
                     </div>
 
                     <?php if (!empty($article['google_maps_iframe'])): ?>
-                    <div class="mt-6">
+                    <div class="mt-6 map-embed-container">
                         <h3 class="text-lg font-semibold text-gray-800 mb-2">Mappa</h3>
                         <?php echo $article['google_maps_iframe']; ?>
                     </div>
