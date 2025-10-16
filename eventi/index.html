@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calabria Events</title>
     <link rel="icon" type="image/png" href="immagini/logo.png">
+    <base href="/eventi/">
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="manifest.json">
     
@@ -347,7 +348,7 @@
         // --- CODICE PER PROGRESSIVE WEB APP (PWA) ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(registration => {
+                navigator.serviceWorker.register('sw.js').then(registration => {
                     console.log('ServiceWorker registration successful');
                 }, err => {
                     console.log('ServiceWorker registration failed: ', err);

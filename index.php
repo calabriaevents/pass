@@ -213,7 +213,7 @@ foreach ($homeSections as $section) {
                 <!-- Action Buttons -->
                 <div class="flex flex-col sm:flex-row justify-center gap-4">
                     <?php if (!empty($eventData['vai_app_link'])): ?>
-                    <a href="<?php echo htmlspecialchars($eventData['vai_app_link']); ?>" target="_blank" class="inline-flex items-center justify-center px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold transition-colors">
+                    <a href="/eventi/" onclick="handleNavigation('/eventi/'); return false;" class="inline-flex items-center justify-center px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold transition-colors">
                         <i data-lucide="smartphone" class="w-5 h-5 mr-2"></i>
                         <span>Vai all'App</span>
                     </a>
@@ -647,6 +647,17 @@ foreach ($homeSections as $section) {
                 }
             }
         });
+
+        /**
+         * Gestisce la navigazione forzata.
+         * In un ambiente Web-to-Native (webview), usare location.href = url
+         * di solito reindirizza correttamente all'interno dell'app.
+         */
+        function handleNavigation(url) {
+            // Se si è in un ambiente web standard, reindirizza normalmente.
+            // In una webview (W2N), questo metodo aiuta a mantenere la navigazione interna.
+            window.location.href = url;
+        }
     </script>
 </body>
 </html>

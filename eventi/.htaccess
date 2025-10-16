@@ -1,3 +1,6 @@
+RewriteEngine On
+RewriteBase /eventi/
+
 <IfModule mod_headers.c>
     # Forza la comunicazione solo in HTTPS
     Header set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
