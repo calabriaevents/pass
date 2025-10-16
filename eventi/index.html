@@ -437,7 +437,15 @@
 
                     const response = await fetch(url, options);
                     if (!response.ok) {
-                        const errorData = await response.json();
+                        const errorText = await response.text();
+                        let errorData = {};
+                        try {
+                            errorData = JSON.parse(errorText);
+                        } catch (e) {
+                            console.error("Failed to parse API error response as JSON:", errorText);
+                            throw new Error(`Errore HTTP ${response.status}: ${response.statusText}`);
+                        }
+
                         if (response.status === 403) {
                             alert("La tua sessione di amministrazione è scaduta. Effettua nuovamente il login.");
                             Admin.logout();
