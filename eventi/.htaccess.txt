@@ -1,0 +1,19 @@
+<IfModule mod_headers.c>
+    # Forza la comunicazione solo in HTTPS
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # Impedisce al sito di essere caricato in un iframe
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Impedisce al browser di interpretare i file in modo diverso dal tipo dichiarato
+    Header set X-Content-Type-Options "nosniff"
+
+    # Controlla da quali fonti possono essere caricate le risorse
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: https://placehold.co;"
+
+    # Controlla le informazioni inviate ad altri siti
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Blocca le API sensibili del browser
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
