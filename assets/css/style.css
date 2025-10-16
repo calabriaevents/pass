@@ -602,13 +602,29 @@ body {
     }
 }
 
-/* Custom style to resize Google Maps iframe in the sidebar */
+/* Stile aggiornato e più specifico per ridimensionare l'iframe di Google Maps nella sidebar */
+
+/* Contenitore per assicurare che non ci siano overflow e aggiungere un bordo arrotondato */
+.map-embed-container {
+    overflow: hidden;
+    border-radius: 0.5rem; /* Aggiunge un tocco estetico */
+    /* Il contenitore deve essere relativo se volessimo posizionare qualcosa sopra, ma per ora non è necessario. */
+}
+
+/* Regole per l'iframe all'interno del contenitore, con !important per sovrascrivere stili inline */
 .map-embed-container iframe {
-    /* Imposta la larghezza al 100% per adattarsi alla colonna */
+    /* Forza la larghezza al 100% della colonna di destra */
     width: 100% !important;
-    /* Imposta un'altezza fissa per allinearsi con gli altri elementi della sidebar */
-    height: 300px;
-    /* Assicura che qualsiasi stile in linea per l'altezza sia sovrascritto se necessario */
-    max-height: 300px;
+    max-width: 100% !important;
+
+    /* Forza un'altezza fissa (ad esempio 300px) e sovrascrive l'altezza inline */
+    height: 300px !important;
+    max-height: 300px !important;
+
+    /* Assicura che l'iframe sia trattato come un blocco */
+    display: block !important;
+
+    /* Rimuove un eventuale bordo predefinito */
+    border: none !important;
 }
 
