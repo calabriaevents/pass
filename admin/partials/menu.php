@@ -7,6 +7,7 @@ $menuItems = [
     ['file' => 'index.php', 'icon' => 'home', 'label' => 'Dashboard'],
     ['file' => 'gestione-home.php', 'icon' => 'layout', 'label' => 'Gestione Home'],
     ['file' => 'articoli.php', 'icon' => 'file-text', 'label' => 'Articoli'],
+    ['file' => 'eventi.php', 'icon' => 'calendar', 'label' => 'Eventi'],
     ['file' => 'categorie.php', 'icon' => 'tags', 'label' => 'Categorie'],
     ['file' => 'province.php', 'icon' => 'map', 'label' => 'Province'],
     ['file' => 'citta.php', 'icon' => 'map-pin', 'label' => 'Città'],
