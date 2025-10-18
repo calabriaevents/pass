@@ -1,63 +1,82 @@
 <?php
-require_once __DIR__ . '/auth_check.php';
-require_once '../includes/config.php';
+// Inclusione delle dipendenze per l'Admin
+require_once 'auth_check.php'; // Usa l'autenticazione esistente di Passione Calabria
 require_once '../includes/database_mysql.php';
-require_once '../includes/image_processor.php';
+require_once '../includes/eventi_manager.php';
+require_once '../includes/image_processor.php'; // Per gestire l'upload delle immagini
 
 $db = new Database();
 $imageProcessor = new ImageProcessor();
+$message = '';
+$error = '';
 
-$action = $_GET['action'] ?? 'list';
-$id = $_GET['id'] ?? null;
-$error_message = ''; // Variabile per gli errori
-
-// Gestione delle azioni POST
+// Logica di gestione del form (Aggiungi/Modifica/Elimina/Approva)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $titolo = $_POST['titolo'] ?? '';
-    $nomeAttivita = $_POST['nomeAttivita'] ?? '';
-    $descrizione = $_POST['descrizione'] ?? '';
-    $categoria = $_POST['categoria'] ?? '';
-    $provincia_id = $_POST['provincia_id'] ?? null;
-    $citta_id = $_POST['citta_id'] ?? null;
-    $dataEvento = $_POST['dataEvento'] ?? '';
-    $orarioInizio = $_POST['orarioInizio'] ?? '';
-    $costoIngresso = $_POST['costoIngresso'] ?? '';
-    $linkMappaGoogle = $_POST['linkMappaGoogle'] ?? '';
-    $linkPreviewMappaEmbed = $_POST['linkPreviewMappaEmbed'] ?? '';
-    $linkContattoPrenotazioni = $_POST['linkContattoPrenotazioni'] ?? '';
+    $action = $_POST['action'] ?? '';
+    $event_id = $_POST['id'] ?? null;
+    $dir_upload = 'eventi/'; // DEVI CREARE QUESTA CARTELLA
 
-    // --- GESTIONE UPLOAD SICURA CON CONTROLLO ERRORI ---
-    $imageUrl = null;
+    if ($action === 'add' || $action === 'edit') {
+        $data = $_POST;
+        $immagine_nome_db = $_POST['immagine_corrente'] ?? null;
 
-    try {
-        if (isset($_FILES['imageUrl']) && $_FILES['imageUrl']['error'] === UPLOAD_ERR_OK) {
-            $imageUrl = $imageProcessor->processUploadedImage($_FILES['imageUrl'], 'events');
-            if (!$imageUrl) throw new Exception("Errore nel caricamento dell'immagine dell'evento: " . $imageProcessor->getLastError());
+        // Gestione upload immagine
+        if (isset($_FILES['immagine']) && $_FILES['immagine']['error'] === UPLOAD_ERR_OK) {
+
+            $upload_result = $imageProcessor->processUploadedImage($_FILES['immagine'], $dir_upload);
+
+            if ($upload_result) {
+                // Se era un update e c'era un'immagine vecchia, la eliminiamo
+                if ($action === 'edit' && $immagine_nome_db) {
+                    $imageProcessor->deleteImage($immagine_nome_db, $dir_upload);
+                }
+                $immagine_nome_db = $upload_result;
+            } else {
+                $error = "Errore nell'upload dell'immagine: " . ($imageProcessor->getLastError() ?? 'Errore sconosciuto');
+            }
         }
 
-        // --- OPERAZIONI SUL DATABASE ---
-        if ($action === 'edit' && $id) {
-            $existingEvent = $db->getEventById($id);
-            if ($imageUrl === null) $imageUrl = $existingEvent['imageUrl'] ?? null;
+        // Finalizzazione dei dati per save_event
+        $data['immagine'] = $immagine_nome_db;
+        $data['approvato'] = isset($data['approvato']) ? 1 : 0;
 
-            $db->updateEvent($id, $titolo, $nomeAttivita, $descrizione, $categoria, $provincia_id, $citta_id, $dataEvento, $orarioInizio, $costoIngresso, $imageUrl, $linkMappaGoogle, $linkPreviewMappaEmbed, $linkContattoPrenotazioni);
+        if (save_event($data, $event_id)) {
+            $message = ($action === 'add') ? "Evento aggiunto con successo." : "Evento aggiornato con successo.";
         } else {
-            $db->createEvent($titolo, $nomeAttivita, $descrizione, $categoria, $provincia_id, $citta_id, $dataEvento, $orarioInizio, $costoIngresso, $imageUrl, $linkMappaGoogle, $linkPreviewMappaEmbed, $linkContattoPrenotazioni);
+            $error = ($action === 'add') ? "Errore nell'aggiunta dell'evento. (Verifica campi obbligatori e connessione DB)" : "Errore nell'aggiornamento dell'evento. (Verifica campi obbligatori e connessione DB)";
         }
 
-        header('Location: eventi.php');
-        exit;
-
-    } catch (Exception $e) {
-        $error_message = $e->getMessage();
+    } elseif ($action === 'delete') {
+        // Elimina l'immagine associata prima di eliminare il record
+        $event_to_delete = get_event_by_id($event_id);
+        if ($event_to_delete && delete_event($event_id)) {
+            if ($event_to_delete['immagine']) {
+                $imageProcessor->deleteImage($event_to_delete['immagine'], $dir_upload);
+            }
+            $message = "Evento eliminato con successo.";
+        } else {
+            $error = "Errore nell'eliminazione dell'evento.";
+        }
+    } elseif ($action === 'approve') {
+        if (approve_event($event_id)) {
+            $message = "Evento approvato con successo.";
+        } else {
+            $error = "Errore nell'approvazione dell'evento.";
+        }
     }
 }
 
-if ($action === 'delete' && $id) {
-    $db->deleteEvent($id);
-    header('Location: eventi.php');
-    exit;
+// Logica per visualizzare il form di modifica o aggiunta
+$event_to_edit = null;
+if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) {
+    $event_to_edit = get_event_by_id($_GET['id']);
+    if (!$event_to_edit) {
+        $error = "Evento non trovato.";
+    }
 }
+
+// Recupera tutti gli eventi per la lista
+$events_list = get_all_events(false);
 
 ?>
 <!DOCTYPE html>
@@ -96,105 +115,81 @@ if ($action === 'delete' && $id) {
         <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
             <div class="flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-gray-900">Gestione Eventi</h1>
-                <?php if ($action === 'list'): ?>
-                <a href="eventi.php?action=new" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Nuovo Evento</a>
+                <?php if ($event_to_edit): ?>
+                    <p>Stai modificando l'evento: <strong><?= htmlspecialchars($event_to_edit['titolo']) ?></strong></p>
+                <?php else: ?>
+                    <a href="eventi.php?action=add" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Aggiungi Nuovo Evento</a>
                 <?php endif; ?>
             </div>
         </header>
         <main class="flex-1 overflow-auto p-6">
-            <?php if (!empty($error_message)): ?>
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                <strong class="font-bold">Errore!</strong>
-                <span class="block sm:inline"><?php echo htmlspecialchars($error_message); ?></span>
-            </div>
+            <?php if ($message): ?>
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4"><?= htmlspecialchars($message) ?></div>
+            <?php endif; ?>
+            <?php if ($error): ?>
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
 
-            <?php if ($action === 'list'): ?>
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h2 class="text-lg font-semibold mb-4">Elenco Eventi</h2>
-                <table class="w-full">
-                    <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Immagine</th>
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Titolo</th>
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Data</th>
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Città</th>
-                            <th class="text-left py-3 px-2 font-semibold text-gray-700">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $events = $db->getAllEvents();
-                        foreach ($events as $event):
-                        ?>
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="py-3 px-2">
-                                <div class="flex items-center space-x-3">
-                                    <?php if (!empty($event['imageUrl'])): ?>
-                                    <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $event['imageUrl'] ?? '')); ?>" alt="Immagine <?php echo htmlspecialchars($event['titolo']); ?>" class="w-12 h-12 object-contain rounded-lg border p-1">
-                                    <?php else: ?>
-                                    <div class="w-12 h-12 bg-gray-200 rounded-lg border flex items-center justify-center">
-                                        <i data-lucide="image-off" class="w-5 h-5 text-gray-400"></i>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                            <td class="py-3 px-2">
-                                <div>
-                                    <div class="font-medium"><?php echo htmlspecialchars($event['titolo']); ?></div>
-                                </div>
-                            </td>
-                            <td class="py-3 px-2">
-                                <?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($event['dataEvento']))); ?>
-                            </td>
-                            <td class="py-3 px-2">
-                                <?php echo htmlspecialchars($event['citta_name'] ?? 'N/A'); ?>
-                            </td>
-                            <td class="py-3 px-2">
-                                <div class="flex space-x-2">
-                                    <a href="eventi.php?action=edit&id=<?php echo $event['id']; ?>"
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors">
-                                        <i data-lucide="edit" class="w-3 h-3 mr-1"></i>
-                                        Modifica
-                                    </a>
-                                    <a href="eventi.php?action=delete&id=<?php echo $event['id']; ?>"
-                                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
-                                       onclick="return confirm('Sei sicuro di voler eliminare questo evento?');">
-                                        <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>
-                                        Elimina
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <?php elseif ($action === 'new' || $action === 'edit'):
-                $event = null;
-                if ($action === 'edit' && $id) {
-                    $event = $db->getEventById($id);
-                }
-                $provinces = $db->getProvinces();
-                $cities = $db->getCities();
-            ?>
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h2 class="text-lg font-semibold mb-1">
-                    <?php echo $action === 'edit' ? 'Modifica Evento' : 'Nuovo Evento'; ?>
-                </h2>
-                <form action="eventi.php?action=<?php echo $action; ?><?php if ($id) echo '&id='.$id; ?>" method="POST" enctype="multipart/form-data">
+            <?php if ($event_to_edit || (isset($_GET['action']) && $_GET['action'] === 'add')): ?>
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <?php $evento = $event_to_edit; ?>
                     <?php include 'forms/form_evento.php'; ?>
-                    <div class="text-right mt-6 border-t pt-4">
-                        <a href="eventi.php" class="text-gray-600 hover:underline mr-4">Annulla</a>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Salva Evento</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+            <?php else: ?>
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h2 class="text-lg font-semibold mb-4">Elenco Eventi (Totali)</h2>
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b bg-gray-50">
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">ID</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Titolo</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Data</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Città</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Approvato</th>
+                                <th class="text-left py-3 px-2 font-semibold text-gray-700">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($events_list)): ?>
+                                <tr><td colspan="6" class="py-4 text-center">Nessun evento trovato.</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($events_list as $event): ?>
+                                    <tr class="border-b hover:bg-gray-50 <?= $event['approvato'] == 0 ? 'bg-yellow-50' : '' ?>">
+                                        <td class="py-3 px-2"><?= $event['id'] ?></td>
+                                        <td class="py-3 px-2"><?= htmlspecialchars($event['titolo']) ?></td>
+                                        <td class="py-3 px-2"><?= date('d/m/Y', strtotime($event['data_evento'])) ?></td>
+                                        <td class="py-3 px-2"><?= htmlspecialchars($event['nome_citta'] ?? 'N/D') ?></td>
+                                        <td class="py-3 px-2">
+                                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full <?= $event['approvato'] == 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?>">
+                                                <?= $event['approvato'] == 1 ? 'Sì' : 'No' ?>
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-2">
+                                            <div class="flex space-x-2">
+                                                <?php if ($event['approvato'] == 0): ?>
+                                                    <form method="post" action="eventi.php" style="display:inline-block;">
+                                                        <input type="hidden" name="id" value="<?= $event['id'] ?>">
+                                                        <input type="hidden" name="action" value="approve">
+                                                        <button type="submit" class="inline-flex items-center px-3 py-1 text-xs font-medium text-green-600 bg-green-100 rounded-lg hover:bg-green-200 transition-colors" onclick="return confirm('Sei sicuro di voler approvare questo evento?');">Approva</button>
+                                                    </form>
+                                                <?php endif; ?>
+                                                <a href="eventi.php?action=edit&id=<?= $event['id'] ?>" class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors">Modifica</a>
+                                                <form method="post" action="eventi.php" style="display:inline-block;">
+                                                    <input type="hidden" name="id" value="<?= $event['id'] ?>">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <button type="submit" class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors" onclick="return confirm('Sei sicuro di voler eliminare questo evento? TUTTE le informazioni verranno perse.');">Elimina</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
             <?php endif; ?>
         </main>
     </div>
-
     <script>
         lucide.createIcons();
     </script>

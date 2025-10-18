@@ -764,43 +764,6 @@ public function getArticleBySlug($slug) {
     }
 
     // Metodi per Eventi
-    public function getAllEvents() {
-        if (!$this->isConnected()) { return []; }
-        $stmt = $this->pdo->prepare('SELECT e.*, p.name as province_name, c.name as citta_name FROM events e LEFT JOIN provinces p ON e.provincia_id = p.id LEFT JOIN cities c ON e.citta_id = c.id ORDER BY e.dataEvento DESC');
-        $stmt->execute();
-        return $stmt->fetchAll();
-    }
-
-    public function getEventById($id) {
-        if (!$this->isConnected()) { return null; }
-        $stmt = $this->pdo->prepare('SELECT * FROM events WHERE id = ?');
-        $stmt->execute([$id]);
-        return $stmt->fetch();
-    }
-
-    public function createEvent($titolo, $nomeAttivita, $descrizione, $categoria, $provincia_id, $citta_id, $dataEvento, $orarioInizio, $costoIngresso, $imageUrl, $linkMappaGoogle, $linkPreviewMappaEmbed, $linkContattoPrenotazioni) {
-        if (!$this->isConnected()) { return false; }
-        $sql = "INSERT INTO events (titolo, nomeAttivita, descrizione, categoria, provincia_id, citta_id, dataEvento, orarioInizio, costoIngresso, imageUrl, linkMappaGoogle, linkPreviewMappaEmbed, linkContattoPrenotazioni) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$titolo, $nomeAttivita, $descrizione, $categoria, $provincia_id, $citta_id, $dataEvento, $orarioInizio, $costoIngresso, $imageUrl, $linkMappaGoogle, $linkPreviewMappaEmbed, $linkContattoPrenotazioni]);
-        return $this->pdo->lastInsertId();
-    }
-
-    public function updateEvent($id, $titolo, $nomeAttivita, $descrizione, $categoria, $provincia_id, $citta_id, $dataEvento, $orarioInizio, $costoIngresso, $imageUrl, $linkMappaGoogle, $linkPreviewMappaEmbed, $linkContattoPrenotazioni) {
-        if (!$this->isConnected()) { return 0; }
-        $sql = "UPDATE events SET titolo = ?, nomeAttivita = ?, descrizione = ?, categoria = ?, provincia_id = ?, citta_id = ?, dataEvento = ?, orarioInizio = ?, costoIngresso = ?, imageUrl = ?, linkMappaGoogle = ?, linkPreviewMappaEmbed = ?, linkContattoPrenotazioni = ? WHERE id = ?";
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$titolo, $nomeAttivita, $descrizione, $categoria, $provincia_id, $citta_id, $dataEvento, $orarioInizio, $costoIngresso, $imageUrl, $linkMappaGoogle, $linkPreviewMappaEmbed, $linkContattoPrenotazioni, $id]);
-        return $stmt->rowCount();
-    }
-
-    public function deleteEvent($id) {
-        if (!$this->isConnected()) { return 0; }
-        $stmt = $this->pdo->prepare('DELETE FROM events WHERE id = ?');
-        $stmt->execute([$id]);
-        return $stmt->rowCount();
-    }
-
     public function getUpcomingEvents($limit = 10) {
         if (!$this->isConnected()) { return []; }
         $stmt = $this->pdo->prepare('SELECT e.*, c.name as category_name, p.name as province_name FROM events e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN provinces p ON e.province_id = p.id WHERE e.start_date >= NOW() AND e.status = ? ORDER BY e.start_date ASC LIMIT ?');

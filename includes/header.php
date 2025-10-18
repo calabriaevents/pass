@@ -46,7 +46,6 @@ require_once __DIR__ . '/maintenance_check.php';
                 <div class="hidden lg:flex items-center justify-center flex-1">
                     <div class="flex items-center space-x-8">
                         <a href="index.php" class="hover:text-yellow-300 transition-colors font-medium">Home</a>
-                        <a href="eventi.php" class="hover:text-yellow-300 transition-colors font-medium">Eventi</a>
                         <a href="citta.php" class="hover:text-yellow-300 transition-colors font-medium">Città</a>
                         <a href="mappa.php" class="hover:text-yellow-300 transition-colors font-medium">Mappa</a>
                         <a href="contatti.php" class="hover:text-yellow-300 transition-colors font-medium">Contatti</a>
@@ -118,7 +117,6 @@ require_once __DIR__ . '/maintenance_check.php';
         <div id="mobile-menu" class="lg:hidden hidden bg-black/20 backdrop-blur-sm border-t border-white/10">
             <div class="px-4 py-4 space-y-3">
                 <a href="index.php" class="block py-2 hover:text-yellow-300 transition-colors">Home</a>
-                <a href="eventi.php" class="block py-2 hover:text-yellow-300 transition-colors">Eventi</a>
                 <a href="categorie.php" class="block py-2 hover:text-yellow-300 transition-colors">Categorie</a>
                 <a href="province.php" class="block py-2 hover:text-yellow-300 transition-colors">Province</a>
                 <a href="citta.php" class="block py-2 hover:text-yellow-300 transition-colors">Città</a>

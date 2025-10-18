@@ -1,115 +1,100 @@
-<div class="space-y-4">
-    <div>
-        <label for="titolo" class="block text-sm font-medium text-gray-700">Titolo Evento</label>
-        <input type="text" name="titolo" id="titolo" value="<?php echo htmlspecialchars($event['titolo'] ?? ''); ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
+<?php
+// Richiede le funzioni ausiliarie per caricare città e categorie.
+if (!function_exists('get_citta_and_categorie')) {
+    include_once '../includes/eventi_manager.php';
+}
+$lookup_data = get_citta_and_categorie();
+$citta = $lookup_data['citta'];
+$categorie = $lookup_data['categorie'];
+
+// Variabili per il form (se in modalità modifica, $evento è definito in eventi.php)
+$evento_id = $evento['id'] ?? '';
+$titolo = $evento['titolo'] ?? '';
+$descrizione = $evento['descrizione'] ?? '';
+$data_evento = $evento['data_evento'] ?? date('Y-m-d');
+$ora_inizio = $evento['ora_inizio'] ?? '';
+$ora_fine = $evento['ora_fine'] ?? '';
+$luogo = $evento['luogo'] ?? '';
+$citta_selezionata = $evento['citta_id'] ?? '';
+$categoria_selezionata = $evento['categoria_id'] ?? '';
+$immagine_corrente = $evento['immagine'] ?? '';
+$approvato_checked = ($evento['approvato'] ?? 0) ? 'checked' : '';
+
+?>
+
+<form action="" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="id" value="<?= htmlspecialchars($evento_id) ?>">
+    <input type="hidden" name="action" value="<?= $evento_id ? 'edit' : 'add' ?>">
+
+    <div class="form-group">
+        <label for="titolo">Titolo Evento *</label>
+        <input type="text" class="form-control" id="titolo" name="titolo" value="<?= htmlspecialchars($titolo) ?>" required>
     </div>
 
-    <div>
-        <label for="nomeAttivita" class="block text-sm font-medium text-gray-700">Nome Attività</label>
-        <input type="text" name="nomeAttivita" id="nomeAttivita" value="<?php echo htmlspecialchars($event['nomeAttivita'] ?? ''); ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+    <div class="form-group">
+        <label for="descrizione">Descrizione *</label>
+        <textarea class="form-control" id="descrizione" name="descrizione" rows="5" required><?= htmlspecialchars($descrizione) ?></textarea>
     </div>
 
-    <div>
-        <label for="descrizione" class="block text-sm font-medium text-gray-700">Descrizione</label>
-        <textarea name="descrizione" id="descrizione" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"><?php echo htmlspecialchars($event['descrizione'] ?? ''); ?></textarea>
+    <div class="row">
+        <div class="col-md-4 form-group">
+            <label for="data_evento">Data Evento *</label>
+            <input type="date" class="form-control" id="data_evento" name="data_evento" value="<?= htmlspecialchars($data_evento) ?>" required>
+        </div>
+        <div class="col-md-4 form-group">
+            <label for="ora_inizio">Ora Inizio</label>
+            <input type="time" class="form-control" id="ora_inizio" name="ora_inizio" value="<?= htmlspecialchars($ora_inizio) ?>">
+        </div>
+        <div class="col-md-4 form-group">
+            <label for="ora_fine">Ora Fine</label>
+            <input type="time" class="form-control" id="ora_fine" name="ora_fine" value="<?= htmlspecialchars($ora_fine) ?>">
+        </div>
     </div>
 
-    <div>
-        <label for="categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
-        <input type="text" name="categoria" id="categoria" value="<?php echo htmlspecialchars($event['categoria'] ?? ''); ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+    <div class="form-group">
+        <label for="luogo">Luogo (Indirizzo/Nome del Posto) *</label>
+        <input type="text" class="form-control" id="luogo" name="luogo" value="<?= htmlspecialchars($luogo) ?>" required>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <div>
-            <label for="provincia_id" class="block text-sm font-medium text-gray-700">Provincia</label>
-            <select name="provincia_id" id="provincia_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                <option value="">Seleziona una provincia</option>
-                <?php foreach ($provinces as $province): ?>
-                    <option value="<?php echo $province['id']; ?>" <?php echo (isset($event['provincia_id']) && $event['provincia_id'] == $province['id']) ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($province['name']); ?>
+    <div class="row">
+        <div class="col-md-6 form-group">
+            <label for="citta_id">Città</label>
+            <select class="form-control" id="citta_id" name="citta_id">
+                <option value="">Seleziona Città</option>
+                <?php foreach ($citta as $c): ?>
+                    <option value="<?= $c['id'] ?>" <?= $citta_selezionata == $c['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($c['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </div>
-        <div>
-            <label for="citta_id" class="block text-sm font-medium text-gray-700">Città</label>
-            <select name="citta_id" id="citta_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                <option value="">Seleziona una città</option>
-                <?php foreach ($cities as $city): ?>
-                    <option value="<?php echo $city['id']; ?>" data-province="<?php echo $city['province_id']; ?>" <?php echo (isset($event['citta_id']) && $event['citta_id'] == $city['id']) ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($city['name']); ?>
+        <div class="col-md-6 form-group">
+            <label for="categoria_id">Categoria</label>
+            <select class="form-control" id="categoria_id" name="categoria_id">
+                <option value="">Seleziona Categoria</option>
+                <?php foreach ($categorie as $cat): ?>
+                    <option value="<?= $cat['id'] ?>" <?= $categoria_selezionata == $cat['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($cat['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <div>
-            <label for="dataEvento" class="block text-sm font-medium text-gray-700">Data Evento</label>
-            <input type="datetime-local" name="dataEvento" id="dataEvento" value="<?php echo isset($event['dataEvento']) ? date('Y-m-d\TH:i', strtotime($event['dataEvento'])) : ''; ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-        </div>
-        <div>
-            <label for="orarioInizio" class="block text-sm font-medium text-gray-700">Orario Inizio</label>
-            <input type="time" name="orarioInizio" id="orarioInizio" value="<?php echo htmlspecialchars($event['orarioInizio'] ?? ''); ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-        </div>
-    </div>
-
-    <div>
-        <label for="costoIngresso" class="block text-sm font-medium text-gray-700">Costo Ingresso</label>
-        <input type="text" name="costoIngresso" id="costoIngresso" value="<?php echo htmlspecialchars($event['costoIngresso'] ?? ''); ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-    </div>
-
-    <div>
-        <label for="imageUrl" class="block text-sm font-medium text-gray-700">Immagine Evento</label>
-        <input type="file" name="imageUrl" id="imageUrl" class="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none">
-        <?php if (!empty($event['imageUrl'])): ?>
-            <div class="mt-2">
-                <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $event['imageUrl'])); ?>" alt="Immagine attuale" class="h-20 rounded-md">
-            </div>
+    <div class="form-group">
+        <label for="immagine">Immagine Evento (Consigliata: 1200x630)</label>
+        <?php if ($immagine_corrente): ?>
+            <p>Immagine attuale: <img src="../image-loader.php?path=<?= htmlspecialchars('eventi/' . $immagine_corrente) ?>&w=150&h=100&m=crop" style="max-width: 150px; height: auto;" alt="Immagine Evento"></p>
+            <input type="hidden" name="immagine_corrente" value="<?= htmlspecialchars($immagine_corrente) ?>">
         <?php endif; ?>
+        <input type="file" class="form-control-file" id="immagine" name="immagine" accept="image/*">
     </div>
 
-    <div>
-        <label for="linkMappaGoogle" class="block text-sm font-medium text-gray-700">Link Mappa Google</label>
-        <input type="url" name="linkMappaGoogle" id="linkMappaGoogle" value="<?php echo htmlspecialchars($event['linkMappaGoogle'] ?? ''); ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+    <div class="form-group form-check">
+        <input type="checkbox" class="form-check-input" id="approvato" name="approvato" value="1" <?= $approvato_checked ?>>
+        <label class="form-check-label" for="approvato">Evento Approvato (Visibile sul sito)</label>
     </div>
 
-    <div>
-        <label for="linkPreviewMappaEmbed" class="block text-sm font-medium text-gray-700">Link Preview Mappa (Embed)</label>
-        <textarea name="linkPreviewMappaEmbed" id="linkPreviewMappaEmbed" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"><?php echo htmlspecialchars($event['linkPreviewMappaEmbed'] ?? ''); ?></textarea>
-    </div>
-
-    <div>
-        <label for="linkContattoPrenotazioni" class="block text-sm font-medium text-gray-700">Link Contatto Prenotazioni</label>
-        <input type="url" name="linkContattoPrenotazioni" id="linkContattoPrenotazioni" value="<?php echo htmlspecialchars($event['linkContattoPrenotazioni'] ?? ''); ?>" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-    </div>
-</div>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const provinceSelect = document.getElementById('provincia_id');
-        const citySelect = document.getElementById('citta_id');
-        const allCities = Array.from(citySelect.options);
-
-        function filterCities() {
-            const selectedProvince = provinceSelect.value;
-            citySelect.innerHTML = '';
-
-            const placeholder = allCities.find(opt => opt.value === '');
-            if (placeholder) {
-                citySelect.add(placeholder.cloneNode(true));
-            }
-
-            allCities.forEach(option => {
-                if (option.dataset.province === selectedProvince) {
-                    citySelect.add(option.cloneNode(true));
-                }
-            });
-        }
-
-        provinceSelect.addEventListener('change', filterCities);
-
-        // Initial filter
-        filterCities();
-    });
-</script>
+    <button type="submit" class="btn btn-primary mt-3">Salva Evento</button>
+    <a href="eventi.php" class="btn btn-secondary mt-3">Annulla</a>
+</form>
