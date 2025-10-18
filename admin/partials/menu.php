@@ -23,10 +23,6 @@ $menuItems = [
     ['file' => 'database.php', 'icon' => 'database', 'label' => 'Monitoraggio DB'],
     ['file' => 'manutenzione.php', 'icon' => 'wrench', 'label' => 'Modalità Manutenzione'],
     ['file' => 'impostazioni.php', 'icon' => 'settings', 'label' => 'Impostazioni'],
-    ['file' => 'eventi-dashboard.php', 'icon' => 'calendar-check', 'label' => 'Dashboard Eventi'],
-    ['file' => 'gestione-eventi.php', 'icon' => 'calendar-days', 'label' => 'Gestione Eventi'],
-    ['file' => 'gestione-attivita.php', 'icon' => 'star', 'label' => 'Gestione Attività'],
-    ['file' => 'eventi-impostazioni.php', 'icon' => 'sliders-horizontal', 'label' => 'Impostazioni Eventi'],
 ];
 
 // Recupera tutti i conteggi degli elementi in attesa
@@ -94,5 +90,35 @@ if (isset($db) && $db->isConnected()) {
                 </a>
             </li>
         <?php endforeach; ?>
+    </ul>
+
+    <!-- Modulo Eventi -->
+    <hr class="my-2 border-gray-600">
+    <p class="text-xs text-gray-500 uppercase px-4 mt-4 mb-2">Modulo Eventi</p>
+    <ul class="space-y-2">
+        <li>
+            <a href="/admin/eventi-dashboard.php" class="flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors hover:bg-gray-700">
+                <i data-lucide="calendar-check" class="w-5 h-5"></i>
+                <span>Dashboard Eventi</span>
+            </a>
+        </li>
+        <li>
+            <a href="/admin/gestione-eventi.php" class="flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors hover:bg-gray-700">
+                <i data-lucide="calendar-days" class="w-5 h-5"></i>
+                <span>Gestione Eventi</span>
+            </a>
+        </li>
+        <li>
+            <a href="/admin/gestione-attivita.php" class="flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors hover:bg-gray-700">
+                <i data-lucide="star" class="w-5 h-5"></i>
+                <span>Gestione Attività</span>
+            </a>
+        </li>
+        <li>
+            <a href="/admin/eventi-impostazioni.php" class="flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors hover:bg-gray-700">
+                <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+                <span>Impostazioni Eventi</span>
+            </a>
+        </li>
     </ul>
 </nav>
