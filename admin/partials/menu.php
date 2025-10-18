@@ -15,6 +15,7 @@ $menuItems = [
     ['file' => 'foto-utenti.php', 'icon' => 'image', 'label' => 'Foto Utenti'],
     ['file' => 'suggerimenti-luoghi.php', 'icon' => 'map-pin', 'label' => 'Suggerimenti Luoghi'],
     ['file' => 'suggerimenti-eventi.php', 'icon' => 'calendar-plus', 'label' => 'Suggerimenti Eventi'],
+    ['file' => 'gestione-eventi/index.php', 'icon' => 'calendar-check', 'label' => 'Gestione Eventi'],
     ['file' => 'business.php', 'icon' => 'building-2', 'label' => 'Business'],
     ['file' => 'gestione-pacchetti.php', 'icon' => 'package', 'label' => 'Pacchetti Abbonamento'],
     ['file' => 'consumo-pacchetti.php', 'icon' => 'zap', 'label' => 'Pacchetti a Consumo'],
