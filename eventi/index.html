@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calabria Events</title>
+    <link rel="icon" type="image/png" href="immagini/logo.png">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        /* Stile di base per il font e lo smooth scrolling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        #user-app-logo {
+            color: transparent; /* Nasconde il testo 'alt' prima del caricamento del logo */
+        }
+        /* Stile per nascondere le sezioni non attive */
+        .page-section {
+            display: none;
+        }
+        .page-section.active {
+            display: block;
+        }
+        .user-page {
+            display: none;
+        }
+        .user-page.active {
+            display: block;
+        }
+        /* Stili per il calendario */
+        .calendar-day.has-events {
+            background-color: #34d399;
+            color: white;
+            border-radius: 50%;
+            position: relative;
+        }
+        .calendar-day.has-events .event-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        /* Stile per la scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Stile per il banner di installazione iOS */
+        #ios-install-banner {
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        /* Stili per la modalità scura */
+        .dark body { background-color: #111827; }
+        .dark #app-container { background-color: #1f2937; color: #d1d5db; }
+        .dark h1, .dark h2, .dark h3, .dark h4 { color: #f9fafb; }
+        .dark .bg-white { background-color: #374151; }
+        .dark .text-gray-800 { color: #f3f4f6; }
+        .dark .text-gray-700 { color: #d1d5db; }
+        .dark .text-gray-600 { color: #9ca3af; }
+        .dark .text-gray-500 { color: #a1a1aa; }
+        .dark .bg-gray-50 { background-color: #374151; }
+        .dark .bg-gray-800 { background-color: #1f2937; }
+        .dark .bg-gray-700 { background-color: #374151; }
+        .dark .border-gray-300 { border-color: #4b5563; }
+        .dark input, .dark select, .dark textarea { background-color: #4b5563; color: #f9fafb; }
+        .dark input::placeholder, .dark textarea::placeholder { color: #9ca3af; }
+        .dark .user-nav-link { color: #d1d5db; }
+        .dark .user-nav-link.text-indigo-600 { color: #818cf8; }
+        .dark .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.25); }
+        .dark .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.25); }
+        .dark .bg-blue-100 { background-color: #1e3a8a; }
+        .dark .text-blue-700 { color: #93c5fd; }
+        .dark .bg-green-100 { background-color: #064e3b; }
+        .dark .text-green-700 { color: #6ee7b7; }
+        .dark .bg-purple-100 { background-color: #4c1d95; }
+        .dark .text-purple-700 { color: #c4b5fd; }
+        .dark .bg-yellow-100 { background-color: #78350f; }
+        .dark .text-yellow-700 { color: #fcd34d; }
+        .dark .bg-indigo-200 { background-color: #3730a3; }
+        .dark .text-indigo-700 { color: #a5b4fc; }
+        .category-button.active { background-color: #4f46e5; color: white; border-color: #4f46e5; }
+        .dark .category-button.active { background-color: #818cf8; color: #1f2937; border-color: #818cf8; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app-container" class="max-w-4xl mx-auto bg-white shadow-lg">
+
+        <div id="admin-panel" class="page-section">
+            <div class="bg-gray-800 text-white p-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold">Admin Panel</h1>
+                <button onclick="Admin.logout()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+            <nav class="bg-gray-700 text-white flex flex-wrap justify-center p-2 gap-2 sm:gap-4">
+                <a href="#admin-dashboard" onclick="Admin.navigate('admin-dashboard')" class="admin-nav-link py-2 px-3 rounded-lg hover:bg-gray-600">Dashboard</a>
+                <a href="#admin-manage-events" onclick="Admin.navigate('admin-manage-events')" class="admin-nav-link py-2 px-3 rounded-lg hover:bg-gray-600">Gestione Eventi</a>
+                <a href="#admin-manage-activities" onclick="Admin.navigate('admin-manage-activities')" class="admin-nav-link py-2 px-3 rounded-lg hover:bg-gray-600">Gestione Attività</a>
+                <a href="#admin-settings" onclick="Admin.navigate('admin-settings')" class="admin-nav-link py-2 px-3 rounded-lg hover:bg-gray-600">Impostazioni</a>
+            </nav>
+            <div class="p-4 md:p-6">
+                <div id="admin-dashboard" class="admin-page">
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Dashboard</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-6 rounded-lg shadow-md">
+                            <h3 class="font-bold text-lg mb-2">Eventi Attivi</h3>
+                            <p id="stats-active-events" class="text-4xl font-bold">0</p>
+                        </div>
+                        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-6 rounded-lg shadow-md">
+                            <h3 class="font-bold text-lg mb-2">Attività Promozionali</h3>
+                            <p id="stats-active-activities" class="text-4xl font-bold">0</p>
+                        </div>
+                         <div class="bg-purple-100 border-l-4 border-purple-500 text-purple-700 p-6 rounded-lg shadow-md">
+                            <h3 class="font-bold text-lg mb-2">Visualizzazioni Totali</h3>
+                            <p id="stats-total-visits" class="text-4xl font-bold">0</p>
+                        </div>
+                    </div>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-indigo-200 border-l-4 border-indigo-500 text-indigo-700 p-6 rounded-lg shadow-md">
+                            <h3 class="font-bold text-lg mb-2">Visite Mese Corrente</h3>
+                            <p id="stats-current-month-visits" class="text-4xl font-bold">0</p>
+                        </div>
+                        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-6 rounded-lg shadow-md">
+                            <h3 class="font-bold text-lg mb-2">Visite Mese Precedente</h3>
+                            <p id="stats-previous-month-visits" class="text-4xl font-bold">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="admin-manage-events" class="admin-page" style="display: none;">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">Gestione Eventi</h2>
+                        <button onclick="Admin.showEventForm()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            <i class="fas fa-plus"></i> Nuovo Evento
+                        </button>
+                    </div>
+                    <div id="admin-events-list" class="space-y-4"></div>
+                </div>
+                <div id="admin-event-form-page" class="admin-page" style="display: none;">
+                    <h2 id="event-form-title" class="text-2xl font-bold mb-6 text-gray-800">Nuovo Evento</h2>
+                    <form id="event-form" class="space-y-4">
+                        <input type="hidden" id="eventId">
+                        <input type="hidden" id="hiddenImageUrl">
+                        <div><label for="titolo" class="block text-sm font-medium text-gray-700">Titolo Evento</label><input type="text" id="titolo" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        <div><label for="nomeAttivita" class="block text-sm font-medium text-gray-700">Nome Attività Organizzatrice</label><input type="text" id="nomeAttivita" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        <div><label for="descrizione" class="block text-sm font-medium text-gray-700">Descrizione</label><textarea id="descrizione" rows="4" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></textarea></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label for="categoria" class="block text-sm font-medium text-gray-700">Categoria</label><select id="categoria" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></select></div>
+                            <div><label for="provincia" class="block text-sm font-medium text-gray-700">Provincia</label><select id="provincia" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></select></div>
+                        </div>
+                        <div>
+                            <label for="citta" class="block text-sm font-medium text-gray-700">Città (Inizia a digitare per suggerimenti)</label>
+                            <input type="text" id="citta" list="citta-list" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                            <datalist id="citta-list"></datalist>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label for="dataEvento" class="block text-sm font-medium text-gray-700">Data Evento</label><input type="date" id="dataEvento" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                            <div><label for="orarioInizio" class="block text-sm font-medium text-gray-700">Orario Inizio</label><input type="time" id="orarioInizio" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        </div>
+                        <div><label for="costoIngresso" class="block text-sm font-medium text-gray-700">Costo Ingresso (es. Gratuito, €10)</label><input type="text" id="costoIngresso" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        <div>
+                            <label for="imageFile" class="block text-sm font-medium text-gray-700">Immagine Principale</label>
+                            <input type="file" id="imageFile" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <div id="image-preview-container" class="mt-2"></div>
+                        </div>
+                        <div><label for="linkMappaGoogle" class="block text-sm font-medium text-gray-700">Link Google Maps (per "Raggiungimi")</label><input type="url" id="linkMappaGoogle" placeholder="https://maps.app.goo.gl/..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        <div><label for="linkPreviewMappaEmbed" class="block text-sm font-medium text-gray-700">Codice Embed Mappa (iframe)</label><textarea id="linkPreviewMappaEmbed" rows="3" placeholder='<iframe src="..."></iframe>' class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></textarea></div>
+                        <div><label for="linkContattoPrenotazioni" class="block text-sm font-medium text-gray-700">Link Contatto/Prenotazioni (Opzionale)</label><input type="text" id="linkContattoPrenotazioni" placeholder="https://..., tel:..., mailto:..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                        <div class="flex justify-end space-x-4"><button type="button" onclick="Admin.navigate('admin-manage-events')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Annulla</button><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Salva Evento</button></div>
+                    </form>
+                </div>
+                <div id="admin-manage-activities" class="admin-page" style="display: none;">
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-gray-800">Gestione Attività Promozionali</h2><button onclick="Admin.showActivityForm()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300"><i class="fas fa-plus"></i> Nuova Attività</button></div>
+                    <div id="admin-activities-list" class="space-y-4"></div>
+                </div>
+                <div id="admin-activity-form-page" class="admin-page" style="display: none;">
+                    <h2 id="activity-form-title" class="text-2xl font-bold mb-6 text-gray-800">Nuova Attività Promozionale</h2>
+                    <form id="activity-form" class="space-y-4">
+                        <input type="hidden" id="activityId">
+                        <input type="hidden" id="hiddenLogoUrl">
+                        <div><label for="activity-nomeAttivita" class="block text-sm font-medium text-gray-700">Nome Attività</label><input type="text" id="activity-nomeAttivita" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        <div><label for="activity-linkDestinazione" class="block text-sm font-medium text-gray-700">Link Destinazione (URL)</label><input type="url" id="activity-linkDestinazione" placeholder="https://..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        <div>
+                            <label for="logoFile" class="block text-sm font-medium text-gray-700">Logo/Immagine</label>
+                            <input type="file" id="logoFile" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <div id="logo-preview-container" class="mt-2"></div>
+                        </div>
+                        <div><label for="activity-dataFineVisualizzazione" class="block text-sm font-medium text-gray-700">Data Fine Visualizzazione</label><input type="date" id="activity-dataFineVisualizzazione" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></div>
+                        <div class="flex justify-end space-x-4"><button type="button" onclick="Admin.navigate('admin-manage-activities')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Annulla</button><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Salva Attività</button></div>
+                    </form>
+                </div>
+                <div id="admin-settings" class="admin-page" style="display: none;">
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Impostazioni Globali App</h2>
+                    <form id="settings-form" class="space-y-4">
+                        <input type="hidden" id="hiddenLogoAppUrl">
+                        <div>
+                            <label for="logoAppFile" class="block text-sm font-medium text-gray-700">Logo Applicazione</label>
+                            <input type="file" id="logoAppFile" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <div id="logo-app-preview-container" class="mt-2"></div>
+                        </div>
+                        <div><label for="settings-linkInstagram" class="block text-sm font-medium text-gray-700">Link Instagram</label><input type="url" id="settings-linkInstagram" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                        <div><label for="settings-linkFacebook" class="block text-sm font-medium text-gray-700">Link Facebook</label><input type="url" id="settings-linkFacebook" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                        <div><label for="settings-linkSitoWeb" class="block text-sm font-medium text-gray-700">Link Sito Web</label><input type="url" id="settings-linkSitoWeb" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                        <div><label for="settings-linkIscriviAttivita" class="block text-sm font-medium text-gray-700">Link "Iscrivi la tua attività"</label><input type="url" id="settings-linkIscriviAttivita" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                        <div class="flex justify-end"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Salva Impostazioni</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="user-app" class="page-section active">
+            <header class="bg-white p-4 shadow-md sticky top-0 z-20 flex justify-between items-center">
+                <img id="user-app-logo" alt="Logo Calabria Events" class="h-14 md:h-16 w-auto max-w-[240px] object-contain cursor-pointer">
+                <div class="flex items-center space-x-4">
+                    <button id="voice-assistant-btn" class="text-gray-500 hover:text-indigo-500 text-xl transition-colors"><i class="fas fa-microphone"></i></button>
+                </div>
+            </header>
+            <main id="user-main-content" class="p-4 pb-20">
+                <div id="user-home" class="user-page active">
+                    <div id="promo-popup-container" class="mb-6 hidden"></div>
+                    <div class="bg-transparent dark:bg-gray-700 p-4 rounded-lg dark:shadow-md mb-6 space-y-4 border border-gray-300 dark:border-gray-600">
+                        <div id="social-links-container" class="flex justify-center items-center space-x-6 text-2xl"></div>
+                        <a id="iscrivi-attivita-link" href="#" target="_blank" class="block w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-indigo-700">Iscrivi la tua attività</a>
+                    </div>
+                    <div id="home-category-filters" class="grid grid-cols-3 gap-2 mb-4"></div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Eventi in Evidenza</h2>
+                    <div id="home-events-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <div id="home-load-more-container" class="mt-6 text-center"></div>
+                </div>
+                <div id="user-search" class="user-page">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Cerca Eventi</h2>
+                    <div class="space-y-4 bg-gray-50 p-4 rounded-lg">
+                        <input type="text" id="search-input" placeholder="Cerca per nome o descrizione..." class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <select id="search-category" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
+                            <select id="search-province" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
+                            <select id="search-city" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                             <button id="open-calendar-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300"><i class="fas fa-calendar-alt mr-2"></i>Cerca per Data</button>
+                             <button id="search-reset-btn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Resetta Filtri</button>
+                        </div>
+                    </div>
+                    <div id="search-results-container" class="mt-6">
+                        <h3 id="search-results-title" class="text-xl font-bold text-gray-700 mb-4">Risultati</h3>
+                        <div id="search-results-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                        <div id="search-load-more-container" class="mt-6 text-center"></div>
+                    </div>
+                </div>
+                <div id="user-favorites" class="user-page">
+                     <h2 class="text-2xl font-bold text-gray-800 mb-4">I Miei Preferiti</h2>
+                     <div id="favorites-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+                <div id="user-event-detail" class="user-page"></div>
+            </main>
+            <nav class="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-1px_10px_rgba(0,0,0,0.1)] max-w-4xl mx-auto z-20">
+                <div class="flex justify-around">
+                    <a href="#home" id="nav-home" class="user-nav-link flex-1 text-center py-3 text-gray-600 hover:text-indigo-600 transition-colors duration-300"><i class="fas fa-home text-xl"></i><span class="block text-xs">Home</span></a>
+                    <a href="#search" id="nav-search" class="user-nav-link flex-1 text-center py-3 text-gray-600 hover:text-indigo-600 transition-colors duration-300"><i class="fas fa-search text-xl"></i><span class="block text-xs">Cerca</span></a>
+                    <a href="#favorites" id="nav-favorites" class="user-nav-link flex-1 text-center py-3 text-gray-600 hover:text-indigo-600 transition-colors duration-300"><i class="fas fa-heart text-xl"></i><span class="block text-xs">Preferiti</span></a>
+                    <a href="#" id="nav-install" class="user-nav-link flex-1 text-center py-3 text-gray-600 hover:text-indigo-600 transition-colors duration-300 hidden"><i class="fas fa-download text-xl"></i><span class="block text-xs">Installa</span></a>
+                </div>
+            </nav>
+            <div id="voice-toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-30 opacity-0 transition-opacity duration-300 pointer-events-none">Comando ricevuto!</div>
+            <div id="voice-recognition-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex flex-col items-center justify-center hidden"><i class="fas fa-microphone-alt text-white text-6xl mb-6 animate-pulse"></i><p class="text-white text-2xl font-semibold">Sono in ascolto...</p></div>
+        </div>
+
+        <div id="ios-install-banner" class="fixed bottom-0 left-0 right-0 max-w-4xl mx-auto bg-gray-800 text-white p-4 text-center transform translate-y-full z-30 hidden">
+            <div class="flex justify-between items-center">
+                <p class="text-sm">Per installare l'app, tocca l'icona <i class="fas fa-share-square"></i> e seleziona "Aggiungi a schermata Home".</p>
+                <button id="close-ios-banner" class="text-xl">×</button>
+            </div>
+        </div>
+
+        <div id="calendar-modal" class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4 hidden">
+            <div class="bg-white p-4 rounded-lg shadow-xl max-w-md w-full">
+                 <div class="flex items-center justify-between mb-4"><button id="prev-month-modal" class="p-2 rounded-full hover:bg-gray-200"><i class="fas fa-chevron-left"></i></button><h3 id="calendar-month-year-modal" class="text-lg font-semibold text-gray-800"></h3><button id="next-month-modal" class="p-2 rounded-full hover:bg-gray-200"><i class="fas fa-chevron-right"></i></button></div>
+                <div id="calendar-grid-modal" class="grid grid-cols-7 gap-1 text-center"></div>
+                <button id="close-calendar-modal" class="mt-4 w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">Chiudi</button>
+            </div>
+        </div>
+
+        <div id="admin-login-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full">
+                <h3 class="text-2xl font-bold mb-6 text-center text-gray-800">Accesso Admin</h3>
+                <form id="admin-login-form">
+                    <div class="mb-4">
+                        <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="username" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                    </div>
+                    <p id="login-error-message" class="text-red-500 text-sm mb-4 text-center hidden"></p>
+                    <div class="flex items-center justify-between">
+                         <button type="button" onclick="Admin.hideLoginModal()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Annulla</button>
+                        <button type="submit" id="admin-login-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Accedi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+            <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full">
+                <h3 class="text-lg font-bold mb-4">Conferma Eliminazione</h3>
+                <p id="modal-text" class="mb-6">Sei sicuro di voler eliminare questo elemento? L'azione è irreversibile.</p>
+                <div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Annulla</button><button id="modal-confirm-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Elimina</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- FUNZIONE DI SICUREZZA PER L'OUTPUT ---
+        const sanitizeHTML = (str) => {
+            if (str === null || str === undefined) return '';
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        };
+
+        // --- CODICE PER PROGRESSIVE WEB APP (PWA) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful');
+                }, err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+        let deferredPrompt;
+        const installButton = document.getElementById('nav-install');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installButton.classList.remove('hidden');
+        });
+
+        installButton.addEventListener('click', (e) => {
+            installButton.classList.add('hidden');
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                deferredPrompt = null;
+            });
+        });
+        
+        // Logica per il banner di installazione iOS e contatore visite
+        document.addEventListener('DOMContentLoaded', () => {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+            const banner = document.getElementById('ios-install-banner');
+            const closeBannerBtn = document.getElementById('close-ios-banner');
+
+            if (isIOS && !isInStandaloneMode && !sessionStorage.getItem('iosBannerClosed')) {
+                banner.classList.remove('hidden');
+                setTimeout(() => { banner.style.transform = 'translateY(0)'; }, 100);
+            }
+
+            closeBannerBtn.addEventListener('click', () => {
+                banner.style.transform = 'translateY(100%)';
+                sessionStorage.setItem('iosBannerClosed', 'true');
+            });
+            
+            if (sessionStorage.getItem('isAdminAuthenticated') !== 'true') {
+                fetch('./api.php?action=track_visit').catch(err => console.error('Failed to track visit.'));
+            }
+        });
+
+        // --- DATI STATICI DELL'APPLICAZIONE ---
+        const AppData = {
+            categories: ["Sport", "Concerto", "Sagra", "Teatro", "Feste"]
+        };
+
+        // --- OGGETTO PRINCIPALE DELL'APP ---
+        const App = {
+            cache: { activities: [], config: {}, locations: {} }, 
+            init() {
+                Admin.init();
+                User.init();
+                this.fetchInitialData();
+            },
+            async fetchInitialData() {
+                try {
+                    const [activities, config, locations] = await Promise.all([
+                        this.fetchApi('get_activities'),
+                        this.fetchApi('get_config'),
+                        this.fetchApi('get_locations')
+                    ]);
+                    this.cache.activities = activities;
+                    this.cache.config = config;
+                    this.cache.locations = locations;
+                    
+                    Admin.populateSelects();
+                    User.populateSearchFilters();
+                    
+                    User.loadGlobalConfig();
+                    User.loadActivePromos(); 
+                    User.performSearch('home-events-list', 'home-load-more-container', User.getHomeFilters(), false); 
+                } catch (error) {
+                    console.error("Errore nel caricamento dei dati iniziali:", error);
+                    alert("Impossibile caricare i dati dell'applicazione. Controlla la connessione e la configurazione dell'API.");
+                }
+            },
+            async fetchApi(action, options = {}) {
+                const url = `./api.php?action=${action}&t=${new Date().getTime()}`;
+                try {
+                    options.credentials = 'include';
+
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        if (response.status === 403) {
+                            alert("La tua sessione di amministrazione è scaduta. Effettua nuovamente il login.");
+                            Admin.logout();
+                        }
+                        throw new Error(errorData.error || `Errore HTTP: ${response.status}`);
+                    }
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        return await response.json();
+                    }
+                    return await response.text();
+
+                } catch (error) {
+                    console.error(`Errore nella chiamata API [${action}]:`, error);
+                    throw error;
+                }
+            },
+            switchToAdminView() {
+                if (Admin.checkAuth()) {
+                    document.getElementById('user-app').classList.remove('active');
+                    document.getElementById('admin-panel').classList.add('active');
+                    Admin.navigate('admin-dashboard');
+                } else {
+                    Admin.showLoginModal();
+                }
+            },
+            switchToUserView() {
+                document.getElementById('admin-panel').classList.remove('active');
+                document.getElementById('user-app').classList.add('active');
+            },
+            showLoading(elementId) {
+                const el = document.getElementById(elementId);
+                if(el) el.innerHTML = `<div class="text-center p-8"><i class="fas fa-spinner fa-spin text-3xl text-indigo-500"></i><p class="mt-2">Caricamento...</p></div>`;
+            },
+            showEmptyMessage(elementId, message) {
+                 const el = document.getElementById(elementId);
+                if(el) el.innerHTML = `<div class="text-center p-8 text-gray-500"><i class="fas fa-info-circle text-3xl mb-2"></i><p>${message}</p></div>`;
+            },
+            showDeleteModal(title, onConfirm) {
+                const modal = document.getElementById('delete-confirm-modal');
+                document.getElementById('modal-text').textContent = `Sei sicuro di voler eliminare "${title}"? L'azione è irreversibile.`;
+                modal.classList.remove('hidden');
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                const cancelBtn = document.getElementById('modal-cancel-btn');
+                const newConfirmBtn = confirmBtn.cloneNode(true);
+                confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+                newConfirmBtn.addEventListener('click', () => {
+                    onConfirm();
+                    modal.classList.add('hidden');
+                });
+                cancelBtn.onclick = () => modal.classList.add('hidden');
+            }
+        };
+
+        // --- LOGICA SEZIONE ADMIN ---
+        const Admin = {
+            isAuthenticated: false,
+            init() {
+                this.isAuthenticated = sessionStorage.getItem('isAdminAuthenticated') === 'true';
+                this.addEventListeners();
+            },
+            addEventListeners() {
+                document.getElementById('event-form').addEventListener('submit', this.handleEventFormSubmit.bind(this));
+                document.getElementById('activity-form').addEventListener('submit', this.handleActivityFormSubmit.bind(this));
+                document.getElementById('settings-form').addEventListener('submit', this.handleSettingsFormSubmit.bind(this));
+                document.getElementById('provincia').addEventListener('change', (e) => this.updateCityDatalist(e.target.value));
+                document.getElementById('admin-login-form').addEventListener('submit', this.handleLogin.bind(this));
+            },
+            navigate(pageId) {
+                document.querySelectorAll('.admin-page').forEach(page => page.style.display = 'none');
+                document.getElementById(pageId).style.display = 'block';
+                document.querySelectorAll('.admin-nav-link').forEach(link => {
+                    link.classList.remove('bg-gray-900', 'font-bold');
+                    if (link.getAttribute('href') === `#${pageId}`) link.classList.add('bg-gray-900', 'font-bold');
+                });
+                switch(pageId) {
+                    case 'admin-dashboard': this.loadDashboardStats(); break;
+                    case 'admin-manage-events': this.loadEvents(); break;
+                    case 'admin-manage-activities': this.loadActivities(); break;
+                    case 'admin-settings': this.loadSettings(); break;
+                }
+            },
+            populateSelects() {
+                const categorySelect = document.getElementById('categoria');
+                const provinceSelect = document.getElementById('provincia');
+                
+                categorySelect.innerHTML = '';
+                AppData.categories.forEach(cat => categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`);
+                
+                provinceSelect.innerHTML = '';
+                Object.keys(App.cache.locations).forEach(prov => provinceSelect.innerHTML += `<option value="${prov}">${prov}</option>`);
+
+                this.updateCityDatalist(provinceSelect.value);
+            },
+            updateCityDatalist(province) {
+                const datalist = document.getElementById('citta-list');
+                datalist.innerHTML = '';
+                if (province && App.cache.locations[province]) {
+                    App.cache.locations[province].forEach(city => {
+                        datalist.innerHTML += `<option value="${city}">`;
+                    });
+                }
+            },
+            populateCitySelect(selectId, province, addAllCitiesOption = false) {
+                const citySelect = document.getElementById(selectId);
+                citySelect.innerHTML = '';
+                if (addAllCitiesOption) {
+                    citySelect.innerHTML = '<option value="">Tutte le Città</option>';
+                }
+                if (province && App.cache.locations[province]) {
+                    App.cache.locations[province].forEach(city => {
+                        citySelect.innerHTML += `<option value="${city}">${city}</option>`;
+                    });
+                }
+            },
+            async loadEvents() { 
+                const container = document.getElementById('admin-events-list');
+                App.showLoading('admin-events-list');
+                try {
+                    const events = await App.fetchApi('get_events&limit=1000'); 
+                    if (!events.events || events.events.length === 0) return App.showEmptyMessage('admin-events-list', 'Nessun evento trovato. Creane uno nuovo!');
+                    let html = '';
+                    events.events.forEach(event => {
+                        const eventDate = new Date(event.dataEvento).toLocaleDateString('it-IT');
+                        html += `<div class="bg-white p-4 rounded-lg shadow flex justify-between items-center"><div><h4 class="font-bold text-lg text-gray-800">${sanitizeHTML(event.titolo)}</h4><p class="text-sm text-gray-500">${sanitizeHTML(event.citta)}, ${sanitizeHTML(event.provincia)} - ${eventDate}</p></div><div class="space-x-2"><button onclick="Admin.showEventForm(${event.id})" class="bg-yellow-500 text-white w-10 h-10 rounded-full hover:bg-yellow-600"><i class="fas fa-pencil-alt"></i></button><button onclick="Admin.deleteEvent(${event.id}, '${sanitizeHTML(event.titolo.replace(/'/g, "\\'"))}')" class="bg-red-500 text-white w-10 h-10 rounded-full hover:bg-red-600"><i class="fas fa-trash"></i></button></div></div>`;
+                    });
+                    container.innerHTML = html;
+                } catch(e) {
+                    App.showEmptyMessage('admin-events-list', 'Errore nel caricamento degli eventi.');
+                }
+            },
+            async showEventForm(eventId = null) {
+                this.navigate('admin-event-form-page');
+                const form = document.getElementById('event-form');
+                form.reset();
+                document.getElementById('eventId').value = '';
+                document.getElementById('hiddenImageUrl').value = '';
+                document.getElementById('image-preview-container').innerHTML = '';
+                document.getElementById('citta').value = '';
+
+                if (eventId) {
+                    document.getElementById('event-form-title').innerText = 'Modifica Evento';
+                    const allEvents = (await App.fetchApi('get_events&limit=10000')).events; 
+                    const event = allEvents.find(e => e.id == eventId);
+                    if (event) {
+                        document.getElementById('eventId').value = event.id;
+                        document.getElementById('titolo').value = event.titolo || '';
+                        document.getElementById('nomeAttivita').value = event.nomeAttivita || '';
+                        document.getElementById('descrizione').value = event.descrizione || '';
+                        document.getElementById('categoria').value = event.categoria || '';
+                        document.getElementById('provincia').value = event.provincia || '';
+                        this.updateCityDatalist(event.provincia);
+                        document.getElementById('citta').value = event.citta || '';
+                        document.getElementById('dataEvento').value = event.dataEvento.split(' ')[0];
+                        document.getElementById('orarioInizio').value = event.orarioInizio || '';
+                        document.getElementById('costoIngresso').value = event.costoIngresso || '';
+                        document.getElementById('hiddenImageUrl').value = event.imageUrl || '';
+                        if(event.imageUrl) {
+                            document.getElementById('image-preview-container').innerHTML = `<p class="text-sm text-gray-500 mt-2">Immagine attuale:</p><img src="${event.imageUrl}" class="mt-2 rounded-lg max-h-40">`;
+                        }
+                        document.getElementById('linkMappaGoogle').value = event.linkMappaGoogle || '';
+                        document.getElementById('linkPreviewMappaEmbed').value = event.linkPreviewMappaEmbed || '';
+                        document.getElementById('linkContattoPrenotazioni').value = event.linkContattoPrenotazioni || '';
+                    }
+                } else {
+                    document.getElementById('event-form-title').innerText = 'Nuovo Evento';
+                    this.updateCityDatalist(document.getElementById('provincia').value);
+                }
+            },
+            async handleEventFormSubmit(e) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                
+                formData.append('id', document.getElementById('eventId').value);
+                formData.append('titolo', document.getElementById('titolo').value);
+                formData.append('nomeAttivita', document.getElementById('nomeAttivita').value);
+                formData.append('descrizione', document.getElementById('descrizione').value);
+                formData.append('categoria', document.getElementById('categoria').value);
+                formData.append('provincia', document.getElementById('provincia').value);
+                formData.append('citta', document.getElementById('citta').value);
+                formData.append('dataEvento', `${document.getElementById('dataEvento').value} ${document.getElementById('orarioInizio').value}`);
+                formData.append('orarioInizio', document.getElementById('orarioInizio').value);
+                formData.append('costoIngresso', document.getElementById('costoIngresso').value);
+                formData.append('hiddenImageUrl', document.getElementById('hiddenImageUrl').value);
+                formData.append('linkMappaGoogle', document.getElementById('linkMappaGoogle').value);
+                formData.append('linkPreviewMappaEmbed', document.getElementById('linkPreviewMappaEmbed').value);
+                formData.append('linkContattoPrenotazioni', document.getElementById('linkContattoPrenotazioni').value);
+
+                const imageFile = document.getElementById('imageFile').files[0];
+                if (imageFile) {
+                    formData.append('imageFile', imageFile);
+                }
+
+                try {
+                    await App.fetchApi('save_event', { method: 'POST', body: formData });
+                    alert('Evento salvato!');
+                    await App.fetchInitialData();
+                    this.navigate('admin-manage-events');
+                } catch (error) {
+                    alert(`Errore nel salvataggio dell'evento: ${error.message}`);
+                }
+            },
+            async deleteEvent(eventId, title) {
+                App.showDeleteModal(title, async () => {
+                    try {
+                        await App.fetchApi('delete_event', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ id: eventId })
+                        });
+                        this.loadEvents();
+                    } catch (error) { alert("Errore durante l'eliminazione."); }
+                });
+            },
+            loadActivities() {
+                const activities = App.cache.activities;
+                if (!activities || activities.length === 0) return App.showEmptyMessage('admin-activities-list', 'Nessuna attività trovata.');
+                let html = '';
+                activities.forEach(activity => {
+                    const expiryDate = new Date(activity.dataFineVisualizzazione).toLocaleDateString('it-IT');
+                    const isActive = new Date(activity.dataFineVisualizzazione) >= new Date();
+                    html += `<div class="bg-white p-4 rounded-lg shadow flex justify-between items-center"><div><h4 class="font-bold text-lg text-gray-800">${sanitizeHTML(activity.nomeAttivita)}</h4><p class="text-sm text-gray-500">Scade il: ${expiryDate} <span class="ml-2 font-bold ${isActive ? 'text-green-500' : 'text-red-500'}">${isActive ? 'ATTIVA' : 'SCADUTA'}</span></p></div><div class="space-x-2"><button onclick="Admin.showActivityForm(${activity.id})" class="bg-yellow-500 text-white w-10 h-10 rounded-full hover:bg-yellow-600"><i class="fas fa-pencil-alt"></i></button><button onclick="Admin.deleteActivity(${activity.id}, '${sanitizeHTML(activity.nomeAttivita.replace(/'/g, "\\'"))}')" class="bg-red-500 text-white w-10 h-10 rounded-full hover:bg-red-600"><i class="fas fa-trash"></i></button></div></div>`;
+                });
+                document.getElementById('admin-activities-list').innerHTML = html;
+            },
+            showActivityForm(activityId = null) {
+                this.navigate('admin-activity-form-page');
+                document.getElementById('activity-form').reset();
+                document.getElementById('activityId').value = '';
+                document.getElementById('hiddenLogoUrl').value = '';
+                document.getElementById('logo-preview-container').innerHTML = '';
+
+                if (activityId) {
+                    document.getElementById('activity-form-title').innerText = 'Modifica Attività';
+                    const activity = App.cache.activities.find(a => a.id == activityId);
+                    if (activity) {
+                        document.getElementById('activityId').value = activity.id;
+                        document.getElementById('activity-nomeAttivita').value = activity.nomeAttivita || '';
+                        document.getElementById('activity-linkDestinazione').value = activity.linkDestinazione || '';
+                        document.getElementById('hiddenLogoUrl').value = activity.logoUrl || '';
+                         if(activity.logoUrl) {
+                            document.getElementById('logo-preview-container').innerHTML = `<p class="text-sm text-gray-500 mt-2">Logo attuale:</p><img src="${activity.logoUrl}" class="mt-2 rounded-lg max-h-20">`;
+                        }
+                        document.getElementById('activity-dataFineVisualizzazione').value = activity.dataFineVisualizzazione;
+                    }
+                } else {
+                    document.getElementById('activity-form-title').innerText = 'Nuova Attività';
+                }
+            },
+            async handleActivityFormSubmit(e) {
+                e.preventDefault();
+                const formData = new FormData();
+                formData.append('id', document.getElementById('activityId').value);
+                formData.append('nomeAttivita', document.getElementById('activity-nomeAttivita').value);
+                formData.append('linkDestinazione', document.getElementById('activity-linkDestinazione').value);
+                formData.append('hiddenLogoUrl', document.getElementById('hiddenLogoUrl').value);
+                formData.append('dataFineVisualizzazione', document.getElementById('activity-dataFineVisualizzazione').value);
+                const logoFile = document.getElementById('logoFile').files[0];
+                if (logoFile) {
+                    formData.append('logoFile', logoFile);
+                }
+                try {
+                    await App.fetchApi('save_activity', { method: 'POST', body: formData });
+                    alert('Attività salvata!');
+                    await App.fetchInitialData();
+                    this.navigate('admin-manage-activities');
+                } catch (error) { alert(`Errore nel salvataggio dell'attività: ${error.message}`); }
+            },
+            async deleteActivity(activityId, title) {
+                App.showDeleteModal(title, async () => {
+                    try {
+                        await App.fetchApi('delete_activity', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ id: activityId })
+                        });
+                        await App.fetchInitialData();
+                        this.loadActivities();
+                    } catch (error) { alert("Errore durante l'eliminazione."); }
+                });
+            },
+            loadSettings() {
+                const config = App.cache.config;
+                document.getElementById('hiddenLogoAppUrl').value = config.logoAppUrl || '';
+                 if(config.logoAppUrl) {
+                    document.getElementById('logo-app-preview-container').innerHTML = `<p class="text-sm text-gray-500 mt-2">Logo attuale:</p><img src="${config.logoAppUrl}" class="mt-2 rounded-lg max-h-20">`;
+                }
+                document.getElementById('settings-linkInstagram').value = config.linkInstagram || '';
+                document.getElementById('settings-linkFacebook').value = config.linkFacebook || '';
+                document.getElementById('settings-linkSitoWeb').value = config.linkSitoWeb || '';
+                document.getElementById('settings-linkIscriviAttivita').value = config.linkIscriviAttivita || '';
+            },
+            async handleSettingsFormSubmit(e) {
+                e.preventDefault();
+                const formData = new FormData();
+                formData.append('hiddenLogoAppUrl', document.getElementById('hiddenLogoAppUrl').value);
+                formData.append('linkInstagram', document.getElementById('settings-linkInstagram').value);
+                formData.append('linkFacebook', document.getElementById('settings-linkFacebook').value);
+                formData.append('linkSitoWeb', document.getElementById('settings-linkSitoWeb').value);
+                formData.append('linkIscriviAttivita', document.getElementById('settings-linkIscriviAttivita').value);
+                const logoAppFile = document.getElementById('logoAppFile').files[0];
+                if (logoAppFile) {
+                    formData.append('logoAppFile', logoAppFile);
+                }
+                try {
+                    await App.fetchApi('save_settings', { method: 'POST', body: formData });
+                    alert('Impostazioni salvate!');
+                    await App.fetchInitialData();
+                } catch (error) { alert(`Errore nel salvataggio delle impostazioni: ${error.message}`); }
+            },
+            async loadDashboardStats() {
+                try {
+                    const stats = await App.fetchApi('get_dashboard_stats');
+                    document.getElementById('stats-active-events').textContent = stats.active_events || 0;
+                    document.getElementById('stats-active-activities').textContent = stats.active_activities || 0;
+                    document.getElementById('stats-total-visits').textContent = stats.total_visits || 0;
+                    document.getElementById('stats-current-month-visits').textContent = stats.current_month_visits || 0;
+                    document.getElementById('stats-previous-month-visits').textContent = stats.previous_month_visits || 0;
+                } catch (error) {
+                    console.error("Errore caricamento statistiche:", error);
+                }
+            },
+            showLoginModal() {
+                document.getElementById('admin-login-modal').classList.remove('hidden');
+            },
+            hideLoginModal() {
+                document.getElementById('admin-login-modal').classList.add('hidden');
+                document.getElementById('login-error-message').classList.add('hidden');
+                document.getElementById('admin-login-form').reset();
+            },
+            async handleLogin(e) {
+                e.preventDefault();
+                const loginButton = document.getElementById('admin-login-btn');
+                loginButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+                loginButton.disabled = true;
+
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const errorMessage = document.getElementById('login-error-message');
+                errorMessage.classList.add('hidden');
+
+                try {
+                    const response = await App.fetchApi('login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    if (response.success) {
+                        this.isAuthenticated = true;
+                        sessionStorage.setItem('isAdminAuthenticated', 'true');
+                        this.hideLoginModal();
+                        App.switchToAdminView();
+                    }
+                } catch (error) {
+                    errorMessage.textContent = error.message || 'Credenziali non valide.';
+                    errorMessage.classList.remove('hidden');
+                } finally {
+                    loginButton.innerHTML = `Accedi`;
+                    loginButton.disabled = false;
+                }
+            },
+            logout() {
+                App.fetchApi('logout').then(() => {
+                    sessionStorage.removeItem('isAdminAuthenticated');
+                    this.isAuthenticated = false;
+                    App.switchToUserView();
+                }).catch(err => {
+                    console.error("Errore durante il logout:", err);
+                    sessionStorage.removeItem('isAdminAuthenticated');
+                    this.isAuthenticated = false;
+                    App.switchToUserView();
+                });
+            },
+            checkAuth() {
+                return this.isAuthenticated;
+            }
+        };
+
+        const AdminSequence = {
+            sequence: ['home', 'search', 'favorites', 'logo'],
+            currentStep: 0,
+            timer: null,
+            startTimer() {
+                clearTimeout(this.timer);
+                this.timer = setTimeout(() => { this.reset(); }, 4000);
+            },
+            reset() {
+                this.currentStep = 0;
+                clearTimeout(this.timer);
+            },
+            registerTap(key) {
+                if (this.currentStep === 0 && key !== this.sequence[0]) {
+                    this.reset();
+                    return;
+                }
+                if (this.currentStep === 0 && key === this.sequence[0]) {
+                    this.startTimer();
+                }
+                if (key === this.sequence[this.currentStep]) {
+                    this.currentStep++;
+                    if (this.currentStep === this.sequence.length) {
+                        this.reset();
+                        Admin.showLoginModal();
+                    }
+                } else {
+                    this.reset();
+                }
+            }
+        };
+
+        const User = {
+            favorites: [], currentPromoIndex: 0, promoInterval: null, calendarDate: new Date(),
+            historyStack: ['user-home'],
+            searchState: { page: 1, filters: {}, isLoading: false, total: 0, loaded: 0 },
+            homeState: { page: 1, filters: {}, isLoading: false, total: 0, loaded: 0 },
+            init() {
+                this.loadFavoritesFromStorage();
+                this.addEventListeners();
+                this.populateHomeCategoryFilters();
+                this.setupCalendar();
+            },
+            addEventListeners() {
+                document.getElementById('nav-home').addEventListener('click', (e) => { e.preventDefault(); AdminSequence.registerTap('home'); this.navigate('user-home'); });
+                document.getElementById('nav-search').addEventListener('click', (e) => { e.preventDefault(); AdminSequence.registerTap('search'); this.navigate('user-search'); });
+                document.getElementById('nav-favorites').addEventListener('click', (e) => { e.preventDefault(); AdminSequence.registerTap('favorites'); this.navigate('user-favorites'); });
+                document.getElementById('user-app-logo').addEventListener('click', () => AdminSequence.registerTap('logo'));
+
+                document.getElementById('search-input').addEventListener('input', () => this.debounce(() => this.performSearch('search-results-list', 'search-load-more-container', this.getSearchFilters(), false), 500)());
+                document.getElementById('search-category').addEventListener('change', () => this.performSearch('search-results-list', 'search-load-more-container', this.getSearchFilters(), false));
+                document.getElementById('search-province').addEventListener('change', (e) => {
+                    Admin.populateCitySelect('search-city', e.target.value, true); 
+                    this.performSearch('search-results-list', 'search-load-more-container', this.getSearchFilters(), false);
+                });
+                document.getElementById('search-city').addEventListener('change', () => this.performSearch('search-results-list', 'search-load-more-container', this.getSearchFilters(), false));
+                document.getElementById('search-reset-btn').addEventListener('click', () => this.resetSearch());
+                document.getElementById('open-calendar-btn').addEventListener('click', () => this.showCalendarModal());
+                document.getElementById('close-calendar-modal').addEventListener('click', () => this.hideCalendarModal());
+                document.getElementById('prev-month-modal').addEventListener('click', () => this.changeMonth(-1));
+                document.getElementById('next-month-modal').addEventListener('click', () => this.changeMonth(1));
+                document.getElementById('voice-assistant-btn').addEventListener('click', () => this.startVoiceRecognition());
+            },
+            debounce(func, delay) {
+                let timeout;
+                return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
+            },
+            goBack() {
+                if (this.historyStack.length > 1) {
+                    this.historyStack.pop();
+                    const previousPage = this.historyStack[this.historyStack.length - 1];
+                    this.navigate(previousPage, null, false);
+                }
+            },
+            navigate(pageId, eventId = null, addToHistory = true) {
+                if (addToHistory && pageId !== this.historyStack[this.historyStack.length - 1]) {
+                    this.historyStack.push(pageId);
+                }
+                document.querySelectorAll('.user-page').forEach(page => page.classList.remove('active'));
+                document.getElementById(pageId)?.classList.add('active');
+                
+                const navPageId = pageId.replace('user-','');
+                document.querySelectorAll('.user-nav-link').forEach(link => {
+                    link.classList.remove('text-indigo-600'); link.classList.add('text-gray-600');
+                    if (link.getAttribute('href') === `#${navPageId}`) {
+                         link.classList.add('text-indigo-600'); link.classList.remove('text-gray-600');
+                    }
+                });
+                window.scrollTo(0, 0);
+                switch(pageId) {
+                    case 'user-home': this.performSearch('home-events-list', 'home-load-more-container', this.getHomeFilters(), false); break;
+                    case 'user-search': this.performSearch('search-results-list', 'search-load-more-container', this.getSearchFilters(), false); break;
+                    case 'user-favorites': this.renderFavoritesPage(); break;
+                    case 'user-event-detail': if(eventId) this.renderEventDetail(eventId); break;
+                }
+            },
+            loadGlobalConfig() {
+                const config = App.cache.config;
+                const logoEl = document.getElementById('user-app-logo');
+                
+                if (config.logoAppUrl) {
+                    logoEl.src = config.logoAppUrl;
+                } else {
+                    logoEl.src = "https://placehold.co/150x40/000000/FFFFFF?text=Calabria+Events";
+                }
+
+                const socialContainer = document.getElementById('social-links-container');
+                socialContainer.innerHTML = '';
+                if (config.linkFacebook) socialContainer.innerHTML += `<a href="${config.linkFacebook}" target="_blank" class="text-gray-500 hover:text-blue-800"><i class="fab fa-facebook-square"></i></a>`;
+                if (config.linkInstagram) socialContainer.innerHTML += `<a href="${config.linkInstagram}" target="_blank" class="text-gray-500 hover:text-pink-600"><i class="fab fa-instagram"></i></a>`;
+                if (config.linkSitoWeb) socialContainer.innerHTML += `<a href="${config.linkSitoWeb}" target="_blank" class="text-gray-500 hover:text-gray-800"><i class="fas fa-globe"></i></a>`;
+                document.getElementById('iscrivi-attivita-link').href = config.linkIscriviAttivita || '#';
+            },
+            populateHomeCategoryFilters() {
+                const container = document.getElementById('home-category-filters');
+                container.innerHTML = '';
+                const categories = ['Tutto', ...AppData.categories];
+                categories.forEach(cat => {
+                    const btn = document.createElement('button');
+                    btn.dataset.category = cat;
+                    btn.className = 'category-button text-sm py-2 px-3 bg-transparent border border-gray-400 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg transition-colors duration-200';
+                    btn.textContent = cat;
+                    if (cat === 'Tutto') btn.classList.add('active');
+                    btn.addEventListener('click', () => {
+                        document.querySelector('#home-category-filters .active').classList.remove('active');
+                        btn.classList.add('active');
+                        this.performSearch('home-events-list', 'home-load-more-container', this.getHomeFilters(), false);
+                    });
+                    container.appendChild(btn);
+                });
+            },
+            getHomeFilters() {
+                const activeCategoryEl = document.querySelector('#home-category-filters .active');
+                if (!activeCategoryEl) return { category: 'Tutto' }; // Fallback
+                return { category: activeCategoryEl.dataset.category };
+            },
+            getSearchFilters() {
+                return {
+                    category: document.getElementById('search-category').value,
+                    province: document.getElementById('search-province').value,
+                    city: document.getElementById('search-city').value,
+                    searchTerm: document.getElementById('search-input').value,
+                };
+            },
+            async performSearch(listId, loadMoreContainerId, filters, loadMore) {
+                const state = (listId === 'home-events-list') ? this.homeState : this.searchState;
+
+                if (state.isLoading) return;
+                state.isLoading = true;
+
+                if (!loadMore) {
+                    state.page = 1;
+                    state.loaded = 0;
+                    state.total = 0;
+                    document.getElementById(listId).innerHTML = '';
+                    App.showLoading(listId);
+                }
+
+                const loadMoreContainer = document.getElementById(loadMoreContainerId);
+                loadMoreContainer.innerHTML = `<i class="fas fa-spinner fa-spin text-2xl text-indigo-500"></i>`;
+
+                let query = `page=${state.page}`;
+                for (const key in filters) {
+                    if (filters[key]) {
+                        query += `&${key}=${encodeURIComponent(filters[key])}`;
+                    }
+                }
+
+                try {
+                    const data = await App.fetchApi(`get_events&${query}`);
+                    if (!loadMore) {
+                        document.getElementById(listId).innerHTML = '';
+                    }
+
+                    if (data.events.length === 0 && !loadMore) {
+                        App.showEmptyMessage(listId, "Nessun evento trovato con i filtri selezionati.");
+                    } else {
+                        data.events.forEach(event => {
+                            document.getElementById(listId).innerHTML += this.createEventCard(event);
+                        });
+                    }
+
+                    state.page++;
+                    state.loaded += data.events.length;
+                    state.total = data.total;
+
+                    if (state.loaded < state.total) {
+                        loadMoreContainer.innerHTML = `<button onclick="User.performSearch('${listId}', '${loadMoreContainerId}', User.getFiltersForContext('${listId}'), true)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Carica Altri</button>`;
+                    } else {
+                        loadMoreContainer.innerHTML = '';
+                    }
+                } catch (error) {
+                    App.showEmptyMessage(listId, "Si è verificato un errore durante la ricerca.");
+                } finally {
+                    state.isLoading = false;
+                    if (state.loaded >= state.total) {
+                        loadMoreContainer.innerHTML = '';
+                    }
+                }
+            },
+            getFiltersForContext(listId) {
+                return (listId === 'home-events-list') ? this.getHomeFilters() : this.getSearchFilters();
+            },
+            loadActivePromos() {
+                const allActivities = App.cache.activities;
+                if (!Array.isArray(allActivities)) return; // Safety check
+                const now = new Date();
+                const activePromos = allActivities.filter(act => new Date(act.dataFineVisualizzazione) >= now);
+
+                const container = document.getElementById('promo-popup-container');
+                if (activePromos.length > 0) {
+                    container.classList.remove('hidden');
+                    this.startPromoRotation(activePromos);
+                } else {
+                    container.classList.add('hidden');
+                    if (this.promoInterval) clearInterval(this.promoInterval);
+                }
+            },
+            startPromoRotation(promos) {
+                if (this.promoInterval) clearInterval(this.promoInterval);
+                const container = document.getElementById('promo-popup-container');
+                const showPromo = () => {
+                    if (promos.length === 0) return;
+                    const promo = promos[this.currentPromoIndex];
+                    container.innerHTML = `<div class="max-w-md mx-auto"><a href="${sanitizeHTML(promo.linkDestinazione)}" target="_blank" class="block bg-gradient-to-r from-indigo-500 to-purple-600 p-4 rounded-lg shadow-lg text-white no-underline"><div class="flex items-center space-x-4"><img src="${sanitizeHTML(promo.logoUrl)}" alt="${sanitizeHTML(promo.nomeAttivita)}" class="w-12 h-12 rounded-full object-cover border-2 border-white flex-shrink-0"><div class="overflow-hidden"><p class="font-bold truncate">${sanitizeHTML(promo.nomeAttivita)}</p><p class="text-sm opacity-90">Scopri di più!</p></div></div></a></div>`;
+                    this.currentPromoIndex = (this.currentPromoIndex + 1) % promos.length;
+                };
+                showPromo();
+                this.promoInterval = setInterval(showPromo, 20000);
+            },
+            loadFavoritesFromStorage() { this.favorites = JSON.parse(localStorage.getItem('calabria_events_favorites') || '[]'); },
+            saveFavoritesToStorage() { localStorage.setItem('calabria_events_favorites', JSON.stringify(this.favorites)); },
+            toggleFavorite(eventId, element) {
+                eventId = parseInt(eventId);
+                const index = this.favorites.indexOf(eventId);
+                if (index > -1) {
+                    this.favorites.splice(index, 1);
+                    element.innerHTML = '<i class="far fa-heart"></i>'; element.classList.remove('text-red-500');
+                } else {
+                    this.favorites.push(eventId);
+                    element.innerHTML = '<i class="fas fa-heart"></i>'; element.classList.add('text-red-500');
+                }
+                this.saveFavoritesToStorage();
+                if (document.getElementById('user-favorites').classList.contains('active')) this.renderFavoritesPage();
+            },
+            async renderFavoritesPage() {
+                const listId = 'favorites-list';
+                App.showLoading(listId);
+                if (this.favorites.length === 0) return App.showEmptyMessage(listId, 'Non hai ancora eventi preferiti.');
+                
+                try {
+                    const idString = this.favorites.join(',');
+                    const favoriteEvents = await App.fetchApi(`get_events_by_ids&ids=${idString}`);
+                    
+                    document.getElementById(listId).innerHTML = '';
+                    if (favoriteEvents.length === 0) return App.showEmptyMessage(listId, 'Nessuno dei tuoi preferiti è disponibile.');
+                    
+                    let html = '';
+                    favoriteEvents.forEach(event => html += this.createEventCard(event));
+                    document.getElementById(listId).innerHTML = html;
+                } catch(e) {
+                    App.showEmptyMessage(listId, 'Errore nel caricamento dei preferiti.');
+                }
+            },
+            populateSearchFilters() {
+                const categorySelect = document.getElementById('search-category');
+                const provinceSelect = document.getElementById('search-province');
+                
+                categorySelect.innerHTML = '<option value="">Tutte le Categorie</option>';
+                AppData.categories.forEach(cat => categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`);
+
+                provinceSelect.innerHTML = '<option value="">Tutte le Province</option>';
+                Object.keys(App.cache.locations).forEach(prov => provinceSelect.innerHTML += `<option value="${prov}">${prov}</option>`);
+                
+                Admin.populateCitySelect('search-city', '', true);
+            },
+            resetSearch() {
+                document.getElementById('search-input').value = '';
+                document.getElementById('search-category').value = '';
+                document.getElementById('search-province').value = '';
+                Admin.populateCitySelect('search-city', '', true);
+                this.performSearch('search-results-list', 'search-load-more-container', this.getSearchFilters(), false);
+            },
+            showCalendarModal() {
+                document.getElementById('calendar-modal').classList.remove('hidden');
+                this.updateCalendarCounts();
+            },
+            hideCalendarModal() { document.getElementById('calendar-modal').classList.add('hidden'); },
+            showEventsForDate(dateString) {
+                this.hideCalendarModal();
+                const filters = { ...this.getSearchFilters(), date: dateString };
+                this.performSearch('search-results-list', 'search-load-more-container', filters, false);
+            },
+            setupCalendar() { this.renderCalendar(); },
+            renderCalendar() {
+                const grid = document.getElementById('calendar-grid-modal');
+                const monthYearEl = document.getElementById('calendar-month-year-modal');
+                grid.innerHTML = '';
+                const date = this.calendarDate;
+                const month = date.getMonth(), year = date.getFullYear();
+                monthYearEl.textContent = date.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+                ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'].forEach(day => grid.innerHTML += `<div class="font-bold text-xs text-gray-500">${day}</div>`);
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                for (let i = 0; i < (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); i++) grid.innerHTML += '<div></div>';
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    grid.innerHTML += `<div id="day-modal-${dayString}" class="calendar-day p-2 cursor-pointer hover:bg-indigo-100 rounded-full transition-colors" onclick="User.showEventsForDate('${dayString}')">${i}</div>`;
+                }
+            },
+            async updateCalendarCounts() {
+                const allEvents = (await App.fetchApi('get_events&limit=10000')).events;
+                document.querySelectorAll('.event-count').forEach(el => el.remove());
+                const counts = {};
+                allEvents.forEach(event => {
+                    const dateString = event.dataEvento.split(' ')[0];
+                    counts[dateString] = (counts[dateString] || 0) + 1;
+                });
+                for (const [date, count] of Object.entries(counts)) {
+                    const dayEl = document.getElementById(`day-modal-${date}`);
+                    if (dayEl) { dayEl.classList.add('has-events'); dayEl.innerHTML += `<span class="event-count">${count}</span>`; }
+                }
+            },
+            changeMonth(direction) {
+                this.calendarDate.setMonth(this.calendarDate.getMonth() + direction);
+                this.renderCalendar(); 
+                this.updateCalendarCounts();
+            },
+            createEventCard(event) {
+                const isFav = this.favorites.includes(parseInt(event.id));
+                const eventDate = new Date(event.dataEvento).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+                return `<div class="bg-white rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-transform duration-300"><div class="relative"><img src="${sanitizeHTML(event.imageUrl)}" alt="${sanitizeHTML(event.titolo)}" class="w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/cccccc/FFFFFF?text=Immagine+non+disponibile'"><button onclick="User.toggleFavorite(${event.id}, this)" class="absolute top-2 right-2 bg-white/80 w-10 h-10 rounded-full flex items-center justify-center text-xl ${isFav ? 'text-red-500' : 'text-gray-600'}"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></button></div><div class="p-4"><p class="text-sm text-indigo-500 font-semibold">${sanitizeHTML(event.categoria)}</p><h3 class="font-bold text-lg text-gray-800 truncate">${sanitizeHTML(event.titolo)}</h3><p class="text-sm text-gray-500"><i class="fas fa-map-marker-alt mr-1"></i>${sanitizeHTML(event.citta)}, ${sanitizeHTML(event.provincia)}</p><p class="text-sm text-gray-500"><i class="fas fa-calendar-alt mr-1"></i>${eventDate} - ${sanitizeHTML(event.orarioInizio.substring(0, 5))}</p><button onclick="User.navigate('user-event-detail', ${event.id})" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Dettagli</button></div></div>`;
+            },
+            async renderEventDetail(eventId) {
+                App.showLoading('user-event-detail');
+                try {
+                    const allEvents = (await App.fetchApi('get_events&limit=10000')).events; 
+                    const event = allEvents.find(e => e.id == eventId);
+                    if (!event) return App.showEmptyMessage('user-event-detail', 'Evento non trovato.');
+                    
+                    const isFav = this.favorites.includes(parseInt(event.id));
+                    const eventDate = new Date(event.dataEvento).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    document.getElementById('user-event-detail').innerHTML = `<div><button onclick="User.goBack()" class="mb-4 text-indigo-600 hover:underline"><i class="fas fa-arrow-left mr-2"></i>Torna indietro</button><div class="relative"><img src="${sanitizeHTML(event.imageUrl)}" alt="${sanitizeHTML(event.titolo)}" class="w-full h-64 object-cover rounded-lg shadow-lg" onerror="this.src='https://placehold.co/800x400/cccccc/FFFFFF?text=Immagine+non+disponibile'"><button onclick="User.toggleFavorite(${event.id}, this)" class="absolute top-4 right-4 bg-white/80 w-12 h-12 rounded-full flex items-center justify-center text-2xl ${isFav ? 'text-red-500' : 'text-gray-600'}"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></button></div><div class="bg-white p-6 rounded-lg shadow-md -mt-10 relative z-10 mx-4"><span class="bg-indigo-100 text-indigo-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${sanitizeHTML(event.categoria)}</span><h2 class="text-3xl font-bold text-gray-900 mt-2">${sanitizeHTML(event.titolo)}</h2><p class="text-md text-gray-600 mt-1">Organizzato da: ${sanitizeHTML(event.nomeAttivita)}</p><div class="mt-6 space-y-4 text-gray-700"><div class="flex items-center"><i class="fas fa-calendar-alt w-6 text-indigo-500"></i><span>${eventDate} alle ${sanitizeHTML(event.orarioInizio.substring(0, 5))}</span></div><div class="flex items-center"><i class="fas fa-map-marker-alt w-6 text-indigo-500"></i><span>${sanitizeHTML(event.citta)}, ${sanitizeHTML(event.provincia)}</span></div><div class="flex items-center"><i class="fas fa-money-bill-wave w-6 text-indigo-500"></i><span>Ingresso: ${sanitizeHTML(event.costoIngresso)}</span></div></div><hr class="my-6"><h3 class="text-xl font-bold text-gray-800 mb-2">Descrizione</h3><p class="text-gray-600 whitespace-pre-wrap">${sanitizeHTML(event.descrizione)}</p><div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6"><a href="${sanitizeHTML(event.linkMappaGoogle)}" target="_blank" class="w-full text-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300"><i class="fas fa-map-signs mr-2"></i>Raggiungimi</a>${event.linkContattoPrenotazioni ? `<a href="${sanitizeHTML(event.linkContattoPrenotazioni)}" target="_blank" class="w-full text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300"><i class="fas fa-ticket-alt mr-2"></i>Prenota Ora</a>` : ''}</div><div class="mt-6"><h3 class="text-xl font-bold text-gray-800 mb-2">Mappa</h3><div class="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden border border-gray-200">${event.linkPreviewMappaEmbed}</div></div></div></div>`;
+                } catch(e) {
+                    App.showEmptyMessage('user-event-detail', 'Errore nel caricamento dei dettagli.');
+                }
+            },
+            showToast(message) {
+                const toast = document.getElementById('voice-toast');
+                toast.textContent = message;
+                toast.classList.remove('opacity-0');
+                setTimeout(() => toast.classList.add('opacity-0'), 3000);
+            },
+            speak(text) {
+                if ('speechSynthesis' in window) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'it-IT';
+                    window.speechSynthesis.speak(utterance);
+                }
+            },
+            startVoiceRecognition() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) { this.showToast("Assistente vocale non supportato."); return; }
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'it-IT';
+                recognition.interimResults = false;
+                const micIcon = document.querySelector('#voice-assistant-btn i');
+                const voiceModal = document.getElementById('voice-recognition-modal');
+                recognition.onstart = () => { micIcon.classList.add('text-red-500'); voiceModal.classList.remove('hidden'); };
+                recognition.onerror = (event) => { micIcon.classList.remove('text-red-500'); voiceModal.classList.add('hidden'); this.showToast(`Errore: ${event.error}`); };
+                recognition.onend = () => { micIcon.classList.remove('text-red-500'); voiceModal.classList.add('hidden'); };
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript.toLowerCase().trim();
+                    this.showToast(`Hai detto: ${transcript}`);
+                    this.processVoiceCommand(transcript);
+                };
+                recognition.start();
+            },
+            processVoiceCommand(command) {
+                if (command.includes("vai a casa") || command === "home") { this.navigate('user-home'); this.speak("Ok, torno alla home."); return; }
+                if (command.includes("cerca") && !command.includes("eventi")) { this.navigate('user-search'); this.speak("Ok, vado alla ricerca."); return; }
+                if (command.includes("preferiti")) { this.navigate('user-favorites'); this.speak("Ecco i tuoi preferiti."); return; }
+                if (command.includes("reset") || command.includes("cancella filtri")) { this.resetSearch(); this.speak("Filtri resettati."); return; }
+                this.navigate('user-search');
+                let appliedFilter = false;
+                AppData.categories.forEach(cat => { if (command.includes(cat.toLowerCase())) { document.getElementById('search-category').value = cat; appliedFilter = true; } });
+                const allLocations = [...Object.keys(App.cache.locations), ...Object.values(App.cache.locations).flat()];
+                allLocations.forEach(loc => {
+                    if (command.includes(loc.toLowerCase())) {
+                        if (App.cache.locations[loc]) { document.getElementById('search-province').value = loc; Admin.populateCitySelect('search-city', loc, true); } 
+                        else { 
+                            for (const prov in App.cache.locations) { 
+                                if (App.cache.locations[prov].includes(loc)) { 
+                                    document.getElementById('search-province').value = prov; 
+                                    Admin.populateCitySelect('search-city', prov, true); 
+                                    document.getElementById('search-city').value = loc; 
+                                    break; 
+                                } 
+                            } 
+                        }
+                        appliedFilter = true;
+                    }
+                });
+                if (appliedFilter) { this.performSearch('search-results-list', 'search-load-more-container', this.getSearchFilters(), false); this.speak("Ecco i risultati per la tua ricerca."); } 
+                else { this.speak("Non ho capito il comando, puoi ripetere?"); }
+            }
+        };
+
+        // --- AVVIO APPLICAZIONE ---
+        document.addEventListener('DOMContentLoaded', () => App.init());
+        window.App = App; window.Admin = Admin; window.User = User;
+    </script>
+</body>
+</html>
