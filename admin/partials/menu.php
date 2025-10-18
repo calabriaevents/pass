@@ -24,6 +24,15 @@ $menuItems = [
     ['file' => 'manutenzione.php', 'icon' => 'wrench', 'label' => 'Modalità Manutenzione'],
     ['file' => 'impostazioni.php', 'icon' => 'settings', 'label' => 'Impostazioni'],
 ];
+?>
+<hr class="my-2">
+<p class="text-xs text-gray-500 uppercase px-4">Modulo Eventi</p>
+<a href="/admin/eventi-dashboard.php" class="block py-2 px-4 hover:bg-gray-700">Dashboard Eventi</a>
+<a href="/admin/gestione-eventi.php" class="block py-2 px-4 hover:bg-gray-700">Gestione Eventi</a>
+<a href="/admin/gestione-attivita.php" class="block py-2 px-4 hover:bg-gray-700">Gestione Attività</a>
+<a href="/admin/eventi-impostazioni.php" class="block py-2 px-4 hover:bg-gray-700">Impostazioni Eventi</a>
+<hr class="my-2">
+<?php
 
 // Recupera tutti i conteggi degli elementi in attesa
 $pendingCounts = [
