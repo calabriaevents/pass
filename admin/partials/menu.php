@@ -93,7 +93,7 @@ if (isset($db) && $db->isConnected()) {
     </ul>
 
     <!-- Modulo Eventi -->
-    <hr class="my-2 border-gray-600">
+    <hr class.="my-2 border-gray-600">
     <p class="text-xs text-gray-500 uppercase px-4 mt-4 mb-2">Modulo Eventi</p>
     <ul class="space-y-2">
         <li>

@@ -16,12 +16,11 @@ class Database {
     private $error_message = '';
 
     public function __construct() {
-        // Load database configuration from secure config file
-        $config = getDatabaseConfig();
-        $this->host = $config['host'];
-        $this->dbname = $config['dbname'];
-        $this->username = $config['username'];
-        $this->password = $config['password'];
+        // Load database configuration from defined constants
+        $this->host = DB_HOST;
+        $this->dbname = DB_NAME;
+        $this->username = DB_USER;
+        $this->password = DB_PASS;
 
         try {
             $dsn = "mysql:host={$this->host};dbname={$this->dbname};charset=utf8mb4";
