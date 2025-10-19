@@ -34,9 +34,9 @@ class Database {
         } catch (PDOException $e) {
             $this->connection_error = true;
             $this->error_message = 'Errore connessione database MySQL: ' . $e->getMessage();
-            // Log the error but don't throw exception to prevent 500 errors
+            // Log the error and die with a friendly message
             error_log($this->error_message);
-            $this->pdo = null;
+            die("<h1>Errore di Connessione al Database</h1><p>Impossibile connettersi al database. Controlla le tue credenziali nel file <code>includes/db_config.php</code> e assicurati che il server MySQL sia in esecuzione.</p><p><strong>Dettagli dell'errore:</strong> " . $this->error_message . "</p>");
         }
     }
 
@@ -881,6 +881,19 @@ public function getArticleBySlug($slug) {
         if (!$this->isConnected()) { return; }
         $stmt = $this->pdo->prepare('INSERT INTO settings (`key`, value, type, updated_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), type = VALUES(type), updated_at = NOW()');
         $stmt->execute([$key, $value, $type]);
+    }
+
+    public function getSettingsAsArray() {
+        if (!$this->isConnected()) {
+            return [];
+        }
+        $stmt = $this->pdo->prepare('SELECT `key`, `value` FROM settings');
+        $stmt->execute();
+        $settings = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $settings[$row['key']] = $row['value'];
+        }
+        return $settings;
     }
 
     // Metodi per Suggerimenti
