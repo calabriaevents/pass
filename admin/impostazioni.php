@@ -50,6 +50,12 @@ $settingsGroups = [
         'description' => 'Configurazioni varie del sistema',
         'icon' => 'settings',
         'settings' => []
+    ],
+    'event' => [
+        'title' => '🗓️ Modulo Eventi',
+        'description' => 'Abilita o disabilita il modulo eventi',
+        'icon' => 'calendar',
+        'settings' => []
     ]
 ];
 
@@ -65,6 +71,8 @@ foreach ($settings as $setting) {
         $settingsGroups['analytics']['settings'][] = $setting;
     } elseif (strpos($key, '_key') !== false || strpos($key, 'secret') !== false) {
         $settingsGroups['security']['settings'][] = $setting;
+    } elseif (strpos($key, 'event_') === 0) {
+        $settingsGroups['event']['settings'][] = $setting;
     } else {
         $settingsGroups['other']['settings'][] = $setting;
     }
@@ -92,7 +100,8 @@ function getNiceFieldName($key) {
         'stripe_secret_key' => 'Stripe - Secret Key',
         'contact_phone' => 'Numero di Telefono Contatti',
         'contact_text' => 'Testo Personalizzabile Contatti',
-        'contact_hours' => 'Orario di Apertura Contatti'
+        'contact_hours' => 'Orario di Apertura Contatti',
+        'event_module_enabled' => 'Modulo Eventi Abilitato'
     ];
     
     return $names[$key] ?? ucfirst(str_replace('_', ' ', $key));
@@ -119,7 +128,8 @@ function getFieldDescription($key) {
         'stripe_secret_key' => 'Chiave privata Stripe (mantenere segreta!)',
         'contact_phone' => 'Numero di telefono mostrato nella dashboard utenti e nelle pagine di contatto',
         'contact_text' => 'Testo personalizzabile mostrato nella sezione contatti della dashboard utenti',
-        'contact_hours' => 'Orario di disponibilità per l\'assistenza (es: Disponibili dal Lunedì al Venerdì, 9:00-18:00)'
+        'contact_hours' => 'Orario di disponibilità per l\'assistenza (es: Disponibili dal Lunedì al Venerdì, 9:00-18:00)',
+        'event_module_enabled' => 'Se abilitato, il modulo eventi sarà visibile nel menu principale e accessibile agli utenti.'
     ];
     
     return $descriptions[$key] ?? '';
@@ -254,6 +264,19 @@ function getFieldDescription($key) {
                                             placeholder="https://example.com"
                                         >
                                         <i data-lucide="link" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                                    </div>
+
+                                    <?php elseif ($setting['type'] === 'switch'): ?>
+                                    <div class="flex items-center">
+                                        <input type="hidden" name="settings[<?php echo htmlspecialchars($setting['key']); ?>]" value="0">
+                                        <input
+                                            type="checkbox"
+                                            name="settings[<?php echo htmlspecialchars($setting['key']); ?>]"
+                                            id="<?php echo htmlspecialchars($setting['key']); ?>"
+                                            value="1"
+                                            class="h-6 w-11 rounded-full bg-gray-300 transition-all duration-200 ease-in-out relative inline-flex items-center"
+                                            <?php echo ($setting['value'] ?? 0) == 1 ? 'checked' : ''; ?>
+                                        >
                                     </div>
                                     
                                     <?php else: ?>

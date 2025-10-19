@@ -2,6 +2,22 @@
 // Header comune per tutte le pagine
 require_once __DIR__ . '/config.php';
 
+// Includi il file della classe Database
+require_once __DIR__ . '/database_mysql.php';
+
+// Crea un'istanza della classe Database
+try {
+    $db = new Database();
+    $settings = $db->getSettingsAsArray();
+    error_log('Settings loaded in header: ' . print_r($settings, true));
+} catch (Exception $e) {
+    // Gestisci l'errore di connessione al database se necessario
+    // Per ora, impostiamo un array vuoto per evitare errori successivi
+    $settings = [];
+    error_log("Errore nel caricamento delle impostazioni nell'header: " . $e->getMessage());
+}
+
+
 // Controllo modalità manutenzione (solo per pagine pubbliche)
 require_once __DIR__ . '/maintenance_check.php';
 ?>
@@ -46,6 +62,9 @@ require_once __DIR__ . '/maintenance_check.php';
                 <div class="hidden lg:flex items-center justify-center flex-1">
                     <div class="flex items-center space-x-8">
                         <a href="index.php" class="hover:text-yellow-300 transition-colors font-medium">Home</a>
+                        <?php if (!empty($settings['event_module_enabled']) && $settings['event_module_enabled']): ?>
+                        <a href="eventi/index.php" class="hover:text-yellow-300 transition-colors font-medium">Eventi</a>
+                        <?php endif; ?>
                         <a href="citta.php" class="hover:text-yellow-300 transition-colors font-medium">Città</a>
                         <a href="mappa.php" class="hover:text-yellow-300 transition-colors font-medium">Mappa</a>
                         <a href="contatti.php" class="hover:text-yellow-300 transition-colors font-medium">Contatti</a>
@@ -117,6 +136,9 @@ require_once __DIR__ . '/maintenance_check.php';
         <div id="mobile-menu" class="lg:hidden hidden bg-black/20 backdrop-blur-sm border-t border-white/10">
             <div class="px-4 py-4 space-y-3">
                 <a href="index.php" class="block py-2 hover:text-yellow-300 transition-colors">Home</a>
+                <?php if (!empty($settings['event_module_enabled']) && $settings['event_module_enabled']): ?>
+                <a href="eventi/index.php" class="block py-2 hover:text-yellow-300 transition-colors">Eventi</a>
+                <?php endif; ?>
                 <a href="categorie.php" class="block py-2 hover:text-yellow-300 transition-colors">Categorie</a>
                 <a href="province.php" class="block py-2 hover:text-yellow-300 transition-colors">Province</a>
                 <a href="citta.php" class="block py-2 hover:text-yellow-300 transition-colors">Città</a>

@@ -11,4 +11,10 @@ if (extension_loaded('imagick')) {
 } else {
     echo "Libreria Imagick: NON Trovata.\n";
 }
+
+if (extension_loaded('mbstring')) {
+    echo "Libreria mbstring: Trovata.\n";
+} else {
+    echo "Libreria mbstring: NON Trovata.\n";
+}
 ?>
