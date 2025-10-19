@@ -27,6 +27,9 @@ define('SESSION_LIFETIME', 3600); // 1 ora
 date_default_timezone_set('Europe/Rome');
 
 // Encoding
+if (!function_exists('mb_internal_encoding')) {
+    die('<h1>Errore di configurazione</h1><p>L\'estensione PHP <strong>mbstring</strong> non è installata o abilitata. Questa estensione è necessaria per il corretto funzionamento dell\'applicazione.</p><p>Per installarla su un sistema basato su Debian/Ubuntu, esegui il comando: <code>sudo apt-get install php-mbstring</code></p><p>Dopo l\'installazione, riavvia il tuo server web.</p>');
+}
 mb_internal_encoding('UTF-8');
 
 // Gestione errori
