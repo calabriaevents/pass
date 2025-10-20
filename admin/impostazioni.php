@@ -1,8 +1,12 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
+require_once '../includes/config.php';
+require_once '../includes/database_mysql.php';
 
 // Controlla autenticazione (da implementare)
 // requireLogin();
+
+$db = new Database();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $settings = $_POST['settings'] ?? [];

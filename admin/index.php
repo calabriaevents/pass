@@ -4,7 +4,6 @@ require_once __DIR__ . '/auth_check.php';
 // Controlla autenticazione (per ora commentiamo)
 // requireLogin();
 
-$db = null;
 $dbError = null;
 $stats = [];
 $totalViews = 0;

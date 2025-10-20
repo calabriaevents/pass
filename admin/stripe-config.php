@@ -1,9 +1,12 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
+require_once '../includes/config.php';
+require_once '../includes/database_mysql.php';
 
 // Verifica se l'utente è loggato come admin
 // requireLogin(); // Disabilitato per ora
 
+$db = new Database();
 $success = '';
 $error = '';
 

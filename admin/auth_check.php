@@ -6,6 +6,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Centralized Database Connection
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/database_mysql.php';
+
+// Instantiate the database connection, making it available globally to all admin scripts
+$db = new Database();
+
 // Check if the user is logged in and if their role is 'admin'.
 // If not, redirect them to the login page and terminate the script.
 if (!isset($_SESSION['user_logged_in']) || !isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
