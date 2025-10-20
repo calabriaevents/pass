@@ -10,8 +10,8 @@ if (session_status() === PHP_SESSION_NONE) {
 // If not, redirect them to the login page and terminate the script.
 if (!isset($_SESSION['user_logged_in']) || !isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
     // Redirect to the main login page, which will handle all user authentication.
-    // Using an absolute path is more robust.
-    header('Location: /user-auth.php?action=login&unauthorized=true');
+    // Using a relative path for local development compatibility.
+    header('Location: ../user-auth.php?action=login&unauthorized=true');
     exit;
 }
 

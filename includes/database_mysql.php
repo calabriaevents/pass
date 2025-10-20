@@ -167,9 +167,14 @@ class Database {
 
     public function getPendingEventSuggestionsCount() {
         if (!$this->isConnected()) { return 0; }
+        // ATTENZIONE: La tabella 'events' potrebbe non esistere.
+        // Commentato per evitare errori fatali fino al completamento dell'integrazione del modulo eventi.
+        return 0;
+        /*
         $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM events WHERE source = "user_submission" AND status = "pending"');
         $stmt->execute();
         return (int) $stmt->fetchColumn();
+        */
     }
 
     public function getPendingPlaceSuggestionsCount() {
