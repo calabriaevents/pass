@@ -167,7 +167,7 @@ class Database {
 
     public function getPendingEventSuggestionsCount() {
         if (!$this->isConnected()) { return 0; }
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM events WHERE source = "user_submission" AND status = "pending"');
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM events WHERE status = "pending"');
         $stmt->execute();
         return (int) $stmt->fetchColumn();
     }
