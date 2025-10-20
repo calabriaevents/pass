@@ -1,16 +1,18 @@
 <?php
-require_once '../../includes/config.php';
-require_once '../../includes/database_mysql.php';
+require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/database_mysql.php';
+require_once __DIR__ . '/../auth_check.php';
 
 $db = new Database();
+
 $action = $_GET['action'] ?? 'new';
 $id = $_GET['id'] ?? null;
-$comuneData = null;
+$comune = null;
 
-if ($action === 'edit' && $id) {
+if ($id) {
     $stmt = $db->pdo->prepare('SELECT * FROM comuni WHERE id = ?');
     $stmt->execute([$id]);
-    $comuneData = $stmt->fetch();
+    $comune = $stmt->fetch();
 }
 ?>
 <!DOCTYPE html>
@@ -38,7 +40,7 @@ if ($action === 'edit' && $id) {
                 </div>
             </div>
         </div>
-        <?php include '../partials/menu.php'; ?>
+        <?php include __DIR__ . '/../partials/menu.php'; ?>
         <div class="p-4 border-t border-gray-700">
             <a href="../../index.php" class="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors">
                 <i data-lucide="log-out" class="w-5 h-5"></i>
@@ -50,59 +52,44 @@ if ($action === 'edit' && $id) {
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900"><?php echo $action === 'edit' ? 'Modifica' : 'Nuovo'; ?> Comune</h1>
-                    <p class="text-sm text-gray-500"><?php echo $action === 'edit' ? 'Modifica i dati del comune' : 'Aggiungi un nuovo comune'; ?></p>
-                </div>
-            </div>
+            <h1 class="text-2xl font-bold text-gray-900"><?php echo $action === 'edit' ? 'Modifica' : 'Nuovo'; ?> Comune</h1>
         </header>
-
         <main class="flex-1 overflow-auto p-6">
-            <div class="max-w-lg mx-auto bg-white rounded-lg shadow-sm p-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm">
                 <form action="../comuni.php" method="POST">
                     <input type="hidden" name="action" value="<?php echo $action; ?>">
                     <?php if ($id): ?>
                         <input type="hidden" name="id" value="<?php echo $id; ?>">
                     <?php endif; ?>
 
-                    <div class="space-y-6">
-                        <div>
-                            <label for="nome" class="block text-sm font-medium text-gray-700">Nome Comune</label>
-                            <input type="text" name="nome" id="nome" value="<?php echo htmlspecialchars($comuneData['nome'] ?? ''); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                        </div>
-
-                        <div>
-                            <label for="provincia" class="block text-sm font-medium text-gray-700">Provincia</label>
-                            <input type="text" name="provincia" id="provincia" value="<?php echo htmlspecialchars($comuneData['provincia'] ?? ''); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                        </div>
-
-                        <div>
-                            <label for="importo_pagato" class="block text-sm font-medium text-gray-700">Importo Pagato (€)</label>
-                            <input type="number" name="importo_pagato" id="importo_pagato" value="<?php echo htmlspecialchars($comuneData['importo_pagato'] ?? ''); ?>" required step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                        </div>
-
-                        <div>
-                            <label for="data_pagamento" class="block text-sm font-medium text-gray-700">Data Pagamento</label>
-                            <input type="date" name="data_pagamento" id="data_pagamento" value="<?php echo htmlspecialchars($comuneData['data_pagamento'] ?? ''); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                        </div>
+                    <div class="mb-4">
+                        <label for="nome" class="block text-sm font-semibold text-gray-700">Nome Comune</label>
+                        <input type="text" name="nome" id="nome" value="<?php echo htmlspecialchars($comune['nome'] ?? ''); ?>" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
                     </div>
 
-                    <div class="mt-8 pt-5 border-t border-gray-200">
-                        <div class="flex justify-end space-x-3">
-                            <a href="../comuni.php" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Annulla
-                            </a>
-                            <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                <?php echo $action === 'edit' ? 'Salva Modifiche' : 'Aggiungi Comune'; ?>
-                            </button>
-                        </div>
+                    <div class="mb-4">
+                        <label for="provincia" class="block text-sm font-semibold text-gray-700">Provincia</label>
+                        <input type="text" name="provincia" id="provincia" value="<?php echo htmlspecialchars($comune['provincia'] ?? ''); ?>" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="importo_pagato" class="block text-sm font-semibold text-gray-700">Importo Pagato</label>
+                        <input type="number" step="0.01" name="importo_pagato" id="importo_pagato" value="<?php echo htmlspecialchars($comune['importo_pagato'] ?? ''); ?>" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="data_pagamento" class="block text-sm font-semibold text-gray-700">Data Pagamento</label>
+                        <input type="date" name="data_pagamento" id="data_pagamento" value="<?php echo htmlspecialchars($comune['data_pagamento'] ?? ''); ?>" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <a href="../comuni.php" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg mr-2">Annulla</a>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"><?php echo $action === 'edit' ? 'Aggiorna' : 'Salva'; ?></button>
                     </div>
                 </form>
             </div>
         </main>
     </div>
-
     <script>
         lucide.createIcons();
     </script>

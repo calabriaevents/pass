@@ -577,7 +577,7 @@ public function getArticleBySlug($slug) {
     // Metodi per Commenti
     public function getComments($status = null) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT c.*, a.title as article_title FROM comments c LEFT JOIN articles a ON c.article_id = a.id';
+        $sql = 'SELECT c.*, a.title as article_title, a.slug as article_slug FROM comments c LEFT JOIN articles a ON c.article_id = a.id';
         $params = [];
         if ($status) {
             $sql .= ' WHERE c.status = ?';
@@ -635,17 +635,26 @@ public function getArticleBySlug($slug) {
 
     // Metodi per Commenti Città
     public function getCityComments($cityId = null, $status = null) {
-        if (!$this->isConnected()) { return []; }
+        if (!$this.isConnected()) { return []; }
         $sql = 'SELECT c.*, ci.name as city_name FROM comments c LEFT JOIN cities ci ON c.city_id = ci.id WHERE c.article_id IS NULL';
         $params = [];
+        $conditions = ['c.article_id IS NULL'];
+
         if ($cityId) {
-            $sql .= ' AND c.city_id = ?';
+            $conditions[] = 'c.city_id = ?';
             $params[] = $cityId;
         }
         if ($status) {
-            $sql .= ' AND c.status = ?';
+            $conditions[] = 'c.status = ?';
             $params[] = $status;
         }
+
+        if (count($conditions) > 0) {
+            $sql = 'SELECT c.*, ci.name as city_name FROM comments c LEFT JOIN cities ci ON c.city_id = ci.id WHERE ' . implode(' AND ', $conditions);
+        } else {
+            $sql = 'SELECT c.*, ci.name as city_name FROM comments c LEFT JOIN cities ci ON c.city_id = ci.id';
+        }
+
         $sql .= ' ORDER BY c.created_at DESC';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
@@ -779,11 +788,11 @@ public function getArticleBySlug($slug) {
 
     public function getEventSuggestions($status = null) {
         if (!$this->isConnected()) { return []; }
-        $sql = 'SELECT e.*, c.name as category_name, p.name as province_name FROM events e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN provinces p ON e.province_id = p.id WHERE e.source = ?';
-        $params = ['user_submission'];
+        $sql = 'SELECT e.*, c.name as category_name, p.name as province_name FROM events e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN provinces p ON e.province_id = p.id WHERE e.source = :source';
+        $params = [':source' => 'user_submission'];
         if ($status) {
-            $sql .= ' AND e.status = ?';
-            $params[] = $status;
+            $sql .= ' AND e.status = :status';
+            $params[':status'] = $status;
         }
         $sql .= ' ORDER BY e.created_at DESC';
         $stmt = $this->pdo->prepare($sql);

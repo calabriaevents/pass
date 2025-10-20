@@ -342,7 +342,7 @@ try {
                                         
                                         <?php if (!empty($package['image_path'])): ?>
                                         <div class="w-16 h-16 ml-4 flex-shrink-0">
-                                            <img src="../<?php echo htmlspecialchars($package['image_path']); ?>" 
+                                            <img src="../image-loader.php?path=<?php echo urlencode($package['image_path']); ?>"
                                                  alt="<?php echo htmlspecialchars($package['name']); ?>"
                                                  class="w-full h-full object-cover rounded-lg border">
                                         </div>

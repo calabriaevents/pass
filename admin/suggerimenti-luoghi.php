@@ -234,8 +234,8 @@ if ($action === 'delete' && $id) {
                                 $correct_path = '/' . ltrim($image_path, '/');
                         ?>
                                 <div class="w-1/3 p-1">
-                                    <a href="<?php echo htmlspecialchars($correct_path); ?>" target="_blank" class="block border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                                        <img src="<?php echo htmlspecialchars($correct_path); ?>" alt="Immagine suggerita" class="w-full h-auto object-cover">
+                                    <a href="../image-loader.php?path=<?php echo urlencode($image_path); ?>" target="_blank" class="block border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                        <img src="../image-loader.php?path=<?php echo urlencode($image_path); ?>" alt="Immagine suggerita" class="w-full h-auto object-cover">
                                     </a>
                                 </div>
                         <?php
