@@ -1,10 +1,7 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
-require_once '../includes/config.php';
-require_once '../includes/database_mysql.php';
 require_once '../includes/image_processor.php'; // Image Processor è già incluso
 
-$db = new Database();
 $imageProcessor = new ImageProcessor();
 
 $action = $_GET['action'] ?? 'list';

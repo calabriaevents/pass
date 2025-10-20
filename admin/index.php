@@ -1,7 +1,5 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
-require_once '../includes/config.php';
-require_once '../includes/database_mysql.php';
 
 // Controlla autenticazione (per ora commentiamo)
 // requireLogin();
@@ -14,8 +12,6 @@ $recentArticles = [];
 $healthData = [];
 
 try {
-    $db = new Database();
-
     // Carica statistiche dashboard
     $stats = [
         'articles' => $db->pdo->query('SELECT COUNT(*) FROM articles')->fetchColumn(),

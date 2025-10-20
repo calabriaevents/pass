@@ -1,6 +1,19 @@
 <?php
 // This header should be included in all admin pages.
 // It expects a variable $page_title to be set before inclusion.
+
+// --> INIZIO MODIFICA <--
+require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/database_mysql.php';
+
+try {
+    $db = new Database();
+} catch (Exception $e) {
+    // Se la connessione al database fallisce, puoi gestire l'errore qui
+    // o lasciare che il menu venga visualizzato senza i conteggi.
+    $db = null;
+}
+// --> FINE MODIFICA <--
 ?>
 <!DOCTYPE html>
 <html lang="it">

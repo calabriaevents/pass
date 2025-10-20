@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 
@@ -47,14 +46,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Check credentials using the new generic method
         $user = $db->authenticateUserByEmail($email);
         
-        if ($user) {
-            error_log("User found: " . print_r($user, true));
-            $isPasswordCorrect = password_verify($password, $user['password']);
-            error_log("Password verification result: " . ($isPasswordCorrect ? 'true' : 'false'));
-        } else {
-            error_log("User not found for email: " . $email);
-        }
-
         if ($user && password_verify($password, $user['password'])) {
             // Successful login, set common session variables
             $_SESSION['user_logged_in'] = true;

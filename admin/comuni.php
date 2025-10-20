@@ -1,9 +1,5 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
-require_once '../includes/config.php';
-require_once '../includes/database_mysql.php';
-
-$db = new Database();
 
 // Gestione delle azioni POST per aggiunta e modifica
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

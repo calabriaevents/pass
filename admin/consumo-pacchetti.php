@@ -1,12 +1,8 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
-require_once '../includes/config.php';
-require_once '../includes/database_mysql.php';
 
 // Controlla autenticazione (per ora commentiamo)
 // // requireLogin(); // DISABILITATO
-
-$db = new Database();
 
 // Handle actions
 $action = $_GET['action'] ?? 'list';
