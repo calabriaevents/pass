@@ -30,7 +30,6 @@ try {
         'pending_comments' => $db->pdo->query('SELECT COUNT(*) FROM comments WHERE status = "pending"')->fetchColumn(),
         'comuni' => $db->pdo->query('SELECT COUNT(*) FROM comuni')->fetchColumn()
     ];
-
     // Statistiche visualizzazioni
     $totalViews = $db->pdo->query('SELECT SUM(views) FROM articles')->fetchColumn() ?: 0;
 
@@ -89,8 +88,6 @@ try {
     } catch (Exception $e) {
         error_log("Errore nel calcolo dei guadagni per periodo: " . $e->getMessage());
     }
-
-
     // Articoli recenti
     $recentArticles = $db->pdo->query('
         SELECT a.*, c.name as category_name
