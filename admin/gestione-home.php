@@ -2,27 +2,22 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php'; // Aggiunto ImageProcessor
 
-// Controlla autenticazione (da implementare)
-// requireLogin();
-
+// Inizializza oggetti
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
-// Gestione upload immagini
+// Gestione upload immagini asincrono
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
-    $uploadDir = '../uploads/';
-    if (!file_exists($uploadDir)) {
-        mkdir($uploadDir, 0777, true);
-    }
-    
-    $file = $_FILES['image'];
-    $fileName = time() . '_' . $file['name'];
-    $uploadPath = $uploadDir . $fileName;
-    
-    if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
-        echo json_encode(['success' => true, 'path' => '/uploads/' . $fileName]);
-    } else {
-        echo json_encode(['success' => false, 'error' => 'Errore upload']);
+    header('Content-Type: application/json');
+    try {
+        $relativePath = $imageProcessor->processUploadedImage($_FILES['image'], 'homepage');
+        // Restituisci il percorso relativo per l'input, ma usa image-loader.php per l'anteprima
+        $safePath = '../image-loader.php?path=' . urlencode($relativePath);
+        echo json_encode(['success' => true, 'path' => $relativePath, 'safe_path' => $safePath]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;
 }
@@ -683,6 +678,11 @@ foreach ($settings as $setting) {
                 .then(data => {
                     if (data.success) {
                         document.querySelector(`input[name="${targetInput}"]`).value = data.path;
+                        // Opzionale: Mostra un'anteprima dell'immagine caricata
+                        const preview = document.createElement('img');
+                        preview.src = data.safe_path;
+                        preview.className = 'w-16 h-16 object-cover rounded-lg border mt-2';
+                        input.parentElement.appendChild(preview);
                         alert('Immagine caricata con successo!');
                     } else {
                         alert('Errore nel caricamento: ' + (data.error || 'Errore sconosciuto'));

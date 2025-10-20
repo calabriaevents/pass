@@ -4,16 +4,10 @@ class ImageProcessor {
     private $upload_dir;
     private $last_error;
 
-    public function __construct(string $base_dir = '') {
-        // Garantisce che il percorso base sia sempre la root del progetto
+    public function __construct() {
+        // Il percorso base è sempre relativo alla root del progetto per coerenza.
         $project_root = dirname(__DIR__);
-
-        if (empty($base_dir)) {
-            // Percorso canonico e corretto per le immagini protette
-            $this->upload_dir = $project_root . '/uploads_protected/';
-        } else {
-            $this->upload_dir = $base_dir;
-        }
+        $this->upload_dir = $project_root . '/uploads_protected/';
 
         // Controlla se la cartella esiste e se è scrivibile, altrimenti prova a crearla
         if (!is_dir($this->upload_dir)) {
@@ -112,6 +106,12 @@ class ImageProcessor {
         $new_height = (int) ($new_width * $aspect_ratio);
 
         $resized_image = imagecreatetruecolor($new_width, $new_height);
+
+        // Aggiunto controllo di fallimento per imagecreatetruecolor, possibile causa di crash.
+        if ($resized_image === false) {
+            error_log("ImageProcessor Error: imagecreatetruecolor fallito per dimensioni {$new_width}x{$new_height}. Potrebbe essere un problema di memoria. Restituisco l'immagine originale.");
+            return $image; // Restituisce l'originale per non interrompere il flusso
+        }
 
         imagealphablending($resized_image, false);
         imagesavealpha($resized_image, true);

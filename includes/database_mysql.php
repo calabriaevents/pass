@@ -212,26 +212,14 @@ class Database {
         return $stmt->fetch();
     }
 
-    public function createCity($name, $province_id, $description = '', $latitude = null, $longitude = null) {
-        if (!$this->isConnected()) { return false; }
-        $stmt = $this->pdo->prepare('INSERT INTO cities (name, province_id, description, latitude, longitude, created_at) VALUES (?, ?, ?, ?, ?, NOW())');
-        return $stmt->execute([$name, $province_id, $description, $latitude, $longitude]);
-    }
-
-    public function updateCity($id, $name, $province_id, $description = '', $latitude = null, $longitude = null) {
-        if (!$this->isConnected()) { return false; }
-        $stmt = $this->pdo->prepare('UPDATE cities SET name = ?, province_id = ?, description = ?, latitude = ?, longitude = ? WHERE id = ?');
-        return $stmt->execute([$name, $province_id, $description, $latitude, $longitude, $id]);
-    }
-
-    // Nuovi metodi per gestire campi estesi delle città (hero_image, Maps_link, gallery_images)
-    public function createCityExtended($name, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
+    // Metodi unificati per la gestione delle città
+    public function createCity($name, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
         if (!$this->isConnected()) { return false; }
         $stmt = $this->pdo->prepare('INSERT INTO cities (name, province_id, description, latitude, longitude, hero_image, Maps_link, gallery_images, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())');
         return $stmt->execute([$name, $province_id, $description, $latitude, $longitude, $hero_image, $google_maps_link, $gallery_images]);
     }
 
-    public function updateCityExtended($id, $name, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
+    public function updateCity($id, $name, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
         if (!$this->isConnected()) { return false; }
         $stmt = $this->pdo->prepare('UPDATE cities SET name = ?, province_id = ?, description = ?, latitude = ?, longitude = ?, hero_image = ?, Maps_link = ?, gallery_images = ? WHERE id = ?');
         return $stmt->execute([$name, $province_id, $description, $latitude, $longitude, $hero_image, $google_maps_link, $gallery_images, $id]);

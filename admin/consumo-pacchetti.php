@@ -2,11 +2,11 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php'; // Aggiunto ImageProcessor
 
-// Controlla autenticazione (per ora commentiamo)
-// // requireLogin(); // DISABILITATO
-
+// Inizializza oggetti
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 // Handle actions
 $action = $_GET['action'] ?? 'list';
@@ -28,28 +28,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $features_json = json_encode($features);
     
-    // Handle image upload
-    $image_path = null;
-    if (isset($_FILES['package_image']) && $_FILES['package_image']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = '../uploads/packages/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-        
-        $fileExtension = strtolower(pathinfo($_FILES['package_image']['name'], PATHINFO_EXTENSION));
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-        
-        if (in_array($fileExtension, $allowedExtensions)) {
-            $fileName = uniqid() . '.' . $fileExtension;
-            $targetPath = $uploadDir . $fileName;
-            
-            if (move_uploaded_file($_FILES['package_image']['tmp_name'], $targetPath)) {
-                $image_path = 'uploads/packages/' . $fileName;
+    try {
+        $image_path = $_POST['current_image'] ?? null;
+
+        // Handle image upload with ImageProcessor
+        if (isset($_FILES['package_image']) && $_FILES['package_image']['error'] === UPLOAD_ERR_OK) {
+            $new_image_path = $imageProcessor->processUploadedImage($_FILES['package_image'], 'packages');
+            if ($new_image_path) {
+                // Delete old image if it exists
+                if (!empty($image_path) && file_exists('../' . $image_path)) {
+                    unlink('../' . $image_path);
+                }
+                $image_path = $new_image_path;
             }
         }
-    }
-    
-    try {
+
         if ($action === 'create') {
             $stmt = $db->pdo->prepare('
                 INSERT INTO business_packages (name, description, price, package_type, consumption_credits, features, stripe_price_id, is_active, sort_order, image_path) 
@@ -58,15 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$name, $description, $price, $consumption_credits, $features_json, $stripe_price_id, $is_active, $sort_order, $image_path]);
             header('Location: consumo-pacchetti.php?message=created');
         } elseif ($action === 'edit' && $id) {
-            // Get existing package to preserve image if no new one uploaded
-            $stmt = $db->pdo->prepare('SELECT image_path FROM business_packages WHERE id = ?');
-            $stmt->execute([$id]);
-            $existing = $stmt->fetch();
-            
-            if ($image_path === null && $existing) {
-                $image_path = $existing['image_path'];
-            }
-            
             $stmt = $db->pdo->prepare('
                 UPDATE business_packages 
                 SET name = ?, description = ?, price = ?, consumption_credits = ?, features = ?, stripe_price_id = ?, is_active = ?, sort_order = ?, image_path = ?
@@ -342,7 +326,7 @@ try {
                                         
                                         <?php if (!empty($package['image_path'])): ?>
                                         <div class="w-16 h-16 ml-4 flex-shrink-0">
-                                            <img src="../<?php echo htmlspecialchars($package['image_path']); ?>" 
+                                            <img src="../image-loader.php?path=<?php echo urlencode($package['image_path']); ?>"
                                                  alt="<?php echo htmlspecialchars($package['name']); ?>"
                                                  class="w-full h-full object-cover rounded-lg border">
                                         </div>
@@ -502,9 +486,11 @@ try {
                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
                                         <p class="text-xs text-gray-500 mt-1">JPG, PNG, WebP - Max 2MB</p>
                                         
+                                        <input type="hidden" name="current_image" value="<?php echo htmlspecialchars($editPackage['image_path'] ?? ''); ?>">
+
                                         <?php if ($editPackage && !empty($editPackage['image_path'])): ?>
                                         <div class="mt-3 flex items-center gap-3">
-                                            <img src="../<?php echo htmlspecialchars($editPackage['image_path']); ?>" 
+                                            <img src="../image-loader.php?path=<?php echo urlencode($editPackage['image_path']); ?>"
                                                  alt="Immagine corrente" class="w-16 h-16 object-cover rounded-lg border">
                                             <span class="text-sm text-gray-600">Immagine corrente</span>
                                         </div>

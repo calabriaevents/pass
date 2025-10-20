@@ -17,24 +17,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $description = $_POST['description'] ?? '';
     $icon = $_POST['current_icon'] ?? ''; // Mantieni l'icona esistente di default
 
-    // Gestione upload icona
+    // Gestione upload icona con ImageProcessor
     if (isset($_FILES['icon']) && $_FILES['icon']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = '../uploads/categories/';
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
-        $maxSize = 2 * 1024 * 1024; // 2MB
+        require_once '../includes/image_processor.php';
+        $imageProcessor = new ImageProcessor();
         
-        if (in_array($_FILES['icon']['type'], $allowedTypes) && $_FILES['icon']['size'] <= $maxSize) {
-            $extension = pathinfo($_FILES['icon']['name'], PATHINFO_EXTENSION);
-            $filename = 'category_' . time() . '_' . rand(1000, 9999) . '.' . $extension;
-            $uploadPath = $uploadDir . $filename;
-            
-            if (move_uploaded_file($_FILES['icon']['tmp_name'], $uploadPath)) {
-                // Elimina il file precedente se esiste e non è un emoji
-                if (!empty($icon) && strpos($icon, 'uploads/') !== false && file_exists('../' . $icon)) {
-                    unlink('../' . $icon);
-                }
-                $icon = 'uploads/categories/' . $filename;
-            }
+        // Prima di caricare la nuova immagine, se ne esiste una vecchia, la eliminiamo
+        if (!empty($icon)) {
+            $imageProcessor->deleteImage($icon);
+        }
+
+        $new_icon_path = $imageProcessor->processUploadedImage($_FILES['icon'], 'categories');
+
+        if ($new_icon_path) {
+            $icon = $new_icon_path;
+        } else {
+            // Gestione dell'errore di caricamento, se necessario
+            // ad esempio, impostando un messaggio di errore in sessione
+            error_log("Errore durante il caricamento dell'icona della categoria: " . $imageProcessor->getLastError());
         }
     }
 
@@ -43,13 +43,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $db->createCategory($name, $description, $icon);
     }
-    header('Location: categorie.php');
+    header('Location: categorie.php?success=1');
     exit;
 }
 
 if ($action === 'delete' && $id) {
     $db->deleteCategory($id);
-    header('Location: categorie.php');
+    header('Location: categorie.php?success=1');
     exit;
 }
 

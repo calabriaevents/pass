@@ -135,14 +135,7 @@ function parseFeatures($features_json) {
     return is_array($features) ? $features : [];
 }
 
-// Helper function to format date
-// Questa funzione è già in config.php, ma la teniamo qui per sicurezza se quel file non la include
-if (!function_exists('formatDate')) {
-    function formatDate($date) {
-        if (!$date) return 'N/A';
-        return date('d/m/Y', strtotime($date));
-    }
-}
+// Helper function to format date is already in config.php
 
 // Helper function to get status badge
 function getStatusBadge($status) {
