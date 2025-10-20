@@ -1,4 +1,5 @@
 <?php
+session_start();
 // This header should be included in all admin pages.
 // It expects a variable $page_title to be set before inclusion.
 ?>

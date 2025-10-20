@@ -1,29 +1,21 @@
 <?php
 // Database Configuration File
-// IMPORTANT: This file should be placed outside the web root or protected by .htaccess
+
+// IMPORTANT: Do not commit changes to this file with local credentials.
+define('DB_HOST', '127.0.0.1');
+define('DB_NAME', 'passione_calabria');
+define('DB_USER', 'passione_user');
+define('DB_PASSWORD', 'password');
+
+// The rest of the file can remain as is, since the constants are what's used by the application.
 
 // Load database configuration from environment variables or config file
 function getDatabaseConfig() {
-    // First try to get from environment variables (recommended for production)
-    $host = getenv('DB_HOST');
-    $dbname = getenv('DB_NAME');
-    $username = getenv('DB_USER');
-    $password = getenv('DB_PASSWORD');
-    
-    // If environment variables are not set, use default configuration
-    // IMPORTANT: Change these values and move to environment variables in production
-    if (!$host) {
-        $host = 'db5018301966.hosting-data.io';
-        $dbname = 'dbs14504718';
-        $username = 'dbu1167357';
-        $password = 'Barboncino692@@'; // TODO: Move to environment variable immediately!
-    }
-    
     return [
-        'host' => $host,
-        'dbname' => $dbname,
-        'username' => $username,
-        'password' => $password
+        'host' => defined('DB_HOST') ? DB_HOST : '127.0.0.1',
+        'dbname' => defined('DB_NAME') ? DB_NAME : 'passione_calabria',
+        'username' => defined('DB_USER') ? DB_USER : 'passione_user',
+        'password' => defined('DB_PASSWORD') ? DB_PASSWORD : 'password'
     ];
 }
 
