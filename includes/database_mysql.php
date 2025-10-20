@@ -414,10 +414,10 @@ public function getArticleBySlug($slug) {
             return false;
         }
         $stmt = $this->pdo->prepare('
-            SELECT u.id, u.email, u.password, u.name, u.role, b.id as business_id, b.status as business_status
-            FROM users u
-            LEFT JOIN businesses b ON u.email = b.email
-            WHERE u.email = ?
+            SELECT u.`id`, u.`email`, u.`password`, u.`name`, u.`role`, b.`id` as business_id, b.`status` as business_status
+            FROM `users` u
+            LEFT JOIN `businesses` b ON u.`email` = b.`email`
+            WHERE u.`email` = ?
         ');
         $stmt->execute([$email]);
         return $stmt->fetch();

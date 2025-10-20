@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 
@@ -59,6 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Role-based redirection
             if ($user['role'] === 'admin') {
+                // Set admin-specific session
+                $_SESSION['admin_logged_in'] = true;
                 // Redirect to admin dashboard
                 header('Location: admin/index.php');
                 exit;
