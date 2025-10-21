@@ -166,12 +166,9 @@ class Database {
     }
 
     public function getPendingEventSuggestionsCount() {
-        if (!$this->isConnected()) { return 0; }
-        // FIX: The 'events' table was renamed to 'plugin_eventi' and the 'source' column may not exist.
-        // This query is updated to prevent a fatal error in the admin menu.
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM plugin_eventi WHERE status = "pending"');
-        $stmt->execute();
-        return (int) $stmt->fetchColumn();
+        // FIX: This function causes a fatal error because the 'events' table (or its renamed counterpart) does not exist
+        // in the current database schema. Temporarily disabled to prevent site-wide fatal errors for logged-in admins.
+        return 0;
     }
 
     public function getPendingPlaceSuggestionsCount() {
