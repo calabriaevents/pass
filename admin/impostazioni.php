@@ -2,6 +2,7 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
+require_once '../includes/image_processor.php';
 
 // Controlla autenticazione (da implementare)
 // requireLogin();
@@ -10,9 +11,37 @@ $db = new Database();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $settings = $_POST['settings'] ?? [];
-    foreach ($settings as $key => $value) {
-        $db->setSetting($key, $value);
+
+    // Gestione dell'upload dell'immagine per la hero section
+    if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
+        $image_processor = new ImageProcessor();
+        $subfolder = 'settings';
+
+        // Prima di caricare la nuova immagine, recuperiamo il percorso di quella vecchia per eliminarla dopo
+        $old_image_path = $settings['hero_image'] ?? null;
+
+        $new_image_path = $image_processor->processUploadedImage($_FILES['hero_image'], $subfolder);
+
+        if ($new_image_path) {
+            // Se l'upload ha successo, aggiorniamo il valore da salvare nel database
+            $settings['hero_image'] = $new_image_path;
+
+            // Ed eliminiamo la vecchia immagine, se esisteva
+            if ($old_image_path) {
+                $image_processor->deleteImage($old_image_path);
+            }
+        } else {
+            // Facoltativo: gestire l'errore di upload, magari con un messaggio all'utente
+            // Per ora, non facciamo nulla e il vecchio valore non verrà sovrascritto
+            // se l'upload fallisce, perché $settings['hero_image'] conterrà ancora il vecchio path
+        }
     }
+
+    foreach ($settings as $key => $value) {
+        // Aggiungo un trim per pulire i valori da spazi bianchi inutili
+        $db->setSetting($key, trim($value));
+    }
+
     header('Location: impostazioni.php?success=true');
     exit;
 }
@@ -184,7 +213,7 @@ function getFieldDescription($key) {
             </div>
             <?php endif; ?>
 
-            <form action="impostazioni.php" method="POST" class="space-y-8">
+            <form action="impostazioni.php" method="POST" enctype="multipart/form-data" class="space-y-8">
                 <?php foreach ($settingsGroups as $groupKey => $group): ?>
                     <?php if (!empty($group['settings'])): ?>
                     <!-- Settings Group -->
@@ -219,7 +248,30 @@ function getFieldDescription($key) {
                                         <?php endif; ?>
                                     </label>
 
-                                    <?php if ($setting['type'] === 'textarea'): ?>
+                                    <?php
+                                        // Aggiungo un valore di default per 'type' per evitare errori
+                                        $setting_type = $setting['type'] ?? 'text';
+                                    ?>
+                                    <?php if ($setting['key'] === 'hero_image'): ?>
+                                        <div class="flex items-start space-x-6">
+                                            <?php if (!empty($setting['value'])): ?>
+                                            <div class="flex-shrink-0">
+                                                <p class="text-xs text-gray-500 mb-2">Anteprima attuale:</p>
+                                                <img src="../image-loader.php?path=<?php echo urlencode($setting['value']); ?>" alt="Anteprima" class="w-40 h-auto rounded-lg shadow-md border border-gray-200">
+                                            </div>
+                                            <?php endif; ?>
+                                            <div class="flex-1">
+                                                 <input
+                                                    type="file"
+                                                    name="hero_image"
+                                                    id="hero_image"
+                                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                                >
+                                                <input type="hidden" name="settings[hero_image]" value="<?php echo htmlspecialchars($setting['value']); ?>">
+                                                <p class="text-xs text-gray-500 mt-2">Carica una nuova immagine (max 1200px di larghezza) per sostituire quella esistente. Lascia vuoto per non modificare.</p>
+                                            </div>
+                                        </div>
+                                    <?php elseif ($setting_type === 'textarea'): ?>
                                     <textarea 
                                         name="settings[<?php echo htmlspecialchars($setting['key']); ?>]" 
                                         id="<?php echo htmlspecialchars($setting['key']); ?>" 
@@ -228,7 +280,7 @@ function getFieldDescription($key) {
                                         placeholder="Inserisci <?php echo strtolower(getNiceFieldName($setting['key'])); ?>..."
                                     ><?php echo htmlspecialchars($setting['value']); ?></textarea>
                                     
-                                    <?php elseif ($setting['type'] === 'password' || strpos($setting['key'], 'secret') !== false): ?>
+                                    <?php elseif ($setting_type === 'password' || strpos($setting['key'], 'secret') !== false): ?>
                                     <div class="relative">
                                         <input 
                                             type="password" 
@@ -243,7 +295,7 @@ function getFieldDescription($key) {
                                         </button>
                                     </div>
                                     
-                                    <?php elseif ($setting['type'] === 'url' || strpos($setting['key'], 'link') !== false): ?>
+                                    <?php elseif ($setting_type === 'url' || strpos($setting['key'], 'link') !== false): ?>
                                     <div class="relative">
                                         <input 
                                             type="url" 
@@ -258,7 +310,7 @@ function getFieldDescription($key) {
                                     
                                     <?php else: ?>
                                     <input 
-                                        type="<?php echo htmlspecialchars($setting['type']); ?>" 
+                                        type="<?php echo htmlspecialchars($setting_type); ?>"
                                         name="settings[<?php echo htmlspecialchars($setting['key']); ?>]" 
                                         id="<?php echo htmlspecialchars($setting['key']); ?>" 
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"

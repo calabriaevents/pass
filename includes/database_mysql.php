@@ -167,7 +167,9 @@ class Database {
 
     public function getPendingEventSuggestionsCount() {
         if (!$this->isConnected()) { return 0; }
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM events WHERE source = "user_submission" AND status = "pending"');
+        // FIX: The 'events' table was renamed to 'plugin_eventi' and the 'source' column may not exist.
+        // This query is updated to prevent a fatal error in the admin menu.
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM plugin_eventi WHERE status = "pending"');
         $stmt->execute();
         return (int) $stmt->fetchColumn();
     }
