@@ -115,7 +115,7 @@ foreach ($homeSections as $section) {
     <!-- Hero Section -->
     <section class="relative bg-gradient-to-br from-blue-900 via-blue-700 to-amber-600 text-white py-24 overflow-hidden">
         <!-- Background Image -->
-        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('<?php echo $heroSection['image_path'] ?? 'https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80'; ?>')"></div>
+        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('<?php echo get_image_url($heroSection['image_path'] ?? '', 'https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80'); ?>')"></div>
         <div class="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-blue-700/70 to-amber-600/60"></div>
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold mb-6">
@@ -199,13 +199,13 @@ foreach ($homeSections as $section) {
                     
                     <?php if (!empty($eventData['app_store_link']) && !empty($eventData['app_store_image'])): ?>
                     <a href="<?php echo htmlspecialchars($eventData['app_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                        <img src="<?php echo htmlspecialchars($eventData['app_store_image']); ?>" alt="Scarica su App Store" class="h-14 w-auto">
+                        <img src="<?php echo get_image_url($eventData['app_store_image']); ?>" alt="Scarica su App Store" class="h-14 w-auto">
                     </a>
                     <?php endif; ?>
                     
                     <?php if (!empty($eventData['play_store_link']) && !empty($eventData['play_store_image'])): ?>
                     <a href="<?php echo htmlspecialchars($eventData['play_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                        <img src="<?php echo htmlspecialchars($eventData['play_store_image']); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
+                        <img src="<?php echo get_image_url($eventData['play_store_image']); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
                     </a>
                     <?php endif; ?>
                 </div>

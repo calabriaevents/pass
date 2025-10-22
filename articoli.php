@@ -2,6 +2,24 @@
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
 
+if (!function_exists('get_image_url')) {
+    function get_image_url($path, $default_image = 'assets/images/default-placeholder.jpg') {
+        if (empty($path)) {
+            return $default_image;
+        }
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return htmlspecialchars($path);
+        }
+        $clean_path = $path;
+        if (strpos($clean_path, 'uploads_protected/') === 0) {
+            $clean_path = substr($clean_path, strlen('uploads_protected/'));
+        } elseif (strpos($clean_path, 'uploads/') === 0) {
+            $clean_path = substr($clean_path, strlen('uploads/'));
+        }
+        return 'image-loader.php?path=' . urlencode($clean_path);
+    }
+}
+
 $db = new Database();
 $articles = $db->getArticles();
 ?>
@@ -24,11 +42,9 @@ $articles = $db->getArticles();
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <?php foreach ($articles as $article): ?>
                 <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <?php if ($article['featured_image']): ?>
-                        <a href="articolo.php?slug=<?php echo $article['slug']; ?>">
-                            <img src="<?php echo htmlspecialchars($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-full h-48 object-cover">
-                        </a>
-                    <?php endif; ?>
+                    <a href="articolo.php?slug=<?php echo $article['slug']; ?>">
+                        <img src="<?php echo get_image_url($article['featured_image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>" class="w-full h-48 object-cover">
+                    </a>
                     <div class="p-6">
                         <h2 class="text-2xl font-bold text-gray-900 mb-2">
                             <a href="articolo.php?slug=<?php echo $article['slug']; ?>" class="hover:text-blue-600">

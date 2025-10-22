@@ -294,12 +294,12 @@ foreach ($settings as $setting) {
                             <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
                                 <?php if (!empty($appSettings['app_store_link']) && !empty($appSettings['app_store_image'])): ?>
                                 <a href="<?php echo htmlspecialchars($appSettings['app_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                                    <img src="<?php echo htmlspecialchars($appSettings['app_store_image']); ?>" alt="Scarica su App Store" class="h-14 w-auto">
+                                    <img src="<?php echo get_image_url($appSettings['app_store_image']); ?>" alt="Scarica su App Store" class="h-14 w-auto">
                                 </a>
                                 <?php endif; ?>
                                 <?php if (!empty($appSettings['play_store_link']) && !empty($appSettings['play_store_image'])): ?>
                                 <a href="<?php echo htmlspecialchars($appSettings['play_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                                    <img src="<?php echo htmlspecialchars($appSettings['play_store_image']); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
+                                    <img src="<?php echo get_image_url($appSettings['play_store_image']); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
                                 </a>
                                 <?php endif; ?>
                             </div>
