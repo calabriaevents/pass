@@ -11,12 +11,16 @@ if (!function_exists('get_image_url')) {
         if (filter_var($path, FILTER_VALIDATE_URL)) {
             return htmlspecialchars($path);
         }
-        $clean_path = $path;
+
+        // Pulisce il percorso da spazi, slash iniziali/finali e prefissi noti.
+        $clean_path = trim($path, " \t\n\r\0\x0B/");
+
         if (strpos($clean_path, 'uploads_protected/') === 0) {
             $clean_path = substr($clean_path, strlen('uploads_protected/'));
         } elseif (strpos($clean_path, 'uploads/') === 0) {
             $clean_path = substr($clean_path, strlen('uploads/'));
         }
+
         return 'image-loader.php?path=' . urlencode($clean_path);
     }
 }
@@ -250,10 +254,10 @@ unset($category); // Unset reference
                                 <?php echo $category['article_count']; ?> <span>articoli</span>
                             </div>
                             <div class="text-4xl">
-                                <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
-                                    <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-10 h-10 object-cover rounded-lg">
-                                <?php else: ?>
+                                <?php if (filter_var($category['icon'], FILTER_VALIDATE_URL) || strpos($category['icon'], '<svg') !== false): ?>
                                     <?php echo $category['icon']; ?>
+                                <?php else: ?>
+                                    <img src="<?php echo get_image_url($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-10 h-10 object-cover rounded-lg">
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -304,10 +308,10 @@ unset($category); // Unset reference
     <div class="flex items-center justify-between mt-1">
         <div class="flex items-center text-xs text-gray-500">
             <?php // Aggiungiamo qui la logica per visualizzare l'icona della categoria ?>
-            <?php if (strpos($category['icon'], 'uploads/') !== false): ?>
-                <img src="<?php echo htmlspecialchars($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
-            <?php else: ?>
+            <?php if (filter_var($category['icon'], FILTER_VALIDATE_URL) || strpos($category['icon'], '<svg') !== false): ?>
                 <span class="mr-1.5"><?php echo $category['icon']; ?></span>
+            <?php else: ?>
+                <img src="<?php echo get_image_url($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
             <?php endif; ?>
             <span><?php echo formatDate($article['created_at']); ?></span>
         </div>

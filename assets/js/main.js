@@ -11,11 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initCategoriesSlider();
     initArticlesSliders();
     
-    // Inizializza mappa homepage se presente
-    if (document.getElementById('homepage-map')) {
-        initHomepageMap();
-    }
-
     // Inizializza Lucide icons
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
