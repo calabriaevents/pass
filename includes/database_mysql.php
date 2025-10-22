@@ -167,9 +167,15 @@ class Database {
 
     public function getPendingEventSuggestionsCount() {
         if (!$this->isConnected()) { return 0; }
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM events WHERE source = "user_submission" AND status = "pending"');
-        $stmt->execute();
-        return (int) $stmt->fetchColumn();
+        try {
+            $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM events WHERE source = "user_submission" AND status = "pending"');
+            $stmt->execute();
+            return (int) $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            // Log the error and return 0 if the table doesn't exist or another DB error occurs
+            error_log("Error in getPendingEventSuggestionsCount: " . $e->getMessage());
+            return 0;
+        }
     }
 
     public function getPendingPlaceSuggestionsCount() {
