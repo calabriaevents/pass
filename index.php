@@ -195,13 +195,13 @@ unset($category); // Unset reference
                     
                     <?php if (!empty($eventData['app_store_link']) && !empty($eventData['app_store_image'])): ?>
                     <a href="<?php echo htmlspecialchars($eventData['app_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                        <img src="<?php echo htmlspecialchars($eventData['app_store_image']); ?>" alt="Scarica su App Store" class="h-14 w-auto">
+                        <img src="<?php echo get_image_url(htmlspecialchars($eventData['app_store_image'] ?? '')); ?>" alt="Scarica su App Store" class="h-14 w-auto">
                     </a>
                     <?php endif; ?>
                     
                     <?php if (!empty($eventData['play_store_link']) && !empty($eventData['play_store_image'])): ?>
                     <a href="<?php echo htmlspecialchars($eventData['play_store_link']); ?>" target="_blank" class="transition-transform hover:scale-105">
-                        <img src="<?php echo htmlspecialchars($eventData['play_store_image']); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
+                        <img src="<?php echo get_image_url(htmlspecialchars($eventData['play_store_image'] ?? '')); ?>" alt="Scarica su Google Play" class="h-14 w-auto">
                     </a>
                     <?php endif; ?>
                 </div>
@@ -254,11 +254,16 @@ unset($category); // Unset reference
                                 <?php echo $category['article_count']; ?> <span>articoli</span>
                             </div>
                             <div class="text-4xl">
-                                <?php if (filter_var($category['icon'], FILTER_VALIDATE_URL) || strpos($category['icon'], '<svg') !== false): ?>
-                                    <?php echo $category['icon']; ?>
-                                <?php else: ?>
-                                    <img src="<?php echo get_image_url($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-10 h-10 object-cover rounded-lg">
-                                <?php endif; ?>
+                                <?php
+                                $icon = $category['icon'];
+                                // Controlla se l'icona è un percorso di file immagine (controllando l'estensione)
+                                if (preg_match('/\.(jpg|jpeg|png|webp|gif)$/i', $icon)) {
+                                    echo '<img src="' . get_image_url($icon) . '" alt="' . htmlspecialchars($category['name']) . '" class="w-10 h-10 object-cover rounded-lg">';
+                                } else {
+                                    // Altrimenti, la tratta come testo, emoji o SVG e la stampa direttamente.
+                                    echo $icon;
+                                }
+                                ?>
                             </div>
                         </div>
                         <h3 class="text-2xl font-bold text-white mb-2"><?php echo htmlspecialchars($category['name']); ?></h3>
@@ -307,12 +312,14 @@ unset($category); // Unset reference
 
     <div class="flex items-center justify-between mt-1">
         <div class="flex items-center text-xs text-gray-500">
-            <?php // Aggiungiamo qui la logica per visualizzare l'icona della categoria ?>
-            <?php if (filter_var($category['icon'], FILTER_VALIDATE_URL) || strpos($category['icon'], '<svg') !== false): ?>
-                <span class="mr-1.5"><?php echo $category['icon']; ?></span>
-            <?php else: ?>
-                <img src="<?php echo get_image_url($category['icon']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="w-4 h-4 mr-1.5 rounded">
-            <?php endif; ?>
+            <?php
+            $icon = $category['icon'];
+            if (preg_match('/\.(jpg|jpeg|png|webp|gif)$/i', $icon)) {
+                echo '<img src="' . get_image_url($icon) . '" alt="' . htmlspecialchars($category['name']) . '" class="w-4 h-4 mr-1.5 rounded">';
+            } else {
+                echo '<span class="mr-1.5">' . $icon . '</span>';
+            }
+            ?>
             <span><?php echo formatDate($article['created_at']); ?></span>
         </div>
 
