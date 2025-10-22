@@ -6,6 +6,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 $menuItems = [
     ['file' => 'index.php', 'icon' => 'home', 'label' => 'Dashboard'],
     ['file' => 'gestione-home.php', 'icon' => 'layout', 'label' => 'Gestione Home'],
+    ['file' => 'pagine-statiche.php', 'icon' => 'file-pen', 'label' => 'Pagine Statiche'],
     ['file' => 'articoli.php', 'icon' => 'file-text', 'label' => 'Articoli'],
     ['file' => 'categorie.php', 'icon' => 'tags', 'label' => 'Categorie'],
     ['file' => 'province.php', 'icon' => 'map', 'label' => 'Province'],
@@ -27,7 +28,6 @@ $menuItems = [
 
 // Recupera tutti i conteggi degli elementi in attesa
 $pendingCounts = [
-    'events' => 0,
     'places' => 0,
     'comments' => 0,
     'businesses' => 0,
@@ -35,9 +35,6 @@ $pendingCounts = [
 ];
 
 if (isset($db) && $db->isConnected()) {
-    if (method_exists($db, 'getPendingEventSuggestionsCount')) {
-        $pendingCounts['events'] = $db->getPendingEventSuggestionsCount();
-    }
     if (method_exists($db, 'getPendingPlaceSuggestionsCount')) {
         $pendingCounts['places'] = $db->getPendingPlaceSuggestionsCount();
     }
@@ -66,9 +63,7 @@ if (isset($db) && $db->isConnected()) {
 
                 // Determina se mostrare un contatore e quale
                 $countToShow = 0;
-                if ($item['file'] === 'suggerimenti-eventi.php') {
-                    $countToShow = $pendingCounts['events'];
-                } elseif ($item['file'] === 'suggerimenti-luoghi.php') {
+                if ($item['file'] === 'suggerimenti-luoghi.php') {
                     $countToShow = $pendingCounts['places'];
                 } elseif ($item['file'] === 'commenti.php') {
                     $countToShow = $pendingCounts['comments'];

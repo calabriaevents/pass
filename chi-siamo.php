@@ -1,6 +1,20 @@
 <?php
+// chi-siamo.php
+session_start();
 require_once 'includes/config.php';
 require_once 'includes/database_mysql.php';
+
+// Percorso al file di contenuto
+$content_file = __DIR__ . '/partials/static_content/chi-siamo.html';
+$page_content = '';
+
+// Carica il contenuto dal file HTML se esiste
+if (file_exists($content_file)) {
+    $page_content = file_get_contents($content_file);
+} else {
+    // Contenuto di fallback se il file non viene trovato
+    $page_content = '<p>Contenuto non disponibile. Torna a visitare la pagina più tardi.</p>';
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -19,11 +33,7 @@ require_once 'includes/database_mysql.php';
     <main class="container mx-auto px-4 py-8">
         <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">Chi Siamo</h1>
         <div class="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-            <p class="text-gray-600 leading-relaxed">
-                <strong>Passione Calabria</strong> nasce dall'amore per la nostra terra, una regione ricca di storia, cultura, e bellezze naturali. Il nostro obiettivo è quello di promuovere la Calabria autentica, quella lontana dai soliti cliché, per farla conoscere e apprezzare in tutto il mondo.
-                <br><br>
-                Siamo un team di giovani calabresi che hanno deciso di mettere in gioco le proprie competenze e la propria passione per creare un portale che sia un punto di riferimento per chiunque voglia scoprire la Calabria.
-            </p>
+            <?php echo $page_content; // Stampa il contenuto caricato dinamicamente ?>
         </div>
     </main>
 
