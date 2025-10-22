@@ -64,15 +64,7 @@ class ImageProcessor {
 
         if (imagewebp($resized_image, $upload_path, 80)) {
             imagedestroy($resized_image);
-
-            // Costruisci il percorso relativo completo per coerenza
-            $base_folder = trim(basename($this->upload_dir));
-            $full_relative_path = $base_folder . '/' . $subfolder . '/' . $new_filename;
-
-            // Rimuovi eventuali doppi slash (es. "settings//file.webp")
-            $full_relative_path = preg_replace('/\/+/', '/', $full_relative_path);
-
-            return $full_relative_path;
+            return $subfolder . '/' . $new_filename;
         }
 
         imagedestroy($resized_image);

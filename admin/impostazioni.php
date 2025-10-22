@@ -1,8 +1,4 @@
 <?php
-// ABILITA DEBUGGING PER QUESTA PAGINA
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
@@ -10,14 +6,28 @@ require_once '../includes/image_processor.php'; // Includi ImageProcessor
 
 $db = new Database();
 
+$upload_error = null; // Inizializza la variabile di errore
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Gestione upload immagine Hero
-    if (isset($_FILES['hero_image_upload']) && $_FILES['hero_image_upload']['error'] === UPLOAD_ERR_OK) {
-        try {
+    // --- CONTROLLO ROBUSTO PER FILE TROPPO GRANDI ---
+    // Questo errore si verifica prima che $_FILES venga popolato correttamente.
+    // Il server scarta il POST e $_FILES potrebbe essere vuoto.
+    if (empty($_FILES) && empty($_POST) && isset($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 0) {
+        $max_post_size = ini_get('post_max_size');
+        $upload_error = "ERRORE: Il file caricato è troppo grande. Il limite del server è {$max_post_size}.";
+        // Blocca l'esecuzione ulteriore per evitare errori a cascata.
+    } else {
+        // Gestione upload immagine Hero
+        if (isset($_FILES['hero_image_upload']) && $_FILES['hero_image_upload']['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($_FILES['hero_image_upload']['error'] === UPLOAD_ERR_INI_SIZE || $_FILES['hero_image_upload']['error'] === UPLOAD_ERR_FORM_SIZE) {
+                $max_upload_size = ini_get('upload_max_filesize');
+                $upload_error = "ERRORE: Il file caricato supera la dimensione massima consentita ({$max_upload_size}).";
+            } elseif ($_FILES['hero_image_upload']['error'] === UPLOAD_ERR_OK) {
+                try {
             // Istanzia il processore specificando la cartella di destinazione
-            $processor = new ImageProcessor();
-            // Processa l'immagine, specificando la sottocartella 'settings'
-            $relative_path = $processor->processUploadedImage($_FILES['hero_image_upload'], 'settings', 2000); // Max-width 2000px per hero
+            $processor = new ImageProcessor('settings');
+            // Processa l'immagine. La sotto-cartella è già nel costruttore, passo una stringa vuota.
+            $relative_path = $processor->processUploadedImage($_FILES['hero_image_upload'], '', 2000); // Max-width 2000px per hero
 
             if ($relative_path) {
                 // Il percorso restituito è già relativo (es. "settings/img_xyz.webp"), quindi lo salviamo direttamente
@@ -26,22 +36,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Se c'è un errore, puoi salvarlo in una variabile per mostrarlo all'utente
                 $upload_error = $processor->getLastError();
             }
-        } catch (Exception $e) {
-            // Gestisci l'errore (es. cartella non scrivibile)
-            $upload_error = $e->getMessage();
+                } catch (Exception $e) {
+                    // Gestisci l'errore (es. cartella non scrivibile)
+                    $upload_error = $e->getMessage();
+                }
+            } else {
+                 $upload_error = "Si è verificato un errore non previsto durante il caricamento. Codice: " . $_FILES['hero_image_upload']['error'];
+            }
         }
-    }
 
-    // Salva le altre impostazioni
-    $settings = $_POST['settings'] ?? [];
-    foreach ($settings as $key => $value) {
-        // Non salvare l'impostazione dell'immagine qui, perché l'abbiamo già gestita
-        if ($key !== 'hero_image') {
-            $db->setSetting($key, trim($value)); // Aggiunto trim per pulire gli input
+        // Salva le altre impostazioni solo se non ci sono stati errori di upload
+        if ($upload_error === null) {
+            $settings = $_POST['settings'] ?? [];
+            foreach ($settings as $key => $value) {
+                // Non salvare l'impostazione dell'immagine qui, perché l'abbiamo già gestita
+                if ($key !== 'hero_image') {
+                    $db->setSetting($key, trim($value)); // Aggiunto trim per pulire gli input
+                }
+            }
+            header('Location: impostazioni.php?success=true');
+            exit;
         }
     }
-    header('Location: impostazioni.php?success=true');
-    exit;
 }
 
 
@@ -202,6 +218,16 @@ function getFieldDescription($key) {
         </header>
         
         <main class="flex-1 overflow-auto p-6">
+            <?php if ($upload_error): ?>
+            <div class="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-sm" role="alert">
+                <div class="flex items-center">
+                    <i data-lucide="alert-circle" class="w-5 h-5 mr-2"></i>
+                    <p class="font-bold">Errore di Caricamento</p>
+                </div>
+                <p class="text-sm mt-1 opacity-90"><?php echo htmlspecialchars($upload_error); ?></p>
+            </div>
+            <?php endif; ?>
+
             <?php if (isset($_GET['success'])): ?>
             <div class="mb-6 bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-sm" role="alert">
                 <div class="flex items-center">
