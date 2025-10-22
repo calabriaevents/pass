@@ -1,141 +1,113 @@
 <?php
-require_once 'includes/database_mysql.php';
+// maintenance.php
 
-// Se la manutenzione non è attivata, reindirizza alla home
-try {
-    $db = new Database();
-    $maintenance_enabled = $db->getSetting('maintenance_enabled');
-    $maintenance_message = $db->getSetting('maintenance_message') ?? 'Sito in manutenzione. Torneremo presto!';
-    
-    if ($maintenance_enabled != 1) {
-        header('Location: index.php');
-        exit();
-    }
-} catch (Exception $e) {
-    // In caso di errore, mostra una pagina di manutenzione generica
-    $maintenance_message = 'Sito temporaneamente non disponibile. Torneremo presto!';
+// File di configurazione e flag
+$config_file = __DIR__ . '/maintenance_config.json';
+$flag_file = __DIR__ . '/maintenance.flag';
+
+// Se la modalità manutenzione NON è attiva (il file flag non esiste),
+// reindirizza l'utente alla homepage.
+// L'eccezione è se un admin vuole vedere un'anteprima.
+if (!file_exists($flag_file) && !isset($_GET['preview'])) {
+    header('Location: index.php');
+    exit();
 }
+
+// Valori di default
+$config = [
+    'message' => 'Sito in manutenzione. Torneremo presto online!',
+    'end_time' => null
+];
+
+// Carica la configurazione dal file JSON se esiste
+if (file_exists($config_file)) {
+    $config = array_merge($config, json_decode(file_get_contents($config_file), true));
+}
+
+$end_time_js = $config['end_time'] ? date('Y-m-d\TH:i:s', strtotime($config['end_time'])) : null;
+
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sito in Manutenzione - Passione Calabria</title>
+    <title>Sito in Manutenzione</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .maintenance-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .floating-animation {
-            animation: floating 3s ease-in-out infinite;
-        }
-        
-        @keyframes floating {
-            0% { transform: translate(0, 0px); }
-            50% { transform: translate(0, -10px); }
-            100% { transform: translate(0, 0px); }
-        }
-        
-        .pulse-slow {
-            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
+        body { background-color: #f4f7f6; }
     </style>
 </head>
-<body class="maintenance-bg min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-md w-full">
-        <!-- Logo e Titolo -->
-        <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-20 h-20 bg-white bg-opacity-20 rounded-full mb-4 floating-animation">
-                <i data-lucide="wrench" class="w-10 h-10 text-white"></i>
-            </div>
-            <h1 class="text-3xl font-bold text-white mb-2">Passione Calabria</h1>
-            <p class="text-blue-100">La tua guida alla Calabria</p>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-xl w-full bg-white p-8 rounded-2xl shadow-lg text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-6">
+            <i data-lucide="wrench" class="w-8 h-8 text-yellow-600"></i>
         </div>
-        
-        <!-- Card principale -->
-        <div class="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
-            <div class="text-center">
-                <!-- Icona manutenzione -->
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-6 pulse-slow">
-                    <i data-lucide="settings" class="w-8 h-8 text-yellow-600"></i>
-                </div>
-                
-                <!-- Titolo -->
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">Sito in Manutenzione</h2>
-                
-                <!-- Messaggio personalizzato -->
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                    <p class="text-gray-700 text-center leading-relaxed">
-                        <?php echo htmlspecialchars($maintenance_message); ?>
-                    </p>
-                </div>
-                
-                <!-- Informazioni aggiuntive -->
-                <div class="space-y-3 text-sm text-gray-600">
-                    <div class="flex items-center justify-center">
-                        <i data-lucide="clock" class="w-4 h-4 mr-2 text-gray-500"></i>
-                        <span>Stimiamo di essere online a breve</span>
-                    </div>
-                    
-                    <div class="flex items-center justify-center">
-                        <i data-lucide="shield-check" class="w-4 h-4 mr-2 text-gray-500"></i>
-                        <span>Stiamo migliorando l'esperienza per te</span>
-                    </div>
-                </div>
-                
-                <!-- Bottone di refresh -->
-                <div class="mt-8">
-                    <button onclick="window.location.reload()" 
-                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-6 rounded-lg transition-all duration-200 font-medium flex items-center justify-center space-x-2">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                        <span>Riprova</span>
-                    </button>
-                </div>
-                
-                <!-- Link social o contatti -->
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <p class="text-xs text-gray-500 text-center">
-                        Grazie per la pazienza • Passione Calabria Team
-                    </p>
-                </div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Torneremo Presto Online</h1>
+        <p class="text-gray-600 mb-6"><?php echo htmlspecialchars($config['message']); ?></p>
+
+        <?php if ($end_time_js): ?>
+        <div id="countdown" class="flex justify-center space-x-4 text-center my-8">
+            <div>
+                <div id="days" class="text-4xl font-bold text-blue-600">00</div>
+                <div class="text-xs text-gray-500">Giorni</div>
+            </div>
+            <div>
+                <div id="hours" class="text-4xl font-bold text-blue-600">00</div>
+                <div class="text-xs text-gray-500">Ore</div>
+            </div>
+            <div>
+                <div id="minutes" class="text-4xl font-bold text-blue-600">00</div>
+                <div class="text-xs text-gray-500">Minuti</div>
+            </div>
+            <div>
+                <div id="seconds" class="text-4xl font-bold text-blue-600">00</div>
+                <div class="text-xs text-gray-500">Secondi</div>
             </div>
         </div>
-        
-        <!-- Admin access (nascosto) -->
-        <div class="text-center mt-6">
-            <a href="admin/" class="text-white text-opacity-50 hover:text-opacity-75 text-xs transition-colors">
-                Admin Area
-            </a>
+        <?php endif; ?>
+
+        <div class="mt-8">
+            <p class="text-sm text-gray-500">Grazie per la vostra pazienza.</p>
         </div>
     </div>
 
     <script>
-        // Inizializza Lucide icons
         lucide.createIcons();
-        
-        // Auto-refresh ogni 30 secondi
-        setTimeout(function() {
-            window.location.reload();
-        }, 30000);
-        
-        // Mostra il tempo trascorso
-        let startTime = Date.now();
-        function updateTimer() {
-            let elapsed = Math.floor((Date.now() - startTime) / 1000);
-            let minutes = Math.floor(elapsed / 60);
-            let seconds = elapsed % 60;
-            
-            if (minutes > 0) {
-                document.title = `Manutenzione (${minutes}m ${seconds}s) - Passione Calabria`;
-            } else {
-                document.title = `Manutenzione (${seconds}s) - Passione Calabria`;
-            }
+
+        const endTime = <?php echo $end_time_js ? "'" . $end_time_js . "'" : 'null'; ?>;
+
+        if (endTime) {
+            const countdownElement = document.getElementById('countdown');
+            const daysEl = document.getElementById('days');
+            const hoursEl = document.getElementById('hours');
+            const minutesEl = document.getElementById('minutes');
+            const secondsEl = document.getElementById('seconds');
+
+            const timer = setInterval(() => {
+                const now = new Date().getTime();
+                const distance = new Date(endTime).getTime() - now;
+
+                if (distance < 0) {
+                    clearInterval(timer);
+                    countdownElement.innerHTML = '<p class="text-lg font-semibold text-green-600">Dovremmo essere di nuovo online!</p>';
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                daysEl.textContent = String(days).padStart(2, '0');
+                hoursEl.textContent = String(hours).padStart(2, '0');
+                minutesEl.textContent = String(minutes).padStart(2, '0');
+                secondsEl.textContent = String(seconds).padStart(2, '0');
+
+            }, 1000);
         }
-        
-        setInterval(updateTimer, 1000);
     </script>
 </body>
 </html>

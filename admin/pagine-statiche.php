@@ -48,6 +48,10 @@ if (array_key_exists($selected_page, $static_pages)) {
 
 // Contenuto principale della pagina
 ?>
+
+<!-- Includi CSS di SunEditor -->
+<link href="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css" rel="stylesheet">
+
 <div class="p-6">
     <div class="bg-white shadow rounded-lg p-4">
         <h1 class="text-2xl font-bold mb-4">Gestione Pagine Statiche</h1>
@@ -76,7 +80,7 @@ if (array_key_exists($selected_page, $static_pages)) {
 
         <?php if (array_key_exists($selected_page, $static_pages)): ?>
             <form method="POST" action="?page=<?php echo htmlspecialchars($selected_page); ?>">
-                <textarea id="mytextarea" name="content" style="height: 600px;">
+                <textarea id="suneditor" name="content" style="height: 600px;">
                     <?php echo htmlspecialchars($current_content); ?>
                 </textarea>
                 <button type="submit" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salva Modifiche</button>
@@ -86,15 +90,37 @@ if (array_key_exists($selected_page, $static_pages)) {
     </div>
 </div>
 
-<!-- Includi TinyMCE e inizializzalo -->
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/7/tinymce.min.js" referrerpolicy="origin"></script>
+<!-- Includi JS di SunEditor e inizializzalo -->
+<script src="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/suneditor.min.js"></script>
+<!-- Includi le traduzioni (opzionale) -->
+<script src="https://cdn.jsdelivr.net/npm/suneditor@latest/src/lang/it.js"></script>
+
 <script>
-  tinymce.init({
-    selector: '#mytextarea',
-    plugins: 'code table lists image link media fullscreen wordcount preview',
-    toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | indent outdent | bullist numlist | code | table | link image media | preview | fullscreen',
-    menubar: 'edit view insert format tools table help',
-    language: 'it'
+  const editor = SUNEDITOR.create((document.getElementById('suneditor') || 'suneditor'),{
+    // Opzioni di SunEditor
+    lang: SUNEDITOR_LANG['it'],
+    buttonList: [
+        ['undo', 'redo'],
+        ['font', 'fontSize', 'formatBlock'],
+        ['paragraphStyle', 'blockquote'],
+        ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+        ['fontColor', 'hiliteColor', 'textStyle'],
+        ['removeFormat'],
+        '/', // Line break
+        ['outdent', 'indent'],
+        ['align', 'horizontalRule', 'list', 'lineHeight'],
+        ['table', 'link', 'image', 'video'],
+        ['fullScreen', 'showBlocks', 'codeView'],
+        ['preview', 'print'],
+        ['save'] // Aggiunto pulsante Salva, anche se non strettamente necessario avendo il nostro.
+    ],
+    height: '500px'
+  });
+
+  // Assicurati che il contenuto dell'editor venga passato alla textarea prima dell'invio del form
+  const form = document.querySelector('form[method="POST"]');
+  form.addEventListener('submit', function() {
+    editor.save();
   });
 </script>
 

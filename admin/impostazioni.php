@@ -2,20 +2,36 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-
-// Controlla autenticazione (da implementare)
-// requireLogin();
+require_once '../includes/image_processor.php'; // Includi ImageProcessor
 
 $db = new Database();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Gestione upload immagine Hero
+    if (isset($_FILES['hero_image_upload']) && $_FILES['hero_image_upload']['error'] === UPLOAD_ERR_OK) {
+        $processor = new ImageProcessor('uploads_protected/settings/');
+        try {
+            $new_image_path = $processor->upload($_FILES['hero_image_upload']);
+            // Salva il percorso relativo nel database
+            $db->setSetting('hero_image', 'uploads_protected/settings/' . basename($new_image_path));
+        } catch (Exception $e) {
+            // Gestisci l'errore di upload, magari con un messaggio all'utente
+            // Per ora, lo ignoriamo e continuiamo con le altre impostazioni
+        }
+    }
+
+    // Salva le altre impostazioni
     $settings = $_POST['settings'] ?? [];
     foreach ($settings as $key => $value) {
-        $db->setSetting($key, $value);
+        // Non salvare l'impostazione dell'immagine qui, perché l'abbiamo già gestita
+        if ($key !== 'hero_image') {
+            $db->setSetting($key, trim($value)); // Aggiunto trim per pulire gli input
+        }
     }
     header('Location: impostazioni.php?success=true');
     exit;
 }
+
 
 $settings = $db->getSettings();
 
@@ -76,7 +92,7 @@ function getNiceFieldName($key) {
         'hero_title' => 'Titolo Principale',
         'hero_subtitle' => 'Sottotitolo',
         'hero_description' => 'Descrizione',
-        'hero_image' => 'URL Immagine Background',
+        'hero_image' => 'Immagine di Sfondo', // Modificato
         'app_store_link' => 'Link App Store',
         'app_store_image' => 'URL Immagine App Store',
         'play_store_link' => 'Link Google Play Store',
@@ -103,7 +119,7 @@ function getFieldDescription($key) {
         'hero_title' => 'Titolo principale mostrato nella sezione hero della homepage',
         'hero_subtitle' => 'Sottotitolo sotto il titolo principale', 
         'hero_description' => 'Descrizione completa mostrata sotto il sottotitolo',
-        'hero_image' => 'URL dell\'immagine di sfondo della sezione hero',
+        'hero_image' => 'Carica l\'immagine di sfondo per la sezione hero. Verrà ridimensionata automaticamente.', // Modificato
         'app_store_link' => 'URL per scaricare l\'app da Apple App Store',
         'app_store_image' => 'URL dell\'immagine del badge "Scarica su App Store"',
         'play_store_link' => 'URL per scaricare l\'app da Google Play Store',
@@ -184,7 +200,7 @@ function getFieldDescription($key) {
             </div>
             <?php endif; ?>
 
-            <form action="impostazioni.php" method="POST" class="space-y-8">
+            <form action="impostazioni.php" method="POST" class="space-y-8" enctype="multipart/form-data">
                 <?php foreach ($settingsGroups as $groupKey => $group): ?>
                     <?php if (!empty($group['settings'])): ?>
                     <!-- Settings Group -->
@@ -219,7 +235,19 @@ function getFieldDescription($key) {
                                         <?php endif; ?>
                                     </label>
 
-                                    <?php if ($setting['type'] === 'textarea'): ?>
+                                    <?php if ($setting['key'] === 'hero_image'): ?>
+                                        <div class="flex items-center space-x-4">
+                                            <?php if (!empty($setting['value'])): ?>
+                                                <img src="../image-loader.php?src=<?php echo htmlspecialchars($setting['value']); ?>" alt="Anteprima Hero Image" class="w-20 h-20 object-cover rounded-lg shadow-sm">
+                                            <?php endif; ?>
+                                            <input
+                                                type="file"
+                                                name="hero_image_upload"
+                                                id="hero_image_upload"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            >
+                                        </div>
+                                    <?php elseif ($setting['type'] === 'textarea'): ?>
                                     <textarea 
                                         name="settings[<?php echo htmlspecialchars($setting['key']); ?>]" 
                                         id="<?php echo htmlspecialchars($setting['key']); ?>" 
@@ -258,7 +286,7 @@ function getFieldDescription($key) {
                                     
                                     <?php else: ?>
                                     <input 
-                                        type="<?php echo htmlspecialchars($setting['type']); ?>" 
+                                        type="<?php echo htmlspecialchars($setting['type'] ?? 'text'); ?>"
                                         name="settings[<?php echo htmlspecialchars($setting['key']); ?>]" 
                                         id="<?php echo htmlspecialchars($setting['key']); ?>" 
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -331,20 +359,6 @@ function getFieldDescription($key) {
                 window.location.reload();
             }
         }
-
-        // Auto-save draft functionality (optional)
-        let saveTimeout;
-        const inputs = document.querySelectorAll('input, textarea');
-        
-        inputs.forEach(input => {
-            input.addEventListener('input', function() {
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => {
-                    // Could implement auto-save to drafts here
-                    console.log('Auto-saving draft...');
-                }, 2000);
-            });
-        });
     </script>
 </body>
 </html>
