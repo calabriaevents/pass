@@ -4,20 +4,23 @@ class ImageProcessor {
     private $upload_dir;
     private $last_error;
 
-    public function __construct() {
-        // Il percorso base è sempre relativo alla root del progetto per coerenza.
+    public function __construct(string $base_subfolder = '') {
         $project_root = dirname(__DIR__);
-        $this->upload_dir = $project_root . '/uploads_protected/';
+        // Aggiunge la sotto-cartella di base al percorso di upload
+        $this->upload_dir = $project_root . '/uploads_protected/' . ($base_subfolder ? trim($base_subfolder, '/') . '/' : '');
 
-        // Controlla se la cartella esiste e se è scrivibile, altrimenti prova a crearla
+        // Controlla se la cartella di destinazione finale esiste, altrimenti la crea
         if (!is_dir($this->upload_dir)) {
             if (!mkdir($this->upload_dir, 0755, true)) {
-                $this->last_error = "ERRORE CRITICO: La cartella '{$this->upload_dir}' non esiste e non può essere creata. Controlla i permessi della cartella principale.";
+                $this->last_error = "ERRORE CRITICO: La cartella '{$this->upload_dir}' non esiste e non può essere creata. Controlla i permessi.";
                 error_log($this->last_error);
+                // Lancia un'eccezione per fermare l'esecuzione se la cartella non è utilizzabile
+                throw new Exception($this->last_error);
             }
         } elseif (!is_writable($this->upload_dir)) {
             $this->last_error = "ERRORE CRITICO: La cartella '{$this->upload_dir}' non è scrivibile. Controlla i permessi.";
             error_log($this->last_error);
+            throw new Exception($this->last_error);
         }
     }
 

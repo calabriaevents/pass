@@ -2,6 +2,30 @@
 // Configurazione generale
 define('SITE_NAME', 'Passione Calabria');
 define('SITE_DESCRIPTION', 'La tua guida alla Calabria');
+
+// --- CONTROLLO MODALITÀ MANUTENZIONE ---
+// Questo blocco viene eseguito su ogni pagina che include questo file di configurazione.
+$maintenance_flag_file = dirname(__DIR__) . '/maintenance.flag';
+// Controlla se il file flag esiste e se non ci troviamo in una pagina dell'area admin.
+if (file_exists($maintenance_flag_file) && strpos($_SERVER['REQUEST_URI'], '/admin/') === false) {
+    // Se la pagina richiesta non è già maintenance.php, reindirizza.
+    if (basename($_SERVER['PHP_SELF']) !== 'maintenance.php') {
+        // Usa un percorso relativo o assoluto a seconda della configurazione del server.
+        // Per robustezza, calcoliamo un percorso di base.
+        $base_url = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        // Se siamo nella root, il base_url potrebbe essere vuoto.
+        if ($base_url === '' || $base_url === DIRECTORY_SEPARATOR) {
+            header('Location: /maintenance.php');
+        } else {
+             // Gestisce il caso in cui il sito sia in una sottocartella
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+            $host = $_SERVER['HTTP_HOST'];
+            $path = rtrim(dirname(dirname($_SERVER'['PHP_SELF'])), '/\\');
+            header('Location: ' . $protocol . $host . $path . '/maintenance.php');
+        }
+        exit();
+    }
+}
 if (!defined('SITE_URL')) {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';

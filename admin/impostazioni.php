@@ -9,14 +9,22 @@ $db = new Database();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Gestione upload immagine Hero
     if (isset($_FILES['hero_image_upload']) && $_FILES['hero_image_upload']['error'] === UPLOAD_ERR_OK) {
-        $processor = new ImageProcessor('uploads_protected/settings/');
         try {
-            $new_image_path = $processor->upload($_FILES['hero_image_upload']);
-            // Salva il percorso relativo nel database
-            $db->setSetting('hero_image', 'uploads_protected/settings/' . basename($new_image_path));
+            // Istanzia il processore specificando la cartella di destinazione
+            $processor = new ImageProcessor('settings');
+            // Processa l'immagine. La sotto-cartella è già nel costruttore, passo una stringa vuota.
+            $relative_path = $processor->processUploadedImage($_FILES['hero_image_upload'], '', 2000); // Max-width 2000px per hero
+
+            if ($relative_path) {
+                // Il percorso restituito è già relativo (es. "settings/img_xyz.webp"), quindi lo salviamo direttamente
+                $db->setSetting('hero_image', $relative_path);
+            } else {
+                // Se c'è un errore, puoi salvarlo in una variabile per mostrarlo all'utente
+                $upload_error = $processor->getLastError();
+            }
         } catch (Exception $e) {
-            // Gestisci l'errore di upload, magari con un messaggio all'utente
-            // Per ora, lo ignoriamo e continuiamo con le altre impostazioni
+            // Gestisci l'errore (es. cartella non scrivibile)
+            $upload_error = $e->getMessage();
         }
     }
 
