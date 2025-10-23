@@ -65,12 +65,14 @@ class Database {
 
     public function getCategoriesOrderedByLastArticle() {
         if (!$this->isConnected()) { return []; }
+        // Utilizza LEFT JOIN per assicurarsi che tutte le categorie siano incluse,
+        // anche quelle senza articoli.
         $sql = '
-            SELECT c.*, MAX(a.created_at) as last_article_date
+            SELECT c.*
             FROM categories c
             LEFT JOIN articles a ON c.id = a.category_id AND a.status = "published"
-            GROUP BY c.id
-            ORDER BY last_article_date DESC, c.name ASC
+            GROUP BY c.id, c.name, c.description, c.icon
+            ORDER BY MAX(a.created_at) DESC, c.name ASC
         ';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute();
