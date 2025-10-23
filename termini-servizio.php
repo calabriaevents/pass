@@ -19,17 +19,14 @@ require_once 'includes/database_mysql.php';
     <main class="container mx-auto px-4 py-8">
         <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">Termini di Servizio</h1>
         <div class="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-            <p class="text-gray-600 leading-relaxed">
-                L'accesso e l'utilizzo del sito Passione Calabria sono soggetti ai seguenti Termini di Servizio. L'utilizzo del sito implica l'accettazione di tutti i termini e le condizioni qui riportate.
-                <br><br>
-                <strong>Utilizzo del sito</strong>
-                <br>
-                L'utente si impegna a utilizzare il sito in conformità con la legge e i presenti Termini di Servizio. È vietato ogni utilizzo che possa danneggiare o compromettere il funzionamento del sito.
-                <br><br>
-                <strong>Proprietà intellettuale</strong>
-                <br>
-                Tutti i contenuti del sito, inclusi testi, immagini, e grafica, sono di proprietà di Passione Calabria e sono protetti dalle leggi sul diritto d'autore.
-            </p>
+            <?php
+            $content_path = __DIR__ . '/partials/static_content/termini-servizio.html';
+            if (file_exists($content_path)) {
+                echo file_get_contents($content_path);
+            } else {
+                echo '<p class="text-red-500">Contenuto non trovato. Contattare l\'amministratore.</p>';
+            }
+            ?>
         </div>
     </main>
 
