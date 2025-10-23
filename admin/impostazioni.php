@@ -10,10 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Gestione upload immagine Hero
     if (isset($_FILES['hero_image_upload']) && $_FILES['hero_image_upload']['error'] === UPLOAD_ERR_OK) {
         try {
-            // Istanzia il processore specificando la cartella di destinazione
-            $processor = new ImageProcessor('settings');
-            // Processa l'immagine. La sotto-cartella è già nel costruttore, passo una stringa vuota.
-            $relative_path = $processor->processUploadedImage($_FILES['hero_image_upload'], '', 2000); // Max-width 2000px per hero
+            // Istanzia il processore per la cartella di upload di base
+            $processor = new ImageProcessor();
+            // Processa l'immagine specificando la sottocartella 'settings'
+            $relative_path = $processor->processUploadedImage($_FILES['hero_image_upload'], 'settings', 2000); // Max-width 2000px per hero
 
             if ($relative_path) {
                 // Il percorso restituito è già relativo (es. "settings/img_xyz.webp"), quindi lo salviamo direttamente

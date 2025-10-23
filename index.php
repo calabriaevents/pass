@@ -45,14 +45,6 @@ foreach ($categories as &$category) {
 }
 unset($category); // Unset reference
 
-// Trova sezione hero
-$heroSection = null;
-foreach ($homeSections as $section) {
-    if ($section['section_name'] === 'hero') {
-        $heroSection = $section;
-        break;
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -115,17 +107,17 @@ foreach ($homeSections as $section) {
     <!-- Hero Section -->
     <section class="relative bg-gradient-to-br from-blue-900 via-blue-700 to-amber-600 text-white py-24 overflow-hidden">
         <!-- Background Image -->
-        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('<?php echo $heroSection['image_path'] ?? 'https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80'; ?>')"></div>
+        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('<?php echo get_image_url($settingsArray['hero_image'] ?? '', 'https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80'); ?>')"></div>
         <div class="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-blue-700/70 to-amber-600/60"></div>
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold mb-6">
-                <?php echo htmlspecialchars($heroSection['title'] ?? 'Esplora la Calabria'); ?>
+                <?php echo htmlspecialchars($settingsArray['hero_title'] ?? 'Esplora la Calabria'); ?>
             </h1>
             <p class="text-xl md:text-2xl text-yellow-400 mb-8">
-                <?php echo htmlspecialchars($heroSection['subtitle'] ?? 'Mare cristallino e storia millenaria'); ?>
+                <?php echo htmlspecialchars($settingsArray['hero_subtitle'] ?? 'Mare cristallino e storia millenaria'); ?>
             </p>
             <p class="text-lg md:text-xl text-gray-200 mb-12 max-w-3xl mx-auto">
-                <?php echo htmlspecialchars($heroSection['description'] ?? 'Immergiti nella bellezza della Calabria, con le sue spiagge da sogno, il centro storico affascinante e i panorami mozzafiato dalla rupe.'); ?>
+                <?php echo htmlspecialchars($settingsArray['hero_description'] ?? 'Immergiti nella bellezza della Calabria, con le sue spiagge da sogno, il centro storico affascinante e i panorami mozzafiato dalla rupe.'); ?>
             </p>
 
             <div class="flex flex-col sm:flex-row justify-center gap-4 mb-16">
