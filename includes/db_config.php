@@ -13,10 +13,10 @@ function getDatabaseConfig() {
     // If environment variables are not set, use default configuration
     // IMPORTANT: Change these values and move to environment variables in production
     if (!$host) {
-        $host = 'db5018301966.hosting-data.io';
-        $dbname = 'dbs14504718';
-        $username = 'dbu1167357';
-        $password = 'Barboncino692@@'; // TODO: Move to environment variable immediately!
+        $host = '127.0.0.1';
+        $dbname = 'passione_calabria';
+        $username = 'passione_user';
+        $password = 'password'; // TODO: Move to environment variable immediately!
     }
     
     return [

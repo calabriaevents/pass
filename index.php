@@ -25,7 +25,7 @@ if (!function_exists('get_image_url')) {
 $db = new Database();
 
 // Carica dati per la homepage
-$categories = $db->getCategories();
+$categories = $db->getCategoriesOrderedByLastArticle();
 $provinces = $db->getProvinces();
 $featuredArticles = $db->getFeaturedArticles();
 $homeSections = $db->getHomeSections();

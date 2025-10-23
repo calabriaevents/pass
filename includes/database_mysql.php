@@ -63,6 +63,20 @@ class Database {
         return $stmt->fetchAll();
     }
 
+    public function getCategoriesOrderedByLastArticle() {
+        if (!$this->isConnected()) { return []; }
+        $sql = '
+            SELECT c.*, MAX(a.created_at) as last_article_date
+            FROM categories c
+            LEFT JOIN articles a ON c.id = a.category_id AND a.status = "published"
+            GROUP BY c.id
+            ORDER BY last_article_date DESC, c.name ASC
+        ';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function getCategoryById($id) {
         if (!$this->isConnected()) { return null; }
         $stmt = $this->pdo->prepare('SELECT * FROM categories WHERE id = ?');
