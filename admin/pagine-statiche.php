@@ -10,6 +10,7 @@ $static_pages = [
     'contatti' => 'Contatti (solo testo, la mappa e il form sono fissi)',
     'privacy-policy' => 'Privacy Policy',
     'cookie-policy' => 'Cookie Policy',
+    'termini-servizio' => 'Termini e Condizioni',
 ];
 
 $selected_page = $_GET['page'] ?? 'chi-siamo'; // Pagina di default
@@ -114,7 +115,8 @@ if (array_key_exists($selected_page, $static_pages)) {
         ['preview', 'print'],
         ['save'] // Aggiunto pulsante Salva, anche se non strettamente necessario avendo il nostro.
     ],
-    height: '500px'
+    width: '100%',
+    height: '400px'
   });
 
   // Assicurati che il contenuto dell'editor venga passato alla textarea prima dell'invio del form
