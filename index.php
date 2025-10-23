@@ -5,7 +5,8 @@ require_once 'includes/database_mysql.php';
 // Aggiungi la funzione helper per coerenza.
 if (!function_exists('get_image_url')) {
     function get_image_url($path, $default_image = 'assets/images/default-placeholder.jpg') {
-        if (empty($path)) {
+        // Aggiunto controllo per dati legacy errati
+        if (empty($path) || $path === '/placeholder-hero.jpg') {
             return $default_image;
         }
         if (filter_var($path, FILTER_VALIDATE_URL)) {
