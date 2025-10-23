@@ -12,7 +12,44 @@ $imageProcessor = new ImageProcessor();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
     header('Content-Type: application/json');
     try {
-        $relativePath = $imageProcessor->processUploadedImage($_FILES['image'], 'homepage');
+        // --- Inizio Modifica ---
+
+        // 1. Determina la sottocartella di destinazione in base al campo di upload
+        $subfolder = 'homepage/generale'; // Cartella di default
+
+        if (isset($_POST['target'])) {
+            $target = $_POST['target'];
+
+            if (strpos($target, 'hero_image') !== false) {
+                $subfolder = 'homepage/hero';
+            }
+            elseif (strpos($target, 'app_store_image') !== false || strpos($target, 'play_store_image') !== false) {
+                $subfolder = 'homepage/badges';
+            }
+            elseif (strpos($target, 'bg_image') !== false) {
+                // Questo raggrupperà 'categories_bg_image', 'provinces_bg_image', ecc.
+                $subfolder = 'homepage/backgrounds';
+            }
+        }
+
+        // 2. Definisci e crea il percorso fisico se non esiste
+        // Il tuo ImageProcessor si aspetta la root 'uploads_protected'
+        $baseProtectedPath = __DIR__ . '/../uploads_protected/';
+        $fullDestPath = $baseProtectedPath . $subfolder;
+
+        if (!is_dir($fullDestPath)) {
+            if (!mkdir($fullDestPath, 0755, true)) {
+                throw new Exception('Impossibile creare la cartella di destinazione: ' . $fullDestPath);
+            }
+        }
+
+        // 3. Ora chiama ImageProcessor con la sottocartella corretta
+        // Lui (presumibilmente) salverà il file in $fullDestPath
+        // e restituirà il percorso per il DB (es: "uploads_protected/homepage/hero/nomefile.jpg")
+        $relativePath = $imageProcessor->processUploadedImage($_FILES['image'], $subfolder);
+
+        // --- Fine Modifica ---
+
         // Restituisci il percorso relativo per l'input, ma usa image-loader.php per l'anteprima
         $safePath = '../image-loader.php?path=' . urlencode($relativePath);
         echo json_encode(['success' => true, 'path' => $relativePath, 'safe_path' => $safePath]);
@@ -229,7 +266,7 @@ foreach ($settings as $setting) {
                                         <i data-lucide="upload" class="w-4 h-4"></i>
                                     </button>
                                 </div>
-                                <input type="file" id="hero_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'hero_image')">
+                                <input type="file" id="hero_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                             </div>
                         </div>
                         
@@ -289,7 +326,7 @@ foreach ($settings as $setting) {
                                         <i data-lucide="upload" class="w-4 h-4"></i>
                                     </button>
                                 </div>
-                                <input type="file" id="app_store_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'app_store_image')">
+                                <input type="file" id="app_store_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                             </div>
                             
                             <div>
@@ -305,7 +342,7 @@ foreach ($settings as $setting) {
                                         <i data-lucide="upload" class="w-4 h-4"></i>
                                     </button>
                                 </div>
-                                <input type="file" id="play_store_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'play_store_image')">
+                                <input type="file" id="play_store_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                             </div>
                         </div>
                         
@@ -367,7 +404,7 @@ foreach ($settings as $setting) {
                                     <i data-lucide="upload" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <input type="file" id="categories_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'categories_bg_image')">
+                            <input type="file" id="categories_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                             <p class="text-xs text-gray-500 mt-1">Per personalizzare lo sfondo della sezione categorie</p>
                         </div>
                     </div>
@@ -405,7 +442,7 @@ foreach ($settings as $setting) {
                                     <i data-lucide="upload" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <input type="file" id="provinces_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'provinces_bg_image')">
+                            <input type="file" id="provinces_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                             <p class="text-xs text-gray-500 mt-1">Per personalizzare lo sfondo della sezione province</p>
                         </div>
                     </div>
@@ -499,7 +536,7 @@ foreach ($settings as $setting) {
                                         <i data-lucide="upload" class="w-4 h-4"></i>
                                     </button>
                                 </div>
-                                <input type="file" id="cta_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'cta_bg_image')">
+                                <input type="file" id="cta_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                                 <p class="text-xs text-gray-500 mt-1">Sostituirà il gradiente colorato di default</p>
                             </div>
                         </div>
@@ -560,7 +597,7 @@ foreach ($settings as $setting) {
                                     <i data-lucide="upload" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <input type="file" id="newsletter_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'newsletter_bg_image')">
+                            <input type="file" id="newsletter_bg_image_upload" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                             <p class="text-xs text-gray-500 mt-1">Per personalizzare lo sfondo della sezione newsletter</p>
                         </div>
                     </div>
@@ -660,10 +697,12 @@ foreach ($settings as $setting) {
             document.getElementById(targetInput + '_upload').click();
         }
         
-        function handleImageUpload(input, targetInput) {
+        function handleImageUpload(input) {
             if (input.files && input.files[0]) {
+                const targetInput = input.id.replace('_upload', '');
                 const formData = new FormData();
                 formData.append('image', input.files[0]);
+                formData.append('target', targetInput);
                 
                 // Show loading
                 const button = input.parentElement.querySelector('button');
