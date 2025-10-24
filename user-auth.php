@@ -60,8 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Role-based redirection
             if ($user['role'] === 'admin') {
+                // Set admin-specific session variable to prevent redirect loops
+                $_SESSION['admin_logged_in'] = true;
+
                 // Redirect to admin dashboard
-                header('Location: admin/index.php');
+                header('Location: admin/dashboard.php');
                 exit;
             } else {
                 // For business users, set their specific session variables

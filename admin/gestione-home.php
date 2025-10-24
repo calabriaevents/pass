@@ -2,7 +2,30 @@
 require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
-require_once '../includes/image_processor.php'; // Aggiunto ImageProcessor
+require_once '../includes/image_processor.php';
+
+// --- Robustness Checks ---
+
+// 1. Check for GD extension
+if (!extension_loaded('gd')) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'L\'estensione PHP GD non è installata o abilitata. Impossibile elaborare le immagini.']);
+        exit;
+    }
+    die('Errore Critico: L\'estensione PHP GD è richiesta per la gestione delle immagini.');
+}
+
+// 2. Check for upload size limits exceeded (silent failure case)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_FILES) && empty($_POST) && isset($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 0) {
+    header('Content-Type: application/json');
+    $postMaxSize = ini_get('post_max_size');
+    echo json_encode(['success' => false, 'error' => "Il file è troppo grande. Supera il limite del server (post_max_size) di {$postMaxSize}."]);
+    exit;
+}
+
+// --- End Robustness Checks ---
+
 
 // Inizializza oggetti
 $db = new Database();
@@ -48,12 +71,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
         // e restituirà il percorso per il DB (es: "uploads_protected/homepage/hero/nomefile.jpg")
         $relativePath = $imageProcessor->processUploadedImage($_FILES['image'], $subfolder);
 
+        if ($relativePath === null) {
+            throw new Exception($imageProcessor->getLastError() ?: 'Errore sconosciuto durante l\'elaborazione dell\'immagine.');
+        }
+
         // --- Fine Modifica ---
 
         // Restituisci il percorso relativo per l'input, ma usa image-loader.php per l'anteprima
         $safePath = '../image-loader.php?path=' . urlencode($relativePath);
         echo json_encode(['success' => true, 'path' => $relativePath, 'safe_path' => $safePath]);
     } catch (Exception $e) {
+        http_response_code(400); // Bad Request
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;
