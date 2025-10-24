@@ -84,17 +84,51 @@ if (!is_array($json_data)) $json_data = [];
 <!-- Images -->
 <div class="mt-6 p-6 bg-gray-50 rounded-lg border">
     <h3 class="text-lg font-semibold mb-4 text-gray-800">🖼️ Immagini</h3>
-    <div class="mb-6">
-        <label for="logo" class="block text-gray-700 font-bold mb-2">Logo Ente</label>
-        <input type="file" name="logo" id="logo" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100">
-    </div>
-    <div class="mb-6">
-        <label for="hero_image" class="block text-gray-700 font-bold mb-2">Immagine Principale (Hero)</label>
-        <input type="file" name="hero_image" id="hero_image" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-    </div>
+
+    <?php
+    $fieldName = 'featured_image';
+    $label = 'Immagine in Evidenza (per liste)';
+    $currentImagePath = $article[$fieldName] ?? null;
+    $helpText = 'Questa immagine appare nelle liste e nelle anteprime.';
+    include __DIR__ . '/partials/image_upload_widget.php';
+
+    $fieldName = 'hero_image';
+    $label = 'Immagine Principale (Hero)';
+    $currentImagePath = $article[$fieldName] ?? null;
+    $helpText = 'Questa sarà l\'immagine grande mostrata in cima alla pagina.';
+    include __DIR__ . '/partials/image_upload_widget.php';
+
+    $fieldName = 'logo';
+    $label = 'Logo Ente (opzionale)';
+    $currentImagePath = $article[$fieldName] ?? null;
+    $helpText = 'Il logo appare di fianco al nome.';
+    include __DIR__ . '/partials/image_upload_widget.php';
+    ?>
+
     <div class="mb-4">
         <label for="gallery_images" class="block text-gray-700 font-bold mb-2">Galleria Immagini</label>
         <input type="file" name="gallery_images[]" id="gallery_images" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" multiple>
+
+        <?php
+        $gallery = isset($article['gallery_images']) ? json_decode($article['gallery_images'], true) : [];
+        if (!empty($gallery)):
+        ?>
+        <div class="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <?php foreach ($gallery as $index => $imagePath): ?>
+            <div class="relative group">
+                <img src="../image-loader.php?path=<?php echo urlencode(str_replace('uploads_protected/', '', $imagePath)); ?>" class="w-full h-32 object-cover rounded-lg">
+                <div class="absolute top-1 right-1">
+                    <input type="checkbox" name="delete_gallery_images[]" value="<?php echo htmlspecialchars($imagePath); ?>" id="delete_gallery_<?php echo $index; ?>" class="hidden peer">
+                    <label for="delete_gallery_<?php echo $index; ?>"
+                           class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded-full cursor-pointer transition-colors peer-checked:bg-yellow-500 peer-checked:text-black"
+                           title="Seleziona per eliminare">
+                        &times;
+                    </label>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 
