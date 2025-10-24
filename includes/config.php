@@ -20,7 +20,7 @@ if (file_exists($maintenance_flag_file) && strpos($_SERVER['REQUEST_URI'], '/adm
              // Gestisce il caso in cui il sito sia in una sottocartella
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
             $host = $_SERVER['HTTP_HOST'];
-            $path = rtrim(dirname(dirname($_SERVER'['PHP_SELF'])), '/\\');
+            $path = rtrim(dirname(dirname($_SERVER['PHP_SELF'])), '/\\');
             header('Location: ' . $protocol . $host . $path . '/maintenance.php');
         }
         exit();
