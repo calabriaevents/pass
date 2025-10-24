@@ -239,7 +239,20 @@ class Database {
 
     public function getArticleById($id) {
         if (!$this->isConnected()) { return null; }
-        $stmt = $this->pdo->prepare('SELECT a.*, c.name as category_name, p.name as province_name, ci.name as city_name FROM articles a LEFT JOIN categories c ON a.category_id = c.id LEFT JOIN provinces p ON a.province_id = p.id LEFT JOIN cities ci ON a.city_id = ci.id WHERE a.id = ?');
+        $sql = 'SELECT
+                    a.id, a.title, a.slug, a.content, a.excerpt, a.featured_image, a.gallery_images,
+                    a.category_id, a.province_id, a.city_id, a.author, a.status, a.featured,
+                    a.views, a.latitude, a.longitude, a.allow_user_uploads, a.created_at, a.updated_at,
+                    a.json_data, a.hero_image, a.logo, a.google_maps_iframe,
+                    c.name as category_name,
+                    p.name as province_name,
+                    ci.name as city_name
+                FROM articles a
+                LEFT JOIN categories c ON a.category_id = c.id
+                LEFT JOIN provinces p ON a.province_id = p.id
+                LEFT JOIN cities ci ON a.city_id = ci.id
+                WHERE a.id = ?';
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$id]);
         return $stmt->fetch();
     }
