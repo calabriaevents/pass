@@ -102,10 +102,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- OPERAZIONI SUL DATABASE ---
         if ($action === 'edit' && $id) {
-            if ($featured_image === null) $featured_image = $existingArticle['featured_image'] ?? null;
-            if ($hero_image === null) $hero_image = $existingArticle['hero_image'] ?? null;
-            if ($logo === null) $logo = $existingArticle['logo'] ?? null;
-            if ($gallery_images === null) $gallery_images = $existingArticle['gallery_images'] ?? null;
+            // Gestione eliminazione e fallback per le immagini singole
+            if (!empty($_POST['delete_featured_image'])) {
+                $featured_image = null;
+            } elseif ($featured_image === null) {
+                $featured_image = $existingArticle['featured_image'] ?? null;
+            }
+
+            if (!empty($_POST['delete_hero_image'])) {
+                $hero_image = null;
+            } elseif ($hero_image === null) {
+                $hero_image = $existingArticle['hero_image'] ?? null;
+            }
+
+            if (!empty($_POST['delete_logo'])) {
+                $logo = null;
+            } elseif ($logo === null) {
+                $logo = $existingArticle['logo'] ?? null;
+            }
+
+            // Gestione eliminazione e fallback per la galleria
+            if (!empty($_POST['delete_gallery_images']) && is_array($_POST['delete_gallery_images'])) {
+                $current_gallery = json_decode($existingArticle['gallery_images'] ?? '[]', true);
+                $images_to_delete = $_POST['delete_gallery_images'];
+                $updated_gallery = array_diff($current_gallery, $images_to_delete);
+                // Sovrascrivi $gallery_images solo se non sono state caricate NUOVE immagini
+                if ($gallery_images === null) {
+                    $gallery_images = json_encode(array_values($updated_gallery));
+                } else {
+                    // Se sono state caricate nuove immagini, uniscile con quelle esistenti non eliminate
+                    $newly_uploaded_gallery = json_decode($gallery_images, true);
+                    $final_gallery = array_merge($updated_gallery, $newly_uploaded_gallery);
+                    $gallery_images = json_encode(array_values($final_gallery));
+                }
+            } elseif ($gallery_images === null) {
+                $gallery_images = $existingArticle['gallery_images'] ?? null;
+            }
 
             $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
             if ($menu_pdf === null && isset($existing_json['menu_pdf_path'])) {
