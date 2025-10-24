@@ -13,16 +13,28 @@ $error_message = ''; // Variabile per gli errori
 
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = $_POST['title'] ?? '';
-    $slug = $_POST['slug'] ?? '';
-    $content = $_POST['content'] ?? '';
-    $excerpt = $_POST['excerpt'] ?? '';
-    $google_maps_iframe = $_POST['google_maps_iframe'] ?? '';
-    $category_id = $_POST['category_id'] ?? null;
-    $province_id = $_POST['province_id'] ?? null;
-    $city_id = $_POST['city_id'] ?? null;
-    $status = $_POST['status'] ?? 'draft';
-    $author = $_POST['author'] ?? 'Admin';
+    // Carica l'articolo esistente se siamo in modalità modifica
+    $existingArticle = null;
+    if ($action === 'edit' && $id) {
+        $existingArticle = $db->getArticleById($id);
+        if (!$existingArticle) {
+            // Se l'articolo non esiste, gestisci l'errore o reindirizza
+            $error_message = "Errore: Articolo non trovato.";
+            // Potresti voler interrompere l'esecuzione qui
+        }
+    }
+
+    // Leggi i dati da POST, usando i dati esistenti come fallback se siamo in 'edit'
+    $title = $_POST['title'] ?? $existingArticle['title'] ?? '';
+    $slug = $_POST['slug'] ?? $existingArticle['slug'] ?? '';
+    $content = $_POST['content'] ?? $existingArticle['content'] ?? '';
+    $excerpt = $_POST['excerpt'] ?? $existingArticle['excerpt'] ?? '';
+    $google_maps_iframe = $_POST['google_maps_iframe'] ?? $existingArticle['google_maps_iframe'] ?? '';
+    $category_id = $_POST['category_id'] ?? $existingArticle['category_id'] ?? null;
+    $province_id = $_POST['province_id'] ?? $existingArticle['province_id'] ?? null;
+    $city_id = $_POST['city_id'] ?? $existingArticle['city_id'] ?? null;
+    $status = $_POST['status'] ?? $existingArticle['status'] ?? 'draft';
+    $author = $_POST['author'] ?? $existingArticle['author'] ?? 'Admin';
     $posted_json_data = isset($_POST['json_data']) && is_array($_POST['json_data']) ? $_POST['json_data'] : [];
 
     // --- GESTIONE UPLOAD SICURA CON CONTROLLO ERRORI ---
@@ -90,7 +102,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- OPERAZIONI SUL DATABASE ---
         if ($action === 'edit' && $id) {
-            $existingArticle = $db->getArticleById($id);
             if ($featured_image === null) $featured_image = $existingArticle['featured_image'] ?? null;
             if ($hero_image === null) $hero_image = $existingArticle['hero_image'] ?? null;
             if ($logo === null) $logo = $existingArticle['logo'] ?? null;
