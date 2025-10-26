@@ -44,15 +44,13 @@ try {
     http_response_code(500); // Internal Server Error
     echo json_encode([
         'success' => false,
-        'error' => 'Errore durante il recupero degli articoli dal database.',
-        'details' => $e->getMessage() // Rimuovere in produzione
+        'error' => 'Errore del server interno. Impossibile recuperare gli articoli.'
     ]);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Si è verificato un errore generico.',
-        'details' => $e->getMessage() // Rimuovere in produzione
+        'error' => 'Si è verificato un errore generico.'
     ]);
 }
 ?>

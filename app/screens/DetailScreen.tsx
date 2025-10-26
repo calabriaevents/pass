@@ -3,87 +3,93 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, ActivityIndicator, Image } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HomeStackParamList } from '../App';
 
-// Definiamo i tipi per i parametri dello stack di navigazione
-type RootStackParamList = {
-  Home: undefined;
-  Detail: { articleId: number };
-};
+type Props = NativeStackScreenProps<HomeStackParamList, 'Detail'>;
 
-// Definiamo un tipo per i dati dell'articolo che ci aspettiamo dall'API
 interface ArticleDetails {
   id: number;
   title: string;
   subtitle: string;
   content: string;
   featured_image: string;
-  // Aggiungi altri campi se necessario
 }
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Detail'>;
-
 const API_BASE_URL = 'http://localhost:8000/api/get_article_details.php';
+const ARTICLE_DETAIL_CACHE_PREFIX = '@article_detail_';
 
-// Funzione helper per costruire l'URL dell'immagine in modo sicuro
-// Nota: Questo presuppone che `image-loader.php` sia nella root del server.
-// Adatta il percorso se necessario.
 const getImageUrl = (imagePath: string) => {
-    if (!imagePath || imagePath.startsWith('http')) {
-        return imagePath; // Se è già un URL completo o vuoto, restituiscilo
-    }
-    // Sostituisci 'localhost:8000' con il tuo dominio di produzione quando andrai live
+    if (!imagePath || imagePath.startsWith('http')) return imagePath;
     return `http://localhost:8000/image-loader.php?path=${encodeURIComponent(imagePath)}`;
 };
 
 export function DetailScreen({ route, navigation }: Props): React.JSX.Element {
   const { articleId } = route.params;
+  const cacheKey = `${ARTICLE_DETAIL_CACHE_PREFIX}${articleId}`;
 
   const [isLoading, setLoading] = useState(true);
   const [article, setArticle] = useState<ArticleDetails | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [isOffline, setOffline] = useState(false);
 
   useEffect(() => {
     const getArticleDetails = async () => {
+      // 1. Prova a caricare dalla cache
+      try {
+        const cachedArticle = await AsyncStorage.getItem(cacheKey);
+        if (cachedArticle !== null) {
+          const parsedArticle = JSON.parse(cachedArticle);
+          setArticle(parsedArticle);
+          navigation.setOptions({ title: parsedArticle.title });
+        }
+      } catch (e) {
+        console.log('Errore nel leggere la cache del dettaglio:', e);
+      }
+      setLoading(false);
+
+      // 2. Prova a caricare dalla rete
       try {
         const response = await fetch(`${API_BASE_URL}?id=${articleId}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) throw new Error(`Network response was not ok.`);
+
         const json = await response.json();
         if (!json.success) throw new Error(json.error || 'API returned an error');
+
         setArticle(json.data);
-        // Aggiorna il titolo della schermata con il titolo dell'articolo
+        setOffline(false);
         navigation.setOptions({ title: json.data.title });
+
+        // 3. Salva nella cache
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(json.data));
+
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'An unknown error occurred');
-      } finally {
-        setLoading(false);
+        console.log('Errore di rete, si utilizza il dettaglio in cache (se disponibile):', e);
+        setOffline(true);
       }
     };
 
     getArticleDetails();
-  }, [articleId, navigation]);
+  }, [articleId, navigation, cacheKey]);
 
   if (isLoading) {
     return <ActivityIndicator size="large" color="#0000ff" style={styles.centered} />;
   }
 
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Errore nel caricamento: {error}</Text>
-      </View>
-    );
-  }
-
   if (!article) {
     return (
       <View style={styles.centered}>
-        <Text>Nessun articolo trovato.</Text>
+        <Text>Nessun dato da mostrare. Controlla la tua connessione.</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>Sei offline. Stai visualizzando contenuti non aggiornati.</Text>
+        </View>
+      )}
       {article.featured_image && (
         <Image
           source={{ uri: getImageUrl(article.featured_image) }}
@@ -105,10 +111,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  offlineBanner: {
+    backgroundColor: '#ffcc00',
+    padding: 10,
+    alignItems: 'center',
+  },
+  offlineText: {
+    color: '#000',
   },
   image: {
     width: '100%',
@@ -130,8 +145,5 @@ const styles = StyleSheet.create({
   content: {
     fontSize: 16,
     lineHeight: 24,
-  },
-  errorText: {
-    color: 'red',
   },
 });

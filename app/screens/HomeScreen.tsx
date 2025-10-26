@@ -10,14 +10,10 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HomeStackParamList } from '../App'; // Importiamo i tipi da App.tsx
 
-// Definiamo i tipi per i parametri dello stack di navigazione
-type RootStackParamList = {
-  Home: undefined;
-  Detail: { articleId: number };
-};
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = NativeStackScreenProps<HomeStackParamList, 'ArticleList'>;
 
 interface Article {
   id: number;
@@ -28,23 +24,42 @@ interface Article {
 }
 
 const API_URL = 'http://localhost:8000/api/get_articles.php';
+const ARTICLES_CACHE_KEY = '@articles_list';
 
 export function HomeScreen({ navigation }: Props): React.JSX.Element {
   const [isLoading, setLoading] = useState(true);
   const [articles, setArticles] = useState<Article[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [isOffline, setOffline] = useState(false);
 
   const getArticles = async () => {
+    // 1. Prova a caricare dalla cache all'avvio
+    try {
+        const cachedArticles = await AsyncStorage.getItem(ARTICLES_CACHE_KEY);
+        if (cachedArticles !== null) {
+            setArticles(JSON.parse(cachedArticles));
+        }
+    } catch (e) {
+        console.log('Errore nel leggere la cache degli articoli:', e);
+    }
+    setLoading(false); // Rimuovi il caricamento iniziale dopo aver controllato la cache
+
+    // 2. Prova a caricare dalla rete
     try {
       const response = await fetch(API_URL);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) throw new Error('Network response was not ok.');
+
       const json = await response.json();
       if (!json.success) throw new Error(json.error || 'API returned an error');
+
       setArticles(json.data);
+      setOffline(false);
+
+      // 3. Salva i nuovi dati nella cache
+      await AsyncStorage.setItem(ARTICLES_CACHE_KEY, JSON.stringify(json.data));
+
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'An unknown error occurred');
-    } finally {
-      setLoading(false);
+      console.log('Errore di rete, si utilizzano i dati in cache (se disponibili):', e);
+      setOffline(true); // Imposta lo stato offline se la rete fallisce
     }
   };
 
@@ -64,15 +79,19 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <View style={styles.container}>
+      {isOffline && (
+          <View style={styles.offlineBanner}>
+              <Text style={styles.offlineText}>Sei offline. Stai visualizzando contenuti non aggiornati.</Text>
+          </View>
+      )}
       {isLoading ? (
         <ActivityIndicator size="large" color="#0000ff" />
-      ) : error ? (
-        <Text style={styles.errorText}>Errore nel caricamento: {error}</Text>
       ) : (
         <FlatList
           data={articles}
           keyExtractor={({ id }) => id.toString()}
           renderItem={renderArticle}
+          ListEmptyComponent={<Text style={styles.emptyText}>Nessun articolo da mostrare.</Text>}
         />
       )}
     </View>
@@ -82,12 +101,20 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 10,
+  },
+  offlineBanner: {
+    backgroundColor: '#ffcc00',
+    padding: 10,
+    alignItems: 'center',
+  },
+  offlineText: {
+    color: '#000',
   },
   itemContainer: {
     backgroundColor: '#FFFFFF',
     padding: 20,
     marginVertical: 8,
+    marginHorizontal: 10,
     borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -110,9 +137,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
   },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-    marginTop: 20,
-  },
+  emptyText: {
+      textAlign: 'center',
+      marginTop: 50,
+      fontSize: 16,
+  }
 });
