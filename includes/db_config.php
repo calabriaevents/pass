@@ -4,6 +4,18 @@
 
 // Load database configuration from environment variables or config file
 function getDatabaseConfig() {
+    // Check if running on localhost for local development
+    $is_localhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1']) || ($_SERVER['HTTP_HOST'] ?? '') === 'localhost:8000';
+
+    if ($is_localhost) {
+        return [
+            'host' => '127.0.0.1',
+            'dbname' => 'passione_calabria',
+            'username' => 'passione_user',
+            'password' => 'password'
+        ];
+    }
+
     // First try to get from environment variables (recommended for production)
     $host = getenv('DB_HOST');
     $dbname = getenv('DB_NAME');
