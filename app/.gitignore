@@ -1,0 +1,25 @@
+# Dipendenze
+node_modules/
+/ios/Pods/
+/vendor/bundle/
+
+# File di Build e Cache
+/android/build/
+/ios/build/
+.gradle/
+.idea/
+.cxx/
+/coverage/
+
+# File di configurazione locale
+local.properties
+**/.xcode.env.local
+
+# File sensibili
+*.keystore
+
+# Log e file temporanei
+npm-debug.log
+yarn-error.log
+.metro-health-check*
+*.jsbundle
