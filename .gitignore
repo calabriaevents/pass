@@ -1,0 +1,5 @@
+node_modules/
+/vendor/
+/backups/
+/uploads_protected/
+php_server.log
