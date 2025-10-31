@@ -1,4 +1,0 @@
-[Fri Oct 31 11:50:57 2025] PHP 8.3.6 Development Server (http://localhost:8000) started
-[Fri Oct 31 11:50:58 2025] 127.0.0.1:58198 Accepted
-[Fri Oct 31 11:50:58 2025] 127.0.0.1:58198 [200]: GET /api/search.php?keyword=Tropea
-[Fri Oct 31 11:50:58 2025] 127.0.0.1:58198 Closing

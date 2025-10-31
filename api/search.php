@@ -1,292 +1,92 @@
 <?php
-require_once '../includes/config.php';
-require_once '../includes/database_mysql.php';
+// api/search.php
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+require_once __DIR__ . '/config.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
+// --- Input e validazione ---
+$keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
+
+// Restituisci un array vuoto se la keyword è assente o troppo corta
+if (mb_strlen($keyword) < 3) {
+    echo json_encode([]);
+    exit;
 }
+
+// Prepara il termine di ricerca per le query LIKE
+$search_term = '%' . $keyword . '%';
 
 try {
-    $db = new Database();
+    // --- Query unificata con UNION ALL ---
+    // Cerca in articoli, città e province
+    $sql = "
+        (SELECT
+            'article' as type,
+            title,
+            excerpt as description,
+            slug,
+            featured_image as image
+        FROM articles
+        WHERE (title LIKE :term1 OR excerpt LIKE :term2) AND status = 'published')
 
-    // Ottieni parametri di ricerca
-    $query = $_GET['q'] ?? '';
-    $provinceId = $_GET['province'] ?? null;
-    $categoryId = $_GET['category'] ?? null;
-    $mapData = $_GET['map_data'] ?? null;
-    $isAutocomplete = isset($_GET['autocomplete']);
-    $limit = (int)($_GET['limit'] ?? 20);
-    $offset = (int)($_GET['offset'] ?? 0);
+        UNION ALL
 
-    // Gestione speciale per autocompletamento
-    if ($isAutocomplete) {
-        handleAutocompleteRequest($db, $query);
-        exit;
-    }
+        (SELECT
+            'city' as type,
+            name as title,
+            description,
+            NULL as slug,
+            hero_image as image
+        FROM cities
+        WHERE (name LIKE :term3))
 
-    if (empty($query) && !$provinceId && !$categoryId) {
-        jsonResponse([
-            'success' => false,
-            'message' => 'Parametri di ricerca mancanti'
-        ], 400);
-    }
+        UNION ALL
 
-    $results = [];
+        (SELECT
+            'province' as type,
+            name as title,
+            NULL as description,
+            NULL as slug,
+            image_path as image
+        FROM provinces
+        WHERE (name LIKE :term4))
 
-    if ($query) {
-        // Ricerca testuale
-        $articles = $db->searchArticles($query, $provinceId);
+        LIMIT 30
+    ";
 
-        foreach ($articles as $article) {
-            $results[] = [
-                'type' => 'article',
-                'id' => $article['id'],
-                'title' => $article['title'],
-                'excerpt' => $article['excerpt'],
-                'slug' => $article['slug'],
-                'category' => $article['category_name'],
-                'province' => $article['province_name'],
-                'featured_image' => $article['featured_image'],
-                'created_at' => $article['created_at'],
-                'views' => $article['views']
-            ];
-        }
-
-        // Cerca anche nelle categorie
-        $stmt = $db->pdo->prepare('
-            SELECT * FROM categories
-            WHERE name LIKE ? OR description LIKE ?
-            LIMIT 5
-        ');
-        $stmt->execute(["%$query%", "%$query%"]);
-        $categories = $stmt->fetchAll();
-
-        foreach ($categories as $category) {
-            $articleCount = $db->getArticleCountByCategory($category['id']);
-            $results[] = [
-                'type' => 'category',
-                'id' => $category['id'],
-                'title' => $category['name'],
-                'description' => $category['description'],
-                'icon' => $category['icon'],
-                'article_count' => $articleCount,
-                'url' => "categoria.php?id={$category['id']}"
-            ];
-        }
-
-        // Cerca nelle province
-        $stmt = $db->pdo->prepare('
-            SELECT * FROM provinces
-            WHERE name LIKE ? OR description LIKE ?
-            LIMIT 5
-        ');
-        $stmt->execute(["%$query%", "%$query%"]);
-        $provinces = $stmt->fetchAll();
-
-        foreach ($provinces as $province) {
-            $articleCount = $db->getArticleCountByProvince($province['id']);
-            $results[] = [
-                'type' => 'province',
-                'id' => $province['id'],
-                'title' => $province['name'],
-                'description' => $province['description'],
-                'article_count' => $articleCount,
-                'url' => "provincia.php?id={$province['id']}"
-            ];
-        }
-
-        // Cerca nelle città
-        $stmt = $db->pdo->prepare('
-            SELECT c.*, p.name as province_name
-            FROM cities c
-            LEFT JOIN provinces p ON c.province_id = p.id
-            WHERE c.name LIKE ? OR c.description LIKE ?
-            LIMIT 5
-        ');
-        $stmt->execute(["%$query%", "%$query%"]);
-        $cities = $stmt->fetchAll();
-
-        foreach ($cities as $city) {
-            $results[] = [
-                'type' => 'city',
-                'id' => $city['id'],
-                'title' => $city['name'],
-                'description' => $city['description'],
-                'province' => $city['province_name'],
-                'latitude' => $city['latitude'],
-                'longitude' => $city['longitude']
-            ];
-        }
-
-    } elseif ($categoryId) {
-        // Ricerca per categoria
-        $articles = $db->getArticlesByCategory($categoryId, $limit);
-
-        foreach ($articles as $article) {
-            $results[] = [
-                'type' => 'article',
-                'id' => $article['id'],
-                'title' => $article['title'],
-                'excerpt' => $article['excerpt'],
-                'slug' => $article['slug'],
-                'category' => $article['category_name'],
-                'province' => $article['province_name'],
-                'featured_image' => $article['featured_image'],
-                'created_at' => $article['created_at'],
-                'views' => $article['views']
-            ];
-        }
-
-    } elseif ($provinceId) {
-        // Ricerca per provincia
-        $articles = $db->getArticlesByProvince($provinceId, $limit);
-
-        foreach ($articles as $article) {
-            $results[] = [
-                'type' => 'article',
-                'id' => $article['id'],
-                'title' => $article['title'],
-                'excerpt' => $article['excerpt'],
-                'slug' => $article['slug'],
-                'category' => $article['category_name'],
-                'province' => $article['province_name'],
-                'featured_image' => $article['featured_image'],
-                'created_at' => $article['created_at'],
-                'views' => $article['views']
-            ];
-        }
-    }
-
-    // Applica limit e offset
-    $totalResults = count($results);
-    $results = array_slice($results, $offset, $limit);
-
-    jsonResponse([
-        'success' => true,
-        'results' => $results,
-        'total' => $totalResults,
-        'query' => $query,
-        'filters' => [
-            'province_id' => $provinceId,
-            'category_id' => $categoryId
-        ],
-        'pagination' => [
-            'limit' => $limit,
-            'offset' => $offset,
-            'has_more' => ($offset + $limit) < $totalResults
-        ]
+    $stmt = $db->pdo->prepare($sql);
+    $stmt->execute([
+        ':term1' => $search_term,
+        ':term2' => $search_term,
+        ':term3' => $search_term,
+        ':term4' => $search_term
     ]);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
 
-} catch (Exception $e) {
-    error_log('Errore API ricerca: ' . $e->getMessage());
-
-    jsonResponse([
-        'success' => false,
-        'message' => 'Errore interno del server',
-        'error' => $e->getMessage()
-    ], 500);
-}
-
-// Funzione per gestire richieste di autocompletamento
-function handleAutocompleteRequest($db, $query) {
-    try {
-        $results = [];
-
-        if (empty(trim($query)) || strlen(trim($query)) < 2) {
-            jsonResponse(['success' => true, 'results' => []]);
-            return;
+    // --- Elaborazione e formattazione dei risultati ---
+    $formatted_results = [];
+    foreach ($results as $result) {
+        // Tronca la descrizione per uniformità
+        $description = $result['description'] ?? '';
+        if (mb_strlen($description) > 150) {
+            $description = mb_substr($description, 0, 150) . '...';
         }
 
-        // Ricerca città (limit 3)
-        $stmt = $db->pdo->prepare('
-            SELECT c.id, c.name, p.name as province_name
-            FROM cities c
-            LEFT JOIN provinces p ON c.province_id = p.id
-            WHERE c.name LIKE ?
-            LIMIT 3
-        ');
-        $stmt->execute(["%$query%"]);
-        $cities = $stmt->fetchAll();
-        foreach ($cities as $city) {
-            $results[] = [
-                'type' => 'city',
-                'title' => htmlspecialchars($city['name']),
-                'description' => 'Città in provincia di ' . htmlspecialchars($city['province_name']),
-                'icon' => 'map-pin',
-                'url' => "citta-dettaglio.php?id={$city['id']}"
-            ];
-        }
-
-        // Ricerca articoli (limit 3)
-        $articles = $db->searchArticles($query, null);
-        foreach (array_slice($articles, 0, 3) as $article) {
-            $results[] = [
-                'type' => 'article',
-                'title' => htmlspecialchars($article['title']),
-                'description' => htmlspecialchars(substr($article['excerpt'] ?? '', 0, 70)) . '...',
-                'icon' => 'file-text',
-                'url' => "articolo.php?slug={$article['slug']}"
-            ];
-        }
-
-        // Ricerca categorie (limit 2)
-        $stmt = $db->pdo->prepare('
-            SELECT * FROM categories
-            WHERE name LIKE ?
-            LIMIT 2
-        ');
-        $stmt->execute(["%$query%"]);
-        $categories = $stmt->fetchAll();
-        foreach ($categories as $category) {
-            $results[] = [
-                'type' => 'category',
-                'title' => htmlspecialchars($category['name']),
-                'description' => htmlspecialchars(substr($category['description'] ?? '', 0, 70)) . '...',
-                'icon' => htmlspecialchars($category['icon'] ?? 'folder'),
-                'url' => "categoria.php?id={$category['id']}"
-            ];
-        }
-
-        // Ricerca province (limit 2)
-        $stmt = $db->pdo->prepare('
-            SELECT * FROM provinces
-            WHERE name LIKE ?
-            LIMIT 2
-        ');
-        $stmt->execute(["%$query%"]);
-        $provinces = $stmt->fetchAll();
-        foreach ($provinces as $province) {
-            $results[] = [
-                'type' => 'province',
-                'title' => htmlspecialchars($province['name']),
-                'description' => 'Provincia',
-                'icon' => 'map',
-                'url' => "provincia.php?id={$province['id']}"
-            ];
-        }
-
-        // Limita i risultati totali
-        $results = array_slice($results, 0, 8);
-
-        jsonResponse([
-            'success' => true,
-            'results' => $results,
-        ]);
-
-    } catch (Exception $e) {
-        error_log('Errore autocompletamento: ' . $e->getMessage());
-        jsonResponse([
-            'success' => false,
-            'results' => [],
-            'message' => 'Errore durante l\'autocompletamento'
-        ]);
+        $formatted_results[] = [
+            'type' => $result['type'],
+            'title' => $result['title'],
+            'description' => $description,
+            'slug' => $result['slug'],
+            'image_url' => get_full_image_url(normalize_image_path($result['image']))
+        ];
     }
-}
 
-// The jsonResponse function is already included from config.php
+    echo json_encode($formatted_results, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+
+} catch (PDOException $e) {
+    // In caso di errore del database, invia una risposta di errore generica
+    http_response_code(500); // Internal Server Error
+    echo json_encode(['error' => 'Errore durante l\'esecuzione della ricerca.']);
+    // Per debug: error_log('API Search Error: ' . $e->getMessage());
+}
 ?>
