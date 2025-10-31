@@ -1,1 +1,20 @@
+# Dependencies
+/node_modules/
+/vendor/
 
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Backups
+/backups/
+
+# Uploads (sensitive files)
+/uploads_protected/
+
+# Temporary files
+php_server.log
