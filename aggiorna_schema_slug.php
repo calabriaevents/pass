@@ -20,8 +20,7 @@ try {
     foreach ($tabelle as $tabella) {
         echo "--- Controllo tabella: {$tabella} ---\n";
 
-        $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$tabella}` LIKE ?");
-        $stmt->execute([$colonna]);
+        $stmt = $pdo->query("SHOW COLUMNS FROM `{$tabella}` LIKE '{$colonna}'");
         $esiste = $stmt->fetch();
 
         if ($esiste) {
