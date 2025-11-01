@@ -18,4 +18,5 @@
 
 # Temporary files
 php_server.log
-immagini/
+immagini/*
+!immagini/.gitkeep
