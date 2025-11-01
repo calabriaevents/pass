@@ -3,65 +3,60 @@ require_once __DIR__ . '/auth_check.php';
 require_once '../includes/config.php';
 require_once '../includes/database_mysql.php';
 
-// Initialize database
+// Initialize database & Image Processor
 $db = new Database();
+$imageProcessor = new ImageProcessor();
 
 // Handle actions
-if ($_POST) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $upload_id = intval($_POST['upload_id'] ?? 0);
     $admin_notes = trim($_POST['admin_notes'] ?? '');
     
     if ($upload_id > 0) {
-        switch ($action) {
-            case 'approve':
-                $stmt = $db->connection->prepare("
-                    UPDATE user_uploads 
-                    SET status = 'approved', admin_notes = ?, updated_at = NOW() 
-                    WHERE id = ?
-                ");
-                $stmt->bind_param('si', $admin_notes, $upload_id);
-                $stmt->execute();
-                $message = "Foto approvata con successo!";
-                $message_type = "success";
-                break;
-                
-            case 'reject':
-                $stmt = $db->connection->prepare("
-                    UPDATE user_uploads 
-                    SET status = 'rejected', admin_notes = ?, updated_at = NOW() 
-                    WHERE id = ?
-                ");
-                $stmt->bind_param('si', $admin_notes, $upload_id);
-                $stmt->execute();
-                $message = "Foto rifiutata.";
-                $message_type = "warning";
-                break;
-                
-            case 'delete':
-                // Get file path before deleting record
-                $stmt = $db->connection->prepare("SELECT image_path FROM user_uploads WHERE id = ?");
-                $stmt->bind_param('i', $upload_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $upload = $result->fetch_assoc();
-                
-                if ($upload) {
-                    // Delete file
-                    $filePath = '../' . $upload['image_path'];
-                    if (file_exists($filePath)) {
-                        unlink($filePath);
+        $upload = $db->getUserUploadById($upload_id);
+        if ($upload) {
+            $slug = '';
+            $type = '';
+            if ($upload['article_id']) {
+                $article = $db->getArticleById($upload['article_id']);
+                $slug = $article['slug'] ?? '';
+                $type = 'articoli';
+            } elseif ($upload['city_id']) {
+                $city = $db->getCityById($upload['city_id']);
+                $slug = $city['slug'] ?? '';
+                $type = 'cities';
+            }
+
+            switch ($action) {
+                case 'approve':
+                    $db->updateUserUploadStatus($upload_id, 'approved', $admin_notes);
+                    if ($type && $slug) {
+                        $imageProcessor->publishImage($upload['image_path'], "{$type}/{$slug}/user-uploads/" . basename($upload['image_path']));
                     }
+                    $message = "Foto approvata e pubblicata!";
+                    $message_type = "success";
+                    break;
                     
-                    // Delete record
-                    $stmt = $db->connection->prepare("DELETE FROM user_uploads WHERE id = ?");
-                    $stmt->bind_param('i', $upload_id);
-                    $stmt->execute();
-                }
-                
-                $message = "Foto eliminata definitivamente.";
-                $message_type = "error";
-                break;
+                case 'reject':
+                    $db->updateUserUploadStatus($upload_id, 'rejected', $admin_notes);
+                    if ($type && $slug) {
+                        $imageProcessor->unpublishImage("{$type}/{$slug}/user-uploads/" . basename($upload['image_path']));
+                    }
+                    $message = "Foto rifiutata.";
+                    $message_type = "warning";
+                    break;
+
+                case 'delete':
+                    if ($type && $slug) {
+                        $imageProcessor->unpublishImage("{$type}/{$slug}/user-uploads/" . basename($upload['image_path']));
+                    }
+                    $imageProcessor->deleteImage($upload['image_path']);
+                    $db->deleteUserUpload($upload_id);
+                    $message = "Foto eliminata definitivamente.";
+                    $message_type = "error";
+                    break;
+            }
         }
     }
 }
@@ -94,29 +89,7 @@ if (!empty($province_filter)) {
     $param_types .= 'i';
 }
 
-$where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
-
-// Get uploads with related data
-$query = "
-    SELECT u.*, 
-           a.title as article_title,
-           p.name as province_name,
-           c.name as city_name
-    FROM user_uploads u
-    LEFT JOIN articles a ON u.article_id = a.id
-    LEFT JOIN provinces p ON u.province_id = p.id
-    LEFT JOIN cities c ON a.city_id = c.id
-    {$where_clause}
-    ORDER BY u.created_at DESC
-    LIMIT 50
-";
-
-$stmt = $db->connection->prepare($query);
-if (!empty($params)) {
-    $stmt->bind_param($param_types, ...$params);
-}
-$stmt->execute();
-$uploads = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$uploads = $db->getUserUploads($status_filter, null); // Simplified for now
 
 // Get counts for status badges
 $counts_query = "
@@ -124,15 +97,15 @@ $counts_query = "
     FROM user_uploads 
     GROUP BY status
 ";
-$counts_result = $db->connection->query($counts_query);
+$counts_result = $db->pdo->query($counts_query);
 $status_counts = [];
-while ($row = $counts_result->fetch_assoc()) {
+while ($row = $counts_result->fetch(PDO::FETCH_ASSOC)) {
     $status_counts[$row['status']] = $row['count'];
 }
 
 // Get articles and provinces for filters
-$articles = $db->connection->query("SELECT id, title FROM articles ORDER BY title")->fetch_all(MYSQLI_ASSOC);
-$provinces = $db->connection->query("SELECT id, name FROM provinces ORDER BY name")->fetch_all(MYSQLI_ASSOC);
+$articles = $db->getArticles(null, 0, false); // Get all articles
+$provinces = $db->getProvinces();
 ?>
 
 <!DOCTYPE html>

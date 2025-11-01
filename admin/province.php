@@ -18,15 +18,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($entity === 'provinces') {
             $name = $_POST['name'] ?? '';
+            $slug = $_POST['slug'] ?? '';
             $description = $_POST['description'] ?? '';
-            $image_path = $_POST['existing_image_path'] ?? null;
 
+            $existingProvince = null;
+            if ($action === 'edit' && $id) {
+                $existingProvince = $db->getProvinceById($id);
+            }
+
+            $image_path = $existingProvince['image_path'] ?? null;
+
+            // Se viene caricata una nuova immagine
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                // Rimuovi la vecchia immagine pubblica e protetta
+                if ($image_path && $existingProvince) {
+                    $old_filename = basename($image_path);
+                    $imageProcessor->unpublishImage("provinces/{$existingProvince['slug']}/{$old_filename}");
+                    $imageProcessor->deleteImage($image_path);
+                }
+
                 $new_image_path = $imageProcessor->processUploadedImage($_FILES['image'], 'provinces');
                 if ($new_image_path) {
-                    if ($image_path) {
-                        $imageProcessor->deleteImage($image_path);
-                    }
                     $image_path = $new_image_path;
                 } else {
                     throw new Exception("Errore nel caricamento dell'immagine: " . $imageProcessor->getLastError());
@@ -34,9 +46,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($action === 'edit' && $id) {
-                $db->updateProvince($id, $name, $description, $image_path);
+                $db->updateProvince($id, $name, $slug, $description, $image_path);
             } else {
-                $db->createProvince($name, $description, $image_path);
+                $id = $db->createProvince($name, $slug, $description, $image_path);
+            }
+
+            // Pubblica l'immagine dopo aver salvato e ottenuto uno slug
+            $finalProvince = $db->getProvinceById($id);
+            if ($finalProvince && $finalProvince['image_path']) {
+                $filename = basename($finalProvince['image_path']);
+                $imageProcessor->publishImage($finalProvince['image_path'], "provinces/{$finalProvince['slug']}/{$filename}");
             }
         }
 
@@ -50,6 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'delete' && $id) {
     if ($entity === 'provinces') {
+        $province = $db->getProvinceById($id);
+        if ($province) {
+            // Rimuovi la cartella pubblica e le immagini protette
+            $imageProcessor->unpublishDirectory('provinces/' . $province['slug']);
+            if ($province['image_path']) {
+                $imageProcessor->deleteImage($province['image_path']);
+            }
+        }
         $db->deleteProvince($id);
         $success_message = "Provincia eliminata con successo!";
     }
@@ -286,8 +313,21 @@ if (isset($_GET['success'])) {
                                     </label>
                                     <input type="text" name="name" id="name" required 
                                            value="<?php echo htmlspecialchars($province['name'] ?? ''); ?>"
+                                           oninput="generateSlug(this.value)"
                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                            placeholder="Es: Cosenza, Catanzaro, Reggio Calabria...">
+                                </div>
+
+                                <!-- Slug -->
+                                <div>
+                                    <label for="slug" class="block text-sm font-semibold text-gray-700 mb-2">
+                                        Slug (URL)
+                                    </label>
+                                    <input type="text" name="slug" id="slug" required
+                                           value="<?php echo htmlspecialchars($province['slug'] ?? ''); ?>"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                           placeholder="verra-generato-automaticamente">
+                                    <p class="text-xs text-gray-500 mt-1">Lo slug è la parte dell'URL che identifica la provincia. Generato automaticamente dal nome.</p>
                                 </div>
                                 
                                 <!-- Descrizione -->
@@ -367,6 +407,22 @@ if (isset($_GET['success'])) {
         // Inizializza Lucide icons
         lucide.createIcons();
         
+        function slugify(text) {
+            return text.toString().toLowerCase()
+                .replace(/\s+/g, '-')           // Replace spaces with -
+                .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+                .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+                .replace(/^-+/, '')             // Trim - from start of text
+                .replace(/-+$/, '');            // Trim - from end of text
+        }
+
+        function generateSlug(name) {
+            const slugInput = document.getElementById('slug');
+            if (slugInput) {
+                slugInput.value = slugify(name);
+            }
+        }
+
         // Funzioni per l'upload delle immagini
         function previewImage(input) {
             if (input.files && input.files[0]) {

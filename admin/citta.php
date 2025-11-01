@@ -15,68 +15,66 @@ $success_message = '';
 // Gestione delle azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_gallery_image'])) {
     $name = $_POST['city_name'] ?? '';
+    $slug = $_POST['city_slug'] ?? '';
     $province_id = $_POST['city_province_id'] ?? '';
     $description = $_POST['city_description'] ?? '';
     $latitude = !empty($_POST['city_latitude']) ? (float)$_POST['city_latitude'] : null;
     $longitude = !empty($_POST['city_longitude']) ? (float)$_POST['city_longitude'] : null;
     $google_maps_link = $_POST['city_Maps_link'] ?? '';
 
-    $hero_image_path = null;
-    $gallery_images_json = null;
-
+    $existingCity = null;
     if ($action === 'edit' && $id) {
         $existingCity = $db->getCityById($id);
-        $hero_image_path = $existingCity['hero_image'] ?? null;
-        $gallery_images_json = $existingCity['gallery_images'] ?? null;
     }
 
+    $hero_image_path = $existingCity['hero_image'] ?? null;
+    $gallery_images_json = $existingCity['gallery_images'] ?? '[]';
+
     try {
-        // --- NUOVA GESTIONE UPLOAD CON CONTROLLO ERRORI ---
+        // Gestione Hero Image
         if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
-            $new_hero_path = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'cities/hero');
-            if ($new_hero_path) {
-                if ($hero_image_path) {
-                    $imageProcessor->deleteImage($hero_image_path);
-                }
-                $hero_image_path = $new_hero_path;
-            } else {
-                throw new Exception("Errore nel caricamento dell'immagine hero: " . $imageProcessor->getLastError());
+            if ($hero_image_path && $existingCity) {
+                $imageProcessor->unpublishImage("cities/{$existingCity['slug']}/hero/" . basename($hero_image_path));
+                $imageProcessor->deleteImage($hero_image_path);
             }
+            $new_hero_path = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'cities/hero');
+            if (!$new_hero_path) throw new Exception("Errore hero image: " . $imageProcessor->getLastError());
+            $hero_image_path = $new_hero_path;
         }
 
+        // Gestione Galleria
+        $current_gallery = json_decode($gallery_images_json, true);
         if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
-            $gallery_images = $gallery_images_json ? json_decode($gallery_images_json, true) : [];
             $files = $_FILES['gallery_images'];
-
             foreach ($files['tmp_name'] as $key => $tmpName) {
                 if ($files['error'][$key] === UPLOAD_ERR_OK) {
-                    $file_info = [
-                        'name' => $files['name'][$key],
-                        'type' => $files['type'][$key],
-                        'tmp_name' => $tmpName,
-                        'error' => $files['error'][$key],
-                        'size' => $files['size'][$key]
-                    ];
+                    $file_info = ['name' => $files['name'][$key], 'type' => $files['type'][$key], 'tmp_name' => $tmpName, 'error' => $files['error'][$key], 'size' => $files['size'][$key]];
                     $gallery_path = $imageProcessor->processUploadedImage($file_info, 'cities/gallery');
-                    if ($gallery_path) {
-                        $gallery_images[] = $gallery_path;
-                    } else {
-                        throw new Exception("Errore caricando un'immagine della galleria: " . $imageProcessor->getLastError());
-                    }
+                    if ($gallery_path) $current_gallery[] = $gallery_path;
+                    else throw new Exception("Errore galleria: " . $imageProcessor->getLastError());
                 }
             }
-            $gallery_images_json = json_encode(array_values($gallery_images));
         }
+        $gallery_images_json = json_encode(array_values($current_gallery));
 
-        // Salvataggio nel database
+        // Salvataggio DB
         if ($action === 'edit' && $id) {
-            $db->updateCityExtended($id, $name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
-            // Non impostare $success_message qui per evitare che venga mostrato dopo l'header
+            $db->updateCityExtended($id, $name, $slug, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
         } else {
-            $db->createCityExtended($name, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
+            $id = $db->createCityExtended($name, $slug, $province_id, $description, $latitude, $longitude, $hero_image_path, $google_maps_link, $gallery_images_json);
         }
         
-        header('Location: citta.php?success=1'); // Invia un parametro di successo
+        // Pubblicazione immagini
+        $finalCity = $db->getCityById($id);
+        if ($finalCity) {
+            if($finalCity['hero_image']) $imageProcessor->publishImage($finalCity['hero_image'], "cities/{$finalCity['slug']}/hero/" . basename($finalCity['hero_image']));
+            $gallery = json_decode($finalCity['gallery_images'] ?? '[]', true);
+            foreach ($gallery as $img) {
+                $imageProcessor->publishImage($img, "cities/{$finalCity['slug']}/gallery/" . basename($img));
+            }
+        }
+
+        header('Location: citta.php?success=1');
         exit;
 
     } catch (Exception $e) {
@@ -96,34 +94,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_gallery_image'
             return $img !== $image_to_delete;
         });
         
-        // Elimina il file fisico usando ImageProcessor
+        // Elimina il file fisico (protetto e pubblico)
+        $imageProcessor->unpublishImage("cities/{$city['slug']}/gallery/" . basename($image_to_delete));
         $imageProcessor->deleteImage($image_to_delete);
         
         // Aggiorna il database
         $gallery_images_json = json_encode(array_values($gallery_images));
-        $db->updateCityExtended($id, $city['name'], $city['province_id'], $city['description'], $city['latitude'], $city['longitude'], $city['hero_image'], $city['google_maps_link'], $gallery_images_json);
+        $db->updateCityExtended($id, $city['name'], $city['slug'], $city['province_id'], $city['description'], $city['latitude'], $city['longitude'], $city['hero_image'], $city['google_maps_link'], $gallery_images_json);
         
-        header('Location: citta.php?action=edit&id=' . $id);
+        header('Location: citta.php?action=edit&id=' . $id . '&success=1');
         exit;
     }
 }
 
 if ($action === 'delete' && $id) {
-    // Elimina anche le immagini associate
     $city = $db->getCityById($id);
     if ($city) {
-        // Elimina hero image
-        if ($city['hero_image'] && file_exists('../' . $city['hero_image'])) {
-            unlink('../' . $city['hero_image']);
-        }
-        // Elimina galleria
-        if ($city['gallery_images']) {
-            $gallery_images = json_decode($city['gallery_images'], true) ?: [];
-            foreach ($gallery_images as $image) {
-                if (file_exists('../' . $image)) {
-                    unlink('../' . $image);
-                }
-            }
+        // Rimuovi l'intera cartella pubblica e le immagini protette
+        $imageProcessor->unpublishDirectory('cities/' . $city['slug']);
+        $imageProcessor->deleteImage($city['hero_image']);
+        $gallery = json_decode($city['gallery_images'] ?? '[]', true);
+        foreach ($gallery as $img) {
+            $imageProcessor->deleteImage($img);
         }
     }
     
@@ -398,8 +390,18 @@ if (isset($_GET['success'])) {
                                             </label>
                                             <input type="text" name="city_name" id="city_name" required 
                                                    value="<?php echo htmlspecialchars($cityData['name'] ?? ''); ?>"
+                                                   oninput="generateCitySlug(this.value)"
                                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                                    placeholder="Es: Cosenza, Catanzaro, Reggio Calabria...">
+                                        </div>
+
+                                        <div>
+                                            <label for="city_slug" class="block text-sm font-semibold text-gray-700 mb-2">
+                                                Slug (URL)
+                                            </label>
+                                            <input type="text" name="city_slug" id="city_slug" required
+                                                   value="<?php echo htmlspecialchars($cityData['slug'] ?? ''); ?>"
+                                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
                                         </div>
                                         
                                         <div>
@@ -575,6 +577,19 @@ if (isset($_GET['success'])) {
     <script>
         // Inizializza Lucide icons
         lucide.createIcons();
+
+        function slugify(text) {
+            return text.toString().toLowerCase()
+                .replace(/\s+/g, '-')           // Replace spaces with -
+                .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+                .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+                .replace(/^-+/, '')             // Trim - from start of text
+                .replace(/-+$/, '');            // Trim - from end of text
+        }
+
+        function generateCitySlug(name) {
+            document.getElementById('city_slug').value = slugify(name);
+        }
 
         // Auto-nascondere messaggi di successo dopo 5 secondi
         const successMessage = document.querySelector('.bg-green-50.border-l-4.border-green-400');

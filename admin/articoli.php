@@ -18,13 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'edit' && $id) {
         $existingArticle = $db->getArticleById($id);
         if (!$existingArticle) {
-            // Se l'articolo non esiste, gestisci l'errore o reindirizza
             $error_message = "Errore: Articolo non trovato.";
-            // Potresti voler interrompere l'esecuzione qui
         }
     }
 
-    // Leggi i dati da POST, usando i dati esistenti come fallback se siamo in 'edit'
     $title = $_POST['title'] ?? $existingArticle['title'] ?? '';
     $slug = $_POST['slug'] ?? $existingArticle['slug'] ?? '';
     $content = $_POST['content'] ?? $existingArticle['content'] ?? '';
@@ -37,27 +34,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $author = $_POST['author'] ?? $existingArticle['author'] ?? 'Admin';
     $posted_json_data = isset($_POST['json_data']) && is_array($_POST['json_data']) ? $_POST['json_data'] : [];
 
-    // --- GESTIONE UPLOAD SICURA CON CONTROLLO ERRORI ---
-    $featured_image = null;
-    $hero_image = null;
-    $logo = null;
+    $featured_image_path = $existingArticle['featured_image'] ?? null;
+    $hero_image_path = $existingArticle['hero_image'] ?? null;
+    $logo_path = $existingArticle['logo'] ?? null;
+    $gallery_images_json = $existingArticle['gallery_images'] ?? '[]';
     $menu_pdf = null;
-    $gallery_images = null;
 
     try {
-        if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === UPLOAD_ERR_OK) {
-            $featured_image = $imageProcessor->processUploadedImage($_FILES['featured_image'], 'articles/featured');
-            if (!$featured_image) throw new Exception("Errore nel caricamento dell'immagine in evidenza: " . $imageProcessor->getLastError());
-        }
+        // Funzione helper per la pubblicazione
+        $publish = function ($protected_path, $slug, $type) use ($imageProcessor) {
+            if ($protected_path && $slug && $type) {
+                $filename = basename($protected_path);
+                $public_path = "articoli/{$slug}/{$type}/{$filename}";
+                $imageProcessor->publishImage($protected_path, $public_path);
+            }
+        };
 
-        if (isset($_FILES['hero_image']) && $_FILES['hero_image']['error'] === UPLOAD_ERR_OK) {
-            $hero_image = $imageProcessor->processUploadedImage($_FILES['hero_image'], 'articles/hero');
-            if (!$hero_image) throw new Exception("Errore nel caricamento dell'immagine hero: " . $imageProcessor->getLastError());
-        }
+        // Funzione helper per la rimozione
+        $unpublish = function ($protected_path, $slug, $type) use ($imageProcessor) {
+            if ($protected_path && $slug && $type) {
+                $filename = basename($protected_path);
+                $public_path = "articoli/{$slug}/{$type}/{$filename}";
+                $imageProcessor->unpublishImage($public_path);
+                $imageProcessor->deleteImage($protected_path); // Pulisce anche la cartella protetta
+            }
+        };
 
-        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-            $logo = $imageProcessor->processUploadedImage($_FILES['logo'], 'articles/logos');
-            if (!$logo) throw new Exception("Errore nel caricamento del logo: " . $imageProcessor->getLastError());
+        // Gestione Immagini Singole (featured, hero, logo)
+        $image_fields = ['featured_image' => 'articles/featured', 'hero_image' => 'articles/hero', 'logo' => 'articles/logos'];
+        foreach ($image_fields as $field_name => $subfolder) {
+            $db_field_path = $field_name . '_path';
+
+            // 1. Controlla se eliminare l'immagine esistente
+            if (!empty($_POST['delete_' . $field_name]) && $existingArticle) {
+                $unpublish($existingArticle[$field_name], $existingArticle['slug'], str_replace('articles/','', $subfolder) . 's');
+                $$db_field_path = null;
+            }
+
+            // 2. Controlla se è stata caricata una nuova immagine
+            if (isset($_FILES[$field_name]) && $_FILES[$field_name]['error'] === UPLOAD_ERR_OK) {
+                // Se c'è una nuova immagine, elimina quella vecchia prima di caricarla
+                if ($existingArticle && !empty($existingArticle[$field_name])) {
+                    $unpublish($existingArticle[$field_name], $existingArticle['slug'], str_replace('articles/','', $subfolder) . 's');
+                }
+                $new_path = $imageProcessor->processUploadedImage($_FILES[$field_name], $subfolder);
+                if (!$new_path) throw new Exception("Errore caricamento {$field_name}: " . $imageProcessor->getLastError());
+                $$db_field_path = $new_path;
+            }
         }
 
         // Gestione Menu PDF
@@ -72,82 +95,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Gestione galleria immagini
+        // Gestione Galleria
+        $current_gallery = json_decode($gallery_images_json, true);
+        // 1. Eliminazione delle immagini selezionate
+        if (!empty($_POST['delete_gallery_images']) && is_array($_POST['delete_gallery_images'])) {
+            $images_to_delete = $_POST['delete_gallery_images'];
+            foreach ($images_to_delete as $img_path) {
+                if(in_array($img_path, $current_gallery)) {
+                    $unpublish($img_path, $existingArticle['slug'], 'gallery');
+                }
+            }
+            $current_gallery = array_diff($current_gallery, $images_to_delete);
+        }
+
+        // 2. Aggiunta di nuove immagini
         if (isset($_FILES['gallery_images']) && !empty($_FILES['gallery_images']['name'][0])) {
-            $galleryPaths = [];
             $files = $_FILES['gallery_images'];
             foreach ($files['tmp_name'] as $key => $tmpName) {
                 if ($files['error'][$key] === UPLOAD_ERR_OK) {
-                    $file_info = [
-                        'name' => $files['name'][$key],
-                        'type' => $files['type'][$key],
-                        'tmp_name' => $tmpName,
-                        'error' => $files['error'][$key],
-                        'size' => $files['size'][$key]
-                    ];
+                    $file_info = ['name' => $files['name'][$key], 'type' => $files['type'][$key], 'tmp_name' => $tmpName, 'error' => $files['error'][$key], 'size' => $files['size'][$key]];
                     $gallery_path = $imageProcessor->processUploadedImage($file_info, 'articles/gallery');
                     if ($gallery_path) {
-                        $galleryPaths[] = $gallery_path;
+                        $current_gallery[] = $gallery_path;
                     } else {
-                        throw new Exception("Errore nel caricamento di un'immagine della galleria: " . $imageProcessor->getLastError());
+                        throw new Exception("Errore caricamento galleria: " . $imageProcessor->getLastError());
                     }
                 }
             }
-            if (!empty($galleryPaths)) {
-                $gallery_images = json_encode($galleryPaths);
-            }
         }
+        $gallery_images_json = json_encode(array_values($current_gallery));
 
         $json_data = json_encode($posted_json_data);
+        $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
+        if ($menu_pdf === null && isset($existing_json['menu_pdf_path'])) {
+             $decoded_json = json_decode($json_data, true);
+             $decoded_json['menu_pdf_path'] = $existing_json['menu_pdf_path'];
+             $json_data = json_encode($decoded_json);
+        }
 
-        // --- OPERAZIONI SUL DATABASE ---
+        // --- OPERAZIONI SUL DATABASE E PUBBLICAZIONE FINALE ---
         if ($action === 'edit' && $id) {
-            // Gestione eliminazione e fallback per le immagini singole
-            if (!empty($_POST['delete_featured_image'])) {
-                $featured_image = null;
-            } elseif ($featured_image === null) {
-                $featured_image = $existingArticle['featured_image'] ?? null;
-            }
+            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image_path, $gallery_images_json, $hero_image_path, $logo_path, $json_data, $google_maps_iframe);
+        } else { // 'new'
+            $id = $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image_path, $gallery_images_json, $hero_image_path, $logo_path, $json_data, $google_maps_iframe);
+        }
 
-            if (!empty($_POST['delete_hero_image'])) {
-                $hero_image = null;
-            } elseif ($hero_image === null) {
-                $hero_image = $existingArticle['hero_image'] ?? null;
+        // Pubblica tutte le immagini dopo che l'articolo è stato salvato e abbiamo uno slug
+        $finalArticle = $db->getArticleById($id);
+        if ($finalArticle) {
+            $publish($finalArticle['featured_image'], $finalArticle['slug'], 'featureds');
+            $publish($finalArticle['hero_image'], $finalArticle['slug'], 'heros');
+            $publish($finalArticle['logo'], $finalArticle['slug'], 'logoss');
+            $final_gallery = json_decode($finalArticle['gallery_images'] ?? '[]', true);
+            foreach ($final_gallery as $img) {
+                $publish($img, $finalArticle['slug'], 'gallery');
             }
-
-            if (!empty($_POST['delete_logo'])) {
-                $logo = null;
-            } elseif ($logo === null) {
-                $logo = $existingArticle['logo'] ?? null;
-            }
-
-            // Gestione eliminazione e fallback per la galleria
-            if (!empty($_POST['delete_gallery_images']) && is_array($_POST['delete_gallery_images'])) {
-                $current_gallery = json_decode($existingArticle['gallery_images'] ?? '[]', true);
-                $images_to_delete = $_POST['delete_gallery_images'];
-                $updated_gallery = array_diff($current_gallery, $images_to_delete);
-                // Sovrascrivi $gallery_images solo se non sono state caricate NUOVE immagini
-                if ($gallery_images === null) {
-                    $gallery_images = json_encode(array_values($updated_gallery));
-                } else {
-                    // Se sono state caricate nuove immagini, uniscile con quelle esistenti non eliminate
-                    $newly_uploaded_gallery = json_decode($gallery_images, true);
-                    $final_gallery = array_merge($updated_gallery, $newly_uploaded_gallery);
-                    $gallery_images = json_encode(array_values($final_gallery));
-                }
-            } elseif ($gallery_images === null) {
-                $gallery_images = $existingArticle['gallery_images'] ?? null;
-            }
-
-            $existing_json = json_decode($existingArticle['json_data'] ?? '{}', true);
-            if ($menu_pdf === null && isset($existing_json['menu_pdf_path'])) {
-                 $decoded_json = json_decode($json_data, true);
-                 $decoded_json['menu_pdf_path'] = $existing_json['menu_pdf_path'];
-                 $json_data = json_encode($decoded_json);
-            }
-            $db->updateArticle($id, $title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe);
-        } else {
-            $db->createArticle($title, $slug, $content, $excerpt, $category_id, $province_id, $city_id, $status, $author, $featured_image, $gallery_images, $hero_image, $logo, $json_data, $google_maps_iframe);
         }
 
         header('Location: articoli.php');
@@ -159,6 +161,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($action === 'delete' && $id) {
+    $article = $db->getArticleById($id);
+    if ($article) {
+        // Rimuove le immagini protette e la cartella pubblica
+        $imageProcessor->unpublishDirectory('articoli/' . $article['slug']);
+
+        $imageProcessor->deleteImage($article['featured_image']);
+        $imageProcessor->deleteImage($article['hero_image']);
+        $imageProcessor->deleteImage($article['logo']);
+        $gallery = json_decode($article['gallery_images'] ?? '[]', true);
+        if (is_array($gallery)) {
+            foreach ($gallery as $img) {
+                $imageProcessor->deleteImage($img);
+            }
+        }
+    }
     $db->deleteArticle($id);
     header('Location: articoli.php');
     exit;

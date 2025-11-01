@@ -106,16 +106,17 @@ class Database {
         return $stmt->fetch();
     }
 
-    public function createProvince($name, $description, $image_path = null) {
+    public function createProvince($name, $slug, $description, $image_path = null) {
         if (!$this->isConnected()) { return false; }
-        $stmt = $this->pdo->prepare('INSERT INTO provinces (name, description, image_path) VALUES (?, ?, ?)');
-        return $stmt->execute([$name, $description, $image_path]);
+        $stmt = $this->pdo->prepare('INSERT INTO provinces (name, slug, description, image_path) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$name, $slug, $description, $image_path]);
+        return $this->pdo->lastInsertId();
     }
 
-    public function updateProvince($id, $name, $description, $image_path = null) {
+    public function updateProvince($id, $name, $slug, $description, $image_path = null) {
         if (!$this->isConnected()) { return false; }
-        $params = ['name' => $name, 'description' => $description, 'id' => $id];
-        $sql = 'UPDATE provinces SET name = :name, description = :description';
+        $params = ['name' => $name, 'slug' => $slug, 'description' => $description, 'id' => $id];
+        $sql = 'UPDATE provinces SET name = :name, slug = :slug, description = :description';
         if ($image_path !== null) {
             $sql .= ', image_path = :image_path';
             $params['image_path'] = $image_path;
@@ -201,16 +202,17 @@ class Database {
     }
 
     // Metodi unificati per la gestione delle città
-    public function createCity($name, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
+    public function createCityExtended($name, $slug, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
         if (!$this->isConnected()) { return false; }
-        $stmt = $this->pdo->prepare('INSERT INTO cities (name, province_id, description, latitude, longitude, hero_image, Maps_link, gallery_images, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())');
-        return $stmt->execute([$name, $province_id, $description, $latitude, $longitude, $hero_image, $google_maps_link, $gallery_images]);
+        $stmt = $this->pdo->prepare('INSERT INTO cities (name, slug, province_id, description, latitude, longitude, hero_image, Maps_link, gallery_images, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())');
+        $stmt->execute([$name, $slug, $province_id, $description, $latitude, $longitude, $hero_image, $google_maps_link, $gallery_images]);
+        return $this->pdo->lastInsertId();
     }
 
-    public function updateCity($id, $name, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
+    public function updateCityExtended($id, $name, $slug, $province_id, $description = '', $latitude = null, $longitude = null, $hero_image = null, $google_maps_link = null, $gallery_images = null) {
         if (!$this->isConnected()) { return false; }
-        $stmt = $this->pdo->prepare('UPDATE cities SET name = ?, province_id = ?, description = ?, latitude = ?, longitude = ?, hero_image = ?, Maps_link = ?, gallery_images = ? WHERE id = ?');
-        return $stmt->execute([$name, $province_id, $description, $latitude, $longitude, $hero_image, $google_maps_link, $gallery_images, $id]);
+        $stmt = $this->pdo->prepare('UPDATE cities SET name = ?, slug = ?, province_id = ?, description = ?, latitude = ?, longitude = ?, hero_image = ?, Maps_link = ?, gallery_images = ? WHERE id = ?');
+        return $stmt->execute([$name, $slug, $province_id, $description, $latitude, $longitude, $hero_image, $google_maps_link, $gallery_images, $id]);
     }
 
     public function deleteCity($id) {

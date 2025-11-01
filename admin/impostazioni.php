@@ -10,20 +10,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Gestione upload immagine Hero
     if (isset($_FILES['hero_image_upload']) && $_FILES['hero_image_upload']['error'] === UPLOAD_ERR_OK) {
         try {
-            // Istanzia il processore specificando la cartella di destinazione
-            $processor = new ImageProcessor('settings');
-            // Processa l'immagine. La sotto-cartella è già nel costruttore, passo una stringa vuota.
-            $relative_path = $processor->processUploadedImage($_FILES['hero_image_upload'], '', 2000); // Max-width 2000px per hero
+            $processor = new ImageProcessor(); // Istanza standard
+            $old_image_path = $db->getSetting('hero_image');
+
+            // Processa e salva la nuova immagine in uploads_protected/settings/
+            $relative_path = $processor->processUploadedImage($_FILES['hero_image_upload'], 'settings', 2000);
 
             if ($relative_path) {
-                // Il percorso restituito è già relativo (es. "settings/img_xyz.webp"), quindi lo salviamo direttamente
+                // Se c'era una vecchia immagine, eliminala (sia pubblica che protetta)
+                if ($old_image_path) {
+                    $processor->unpublishImage('settings/hero/' . basename($old_image_path));
+                    $processor->deleteImage($old_image_path);
+                }
+
+                // Salva il nuovo percorso nel database
                 $db->setSetting('hero_image', $relative_path);
+
+                // Pubblica la nuova immagine nella cartella pubblica
+                $processor->publishImage($relative_path, 'settings/hero/' . basename($relative_path));
             } else {
-                // Se c'è un errore, puoi salvarlo in una variabile per mostrarlo all'utente
                 $upload_error = $processor->getLastError();
             }
         } catch (Exception $e) {
-            // Gestisci l'errore (es. cartella non scrivibile)
             $upload_error = $e->getMessage();
         }
     }

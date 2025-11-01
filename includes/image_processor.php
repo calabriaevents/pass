@@ -2,12 +2,14 @@
 
 class ImageProcessor {
     private $upload_dir;
+    private $public_dir;
     private $last_error;
 
     public function __construct(string $base_subfolder = '') {
         $project_root = dirname(__DIR__);
         // Aggiunge la sotto-cartella di base al percorso di upload
         $this->upload_dir = $project_root . '/uploads_protected/' . ($base_subfolder ? trim($base_subfolder, '/') . '/' : '');
+        $this->public_dir = $project_root . '/immagini/';
 
         // Controlla se la cartella di destinazione finale esiste, altrimenti la crea
         if (!is_dir($this->upload_dir)) {
@@ -134,5 +136,115 @@ class ImageProcessor {
             return unlink($full_path);
         }
         return false;
+    }
+
+    public function publishImage(string $source_protected_path, string $public_relative_path): bool {
+        $this->last_error = null;
+
+        // Normalize the source path to remove any leading "uploads/"
+        if (strpos($source_protected_path, 'uploads/') === 0) {
+            $source_protected_path = substr($source_protected_path, strlen('uploads/'));
+        }
+
+        $source_full_path = dirname(__DIR__) . '/uploads_protected/' . $source_protected_path;
+
+        if (!file_exists($source_full_path)) {
+            $this->last_error = "Impossibile pubblicare: file sorgente non trovato in '{$source_full_path}'.";
+            error_log($this->last_error);
+            return false;
+        }
+
+        $destination_full_path = $this->public_dir . $public_relative_path;
+        $destination_dir = dirname($destination_full_path);
+
+        if (!is_dir($destination_dir)) {
+            if (!mkdir($destination_dir, 0755, true)) {
+                $this->last_error = "Impossibile creare la cartella pubblica '{$destination_dir}'.";
+                error_log($this->last_error);
+                return false;
+            }
+        }
+
+        if (!is_writable($destination_dir)) {
+            $this->last_error = "La cartella pubblica '{$destination_dir}' non è scrivibile.";
+             error_log($this->last_error);
+            return false;
+        }
+
+        if (copy($source_full_path, $destination_full_path)) {
+            return true;
+        } else {
+            $this->last_error = "Impossibile copiare il file da '{$source_full_path}' a '{$destination_full_path}'.";
+            error_log($this->last_error);
+            return false;
+        }
+    }
+
+    public function unpublishImage(string $public_relative_path): bool {
+        $this->last_error = null;
+
+        if (empty($public_relative_path)) {
+            return true;
+        }
+
+        $full_path = $this->public_dir . $public_relative_path;
+
+        if (file_exists($full_path)) {
+            if (is_writable($full_path) && unlink($full_path)) {
+                $parent_dir = dirname($full_path);
+                if (is_dir($parent_dir) && count(scandir($parent_dir)) == 2) {
+                    rmdir($parent_dir);
+                }
+                return true;
+            } else {
+                $this->last_error = "Impossibile eliminare l'immagine pubblica '{$full_path}'. Controlla i permessi.";
+                error_log($this->last_error);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function unpublishDirectory(string $public_relative_path): bool {
+        $this->last_error = null;
+
+        if (empty($public_relative_path)) {
+            return true;
+        }
+
+        $full_path = $this->public_dir . $public_relative_path;
+
+        if (!is_dir($full_path)) {
+            return true;
+        }
+
+        if (strpos(realpath($full_path), realpath($this->public_dir)) !== 0) {
+             $this->last_error = "Tentativo di cancellazione non sicuro bloccato per il percorso: {$full_path}";
+             error_log($this->last_error);
+             return false;
+        }
+
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($full_path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($files as $fileinfo) {
+            $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+            if (!$todo($fileinfo->getRealPath())) {
+                $this->last_error = "Impossibile eliminare '{$fileinfo->getRealPath()}' durante la pulizia della cartella pubblica.";
+                error_log($this->last_error);
+                return false;
+            }
+        }
+
+        if (rmdir($full_path)) {
+            return true;
+        } else {
+            $this->last_error = "Impossibile eliminare la cartella principale '{$full_path}'.";
+            error_log($this->last_error);
+            return false;
+        }
     }
 }
